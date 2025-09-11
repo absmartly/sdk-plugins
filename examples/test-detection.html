@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>ABsmartly DOM Changes Plugin - Detection Test</h1>
+    
+    <div id="status" class="status info">Initializing...</div>
+    
+    <div>
+        <button onclick="initializePlugin()">Initialize Plugin</button>
+        <button onclick="checkPlugin()">Check Plugin</button>
+        <button onclick="destroyPlugin()">Destroy Plugin</button>
+    </div>
+    
+    <h2>Plugin Info:</h2>
+    <pre id="plugin-info">Not detected yet</pre>
+    
+    <h2>Console Output:</h2>
+    <pre id="console-output"></pre>
+
+    <!-- In production, these would be loaded from npm -->
+    <script>
+        // Mock ABsmartly SDK Context
+        const mockContext = {
+            data: () => ({
+                experiments: []
+            }),
+            peek: (name) => 0,
+            treatment: (name) => 0,
+            override: (name, variant) => {
+                log(`Override: ${name} -> ${variant}`);
+            },
+            customFieldValue: (name, field) => null
+        };
+
+        // Make context discoverable (simulating SDK initialization)
+        window.absmartly = { context: mockContext };
+
+        let pluginInstance = null;
+        const logOutput = document.getElementById('console-output');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}\n`;
+            logOutput.textContent += logMessage;
+            console.log(message);
+        }
+
+        // Helper to get ABsmartly context (mimics extension's function)
+        function getABsmartlyContext() {
+            if (window.absmartly?.context) return window.absmartly.context;
+            if (window.ABSmartly?.context) return window.ABSmartly.context;
+            if (window.absmartlyContext) return window.absmartlyContext;
+            
+            for (const key in window) {
+                if (key.includes('absmartly') || key.includes('ABSmartly')) {
+                    const obj = window[key];
+                    if (obj && typeof obj === 'object' && obj.context) {
+                        return obj.context;
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        // Detection function (what the extension would use)
+        function detectPlugin() {
+            const context = getABsmartlyContext();
+            
+            if (context?.__domPlugin?.initialized) {
+                const plugin = context.__domPlugin;
+                log(`✓ Plugin detected! Version: ${plugin.version}`, 'success');
+                
+                const info = {
+                    version: plugin.version,
+                    initialized: plugin.initialized,
+                    capabilities: plugin.capabilities,
+                    timestamp: new Date(plugin.timestamp).toLocaleString()
+                };
+                
+                document.getElementById('plugin-info').textContent = JSON.stringify(info, null, 2);
+                document.getElementById('status').className = 'status success';
+                document.getElementById('status').textContent = `Plugin Ready (v${plugin.version})`;
+                
+                return plugin;
+            } else {
+                log('✗ Plugin not detected', 'error');
+                document.getElementById('plugin-info').textContent = 'Not detected';
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = 'Plugin Not Found';
+                return null;
+            }
+        }
+
+        function initializePlugin() {
+            if (pluginInstance) {
+                log('Plugin already initialized', 'warn');
+                return;
+            }
+
+            log('Initializing plugin...');
+            
+            // Load the plugin script
+            const script = document.createElement('script');
+            script.src = '../dist/absmartly-dom-changes.min.js';
+            script.onload = async () => {
+                log('Plugin script loaded');
+                
+                // Initialize the plugin
+                try {
+                    // The UMD bundle should expose ABSmartlyDOMChanges
+                    if (window.ABSmartlyDOMChanges) {
+                        pluginInstance = new window.ABSmartlyDOMChanges({
+                            context: mockContext,
+                            autoApply: false,
+                            debug: true,
+                            extensionBridge: false
+                        });
+                        
+                        await pluginInstance.initialize();
+                        log('Plugin initialized successfully');
+                        
+                        // Check detection
+                        setTimeout(() => {
+                            detectPlugin();
+                        }, 100);
+                    } else {
+                        log('ABSmartlyDOMChanges not found on window', 'error');
+                    }
+                } catch (error) {
+                    log(`Failed to initialize plugin: ${error.message}`, 'error');
+                }
+            };
+            script.onerror = () => {
+                log('Failed to load plugin script', 'error');
+            };
+            document.head.appendChild(script);
+        }
+
+        function checkPlugin() {
+            log('Checking for plugin...');
+            detectPlugin();
+        }
+
+        function destroyPlugin() {
+            if (!pluginInstance) {
+                log('No plugin instance to destroy', 'warn');
+                return;
+            }
+
+            log('Destroying plugin...');
+            pluginInstance.destroy();
+            pluginInstance = null;
+            
+            setTimeout(() => {
+                detectPlugin();
+            }, 100);
+        }
+
+        // Initial check
+        setTimeout(() => {
+            log('Initial plugin check...');
+            detectPlugin();
+        }, 500);
+    </script>
+</body>
+</html>
