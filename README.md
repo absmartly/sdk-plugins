@@ -205,338 +205,71 @@ The plugin supports comprehensive DOM manipulation with advanced features:
 - API-loaded content
 - Infinite scroll items
 
-## API Reference
+## Key Features
 
-### Initialization
+### Exposure Tracking with trigger_on_view
+
+The `trigger_on_view` property prevents sample ratio mismatch by controlling when A/B test exposures are recorded:
 
 ```javascript
-new DOMChangesPlugin(config: PluginConfig)
+{
+  selector: '.below-fold-element',
+  type: 'style',
+  value: { backgroundColor: 'blue' },
+  trigger_on_view: true  // Only trigger when element becomes visible
+}
 ```
 
-**Config Options:**
-- `context` (required): ABsmartly context instance
-- `autoApply`: Automatically apply changes on initialization (default: true)
-- `spa`: Enable SPA support with MutationObserver (default: true)
-- `visibilityTracking`: Track element visibility before triggering experiments (default: true)
-- `extensionBridge`: Enable browser extension communication (default: true)
-- `dataSource`: Source for DOM changes - 'variable' or 'customField' (default: 'variable')
-- `dataFieldName`: Name of the variable/field containing DOM changes (default: '__dom_changes')
-- `overrideCookieName`: Cookie name for experiment overrides (default: 'absmartly_overrides')
-- `debug`: Enable debug logging (default: false)
+- **`false` (default)**: Exposure triggers immediately
+- **`true`**: Exposure triggers when element enters viewport
+- **Cross-variant tracking**: Tracks elements from ALL variants for unbiased exposure
 
-## Exposure Tracking ⭐ NEW
-
-### Understanding trigger_on_view
-
-The `trigger_on_view` property controls when an A/B test exposure event is recorded:
-
-- **`false` or undefined** (default): Exposure triggers immediately when change is applied
-- **`true`**: Exposure triggers only when element enters viewport
-
-### Why This Matters - Preventing Sample Ratio Mismatch
-
-Consider this scenario:
-```javascript
-// Experiment A: Changes hero (visible immediately)
-// Experiment B: Changes footer (requires scrolling)
-
-// Without proper tracking:
-// - Experiment A: 10,000 exposures
-// - Experiment B: 3,000 exposures
-// Result: Biased, unusable data
-```
-
-### Cross-Variant Tracking
-
-The plugin tracks elements from **ALL variants**, not just the active one:
+### Core API Methods
 
 ```javascript
-// Variant 0: Button stays in header
-// Variant 1: Button moves to sidebar
-// Variant 2: Button moves to footer
-
-// ALL variants track: .header, .sidebar, AND .footer
-// Exposure triggers when ANY container becomes visible
-// Result: Equal exposure opportunity for all variants
-```
-
-### Core Methods
-
-#### Apply Changes
-```javascript
-// Apply all experiment changes from SDK (autoApply mode)
-await plugin.applyChanges();
-
-// Apply changes for specific experiment
+// Apply changes from ABsmartly context
 await plugin.applyChanges('experiment-name');
 
-// Apply single change manually
-const success = plugin.applyChange(change, experimentName);
-```
+// Apply individual change
+const success = plugin.applyChange(change, 'experiment-name');
 
-#### Remove Changes
-```javascript
-// Remove all changes
-plugin.removeChanges();
-
-// Remove changes for specific experiment
+// Remove changes
 plugin.removeChanges('experiment-name');
 
-// Remove a specific change (removes the first matching one)
-plugin.removeSpecificChange(experimentName, selector, changeType);
+// Get applied changes
+const changes = plugin.getAppliedChanges('experiment-name');
 
-// Revert a specific applied change
-plugin.revertChange(appliedChange);
-```
-
-#### Preview Mode
-```javascript
-// Preview changes without creating an experiment
-plugin.previewChanges([
-  { selector: '.title', type: 'text', value: 'Preview Text' }
-]);
-
-// Remove preview
-plugin.removePreview();
-
-// Check if preview is active
-const isActive = plugin.isPreviewActive();
-```
-
-#### State Inspection
-```javascript
-// Get all applied changes
-const applied = plugin.getAppliedChanges(experimentName);
-
-// Get pending changes (for SPA)
-const pending = plugin.getPendingChanges();
-
-// Check if experiment has changes
-const hasChanges = plugin.hasChanges('experiment-name');
-
-// Get all tracked experiments
-const experiments = plugin.getExperiments();
-
-// Get original state of an element
-const original = plugin.getOriginalState('.my-element');
-```
-
-#### Cookie-Based Overrides
-```javascript
-// Get current overrides from cookie
-const overrides = plugin.getOverridesFromCookie();
-
-// Apply overrides to context
-plugin.applyOverridesToContext();
-```
-
-#### Code Injection
-```javascript
-// Request injection code from extension
-plugin.requestInjectionCode();
-
-// Manually inject code
-plugin.injectCode({
-  headStart: '<script>console.log("Head Start")</script>',
-  headEnd: '<style>.custom { color: red; }</style>',
-  bodyStart: '<div id="notification">Welcome!</div>',
-  bodyEnd: '<script>console.log("Body End")</script>'
-});
-```
-
-### Events
-
-```javascript
-// Listen to plugin events
-plugin.on('changes-applied', (data) => {
-  console.log(`Applied ${data.count} changes`);
-});
-
-plugin.on('preview-started', (data) => {
-  console.log(`Preview started with ${data.changeCount} changes`);
-});
-
-plugin.on('experiment-triggered', (data) => {
-  console.log(`Experiment ${data.experimentName} triggered`);
-});
-
-plugin.on('error', (error) => {
-  console.error('Plugin error:', error);
-});
-```
-
-**Available Events:**
-- `initialized`: Plugin successfully initialized
-- `changes-applied`: DOM changes were applied
-- `changes-removed`: DOM changes were removed
-- `preview-started`: Preview mode started
-- `preview-ended`: Preview mode ended
-- `experiment-triggered`: Experiment exposure was triggered
-- `code-injected`: Custom code was injected
-- `error`: An error occurred
-
-## Browser Extension Integration
-
-The plugin automatically communicates with the ABsmartly Browser Extension when `extensionBridge` is enabled.
-
-### Message Protocol
-
-The plugin listens for these messages from the extension:
-- `PREVIEW_CHANGES`: Apply preview changes
-- `REMOVE_PREVIEW`: Remove preview changes
-- `APPLY_CHANGES`: Apply experiment changes
-- `REMOVE_CHANGES`: Remove experiment changes
-- `INJECTION_CODE`: Provide code for injection
-- `UPDATE_OVERRIDES`: Update experiment overrides
-
-The plugin sends these messages to the extension:
-- `PLUGIN_READY`: Plugin initialization complete
-- `CHANGES_APPLIED`: Changes successfully applied
-- `PREVIEW_STARTED`: Preview mode activated
-- `EXPERIMENT_TRIGGERED`: Experiment exposure logged
-
-## SPA Support
-
-When `spa` is enabled, the plugin automatically handles dynamically loaded content:
-
-1. Changes for missing elements are queued as "pending"
-2. MutationObserver watches for new elements
-3. Pending changes are applied when matching elements appear
-4. Retry logic handles temporary DOM states
-
-## Experiment Data Format
-
-The plugin expects DOM changes in your ABsmartly experiments as either variables or custom fields:
-
-### Using Variables
-```json
-{
-  "experiments": [{
-    "name": "homepage-test",
-    "variants": [{
-      "variables": {
-        "__dom_changes": [
-          {
-            "selector": ".hero-title",
-            "type": "text",
-            "value": "Welcome to Our Store!",
-            "trigger_on_view": false
-          },
-          {
-            "selector": ".cta-button",
-            "type": "styleRules",
-            "states": {
-              "normal": {
-                "backgroundColor": "#28a745",
-                "padding": "15px 30px"
-              },
-              "hover": {
-                "backgroundColor": "#218838",
-                "transform": "scale(1.05)"
-              }
-            },
-            "trigger_on_view": false
-          }
-        ]
-      }
-    }]
-  }]
-}
-```
-
-### Using Custom Fields
-```javascript
-// Configure plugin for custom fields
-const plugin = new DOMChangesPlugin({
-  context: context,
-  dataSource: 'customField',
-  dataFieldName: 'dom_changes'
-});
-```
-
-## Advanced Usage
-
-### Server-Side Rendering (SSR)
-
-The cookie-based override system works with server-side rendering:
-
-```javascript
-// Server-side: Read override cookie
-const overrides = req.cookies.absmartly_overrides;
-if (overrides) {
-  const parsed = JSON.parse(overrides);
-  // Apply overrides to server-side context
-  Object.entries(parsed).forEach(([exp, variant]) => {
-    context.override(exp, variant);
-  });
-  // Or even better, just call context.overrides(parsed);
-}
-```
-
-### Custom Event Handlers
-
-```javascript
-// Track when changes become visible
-plugin.on('experiment-triggered', ({ experimentName }) => {
-  analytics.track('Experiment Viewed', {
-    experiment: experimentName,
-    variant: context.treatment(experimentName)
-  });
-});
-
-// Monitor errors
-plugin.on('error', (error) => {
-  errorReporting.log(error);
-});
-```
-
-### Cleanup
-
-```javascript
-// Destroy plugin and clean up resources
+// Clean up resources
 plugin.destroy();
 ```
 
-## Development
+## Browser Extension Integration
 
-### Building from Source
+The plugin communicates with the ABsmartly Browser Extension for visual editing:
 
-```bash
-# Clone repository
-git clone https://github.com/absmartly/dom-changes-plugin.git
-cd dom-changes-plugin
+- **Automatic Detection**: Detects and connects to the extension
+- **Message Protocol**: Two-way communication for preview mode and visual editing
+- **Preview Support**: Test changes before creating experiments
 
-# Install dependencies
-npm install
+## Documentation
 
-# Build the plugin
-npm run build
+For detailed documentation:
 
-# Run tests
-npm test
+- **[Extension Integration Guide](docs/EXTENSION_INTEGRATION_GUIDE.md)** - Complete guide for browser extension integration, visual editing, preview mode, and advanced features
+- **[Exposure Tracking Guide](docs/EXPOSURE_TRACKING_GUIDE.md)** - Understanding trigger_on_view and preventing sample ratio mismatch
 
-# Development mode with watch
-npm run dev
-```
+## Configuration Options
 
-### Project Structure
-
-```
-src/
-├── core/
-│   ├── DOMChangesPlugin.ts     # Main plugin class
-│   ├── DOMManipulator.ts       # DOM manipulation logic
-│   ├── StateManager.ts         # State management
-│   └── MessageBridge.ts        # Extension communication
-├── observers/
-│   ├── MutationHandler.ts      # SPA support
-│   └── ViewportObserver.ts     # Visibility tracking
-├── parsers/
-│   └── VariantExtractor.ts     # Extract changes from experiments
-├── injection/
-│   └── CodeInjector.ts         # Code injection handling
-└── types/
-    └── index.ts                 # TypeScript definitions
+```javascript
+new DOMChangesPlugin({
+  context: absmartlyContext,     // Required: ABsmartly context
+  autoApply: true,               // Auto-apply changes from SDK
+  spa: true,                     // Enable SPA support
+  extensionBridge: true,         // Enable browser extension communication
+  dataSource: 'variable',        // 'variable' or 'customField'
+  dataFieldName: '__dom_changes', // Variable/field name for changes
+  debug: false                   // Enable debug logging
+})
 ```
 
 ## Browser Compatibility
@@ -548,13 +281,3 @@ src/
 ## License
 
 MIT
-
-## Support
-
-For issues and questions:
-- GitHub Issues: [https://github.com/absmartly/dom-changes-plugin/issues](https://github.com/absmartly/dom-changes-plugin/issues)
-- Documentation: [https://docs.absmartly.com](https://docs.absmartly.com)
-
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.

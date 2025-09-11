@@ -1,6 +1,6 @@
-# ABSmartly DOM Changes Plugin - Complete Extension Integration Guide
+# ABSmartly DOM Changes Plugin - Extension Integration Guide
 
-This guide covers everything you need to integrate the DOM Changes Plugin into your Chrome extension, including all latest features.
+Complete guide for integrating the DOM Changes Plugin into your Chrome extension, including preview mode, visual editing, styleRules, exposure tracking, and advanced state management.
 
 ## Table of Contents
 1. [Plugin Initialization](#plugin-initialization)
@@ -558,9 +558,209 @@ if (hasOnlyImmediateChanges) {
 }
 ```
 
-## Best Practices
+## Complete Extension Development Guide
 
-### 1. Exposure Timing Strategy
+### Preview Mode Implementation
+
+Implementing preview mode in your extension requires managing state and DOM changes:
+
+```javascript
+class PreviewManager {
+  constructor(plugin) {
+    this.plugin = plugin;
+    this.isPreviewMode = false;
+    this.currentVariant = null;
+  }
+
+  startPreview(variant) {
+    this.currentVariant = variant;
+    this.isPreviewMode = true;
+    
+    // Apply all enabled changes
+    variant.changes
+      .filter(change => change.enabled)
+      .forEach(change => {
+        this.plugin.applyChange(change, `${variant.id}-preview`);
+      });
+  }
+
+  stopPreview() {
+    if (this.currentVariant) {
+      this.plugin.removeChanges(`${this.currentVariant.id}-preview`);
+      this.currentVariant = null;
+    }
+    this.isPreviewMode = false;
+  }
+
+  toggleChange(changeId, enabled) {
+    if (!this.currentVariant) return;
+    
+    const change = this.currentVariant.changes.find(c => c.id === changeId);
+    if (!change) return;
+    
+    change.enabled = enabled;
+    
+    // Refresh entire preview (safest approach)
+    this.stopPreview();
+    this.startPreview(this.currentVariant);
+  }
+}
+```
+
+### Visual Editor Integration
+
+For creating changes through visual interaction:
+
+```javascript
+class VisualEditor {
+  constructor(plugin) {
+    this.plugin = plugin;
+    this.active = false;
+  }
+
+  activate() {
+    this.active = true;
+    this.setupElementHighlighting();
+    this.addEventListeners();
+  }
+
+  handleElementClick(element) {
+    const selector = this.generateSelector(element);
+    
+    // Show edit options
+    this.showEditMenu(element, {
+      'Edit Text': () => this.editText(element, selector),
+      'Edit Styles': () => this.editStyles(element, selector),
+      'Move Element': () => this.startMoveMode(element, selector)
+    });
+  }
+
+  editText(element, selector) {
+    const newText = prompt('Enter new text:', element.textContent);
+    if (newText) {
+      const change = {
+        selector,
+        type: 'text',
+        value: newText
+      };
+      this.plugin.applyChange(change, 'visual-editor');
+      this.onChangeCreated(change);
+    }
+  }
+
+  generateSelector(element) {
+    // Generate unique CSS selector for element
+    if (element.id) return `#${element.id}`;
+    if (element.className) return `.${element.className.split(' ')[0]}`;
+    
+    // Fallback to path-based selector
+    const path = [];
+    let current = element;
+    while (current && current !== document.body) {
+      const index = Array.from(current.parentNode.children).indexOf(current);
+      path.unshift(`${current.tagName.toLowerCase()}:nth-child(${index + 1})`);
+      current = current.parentNode;
+    }
+    return path.join(' > ');
+  }
+}
+```
+
+### Handling Multiple Changes of Same Type
+
+When you have multiple changes for the same selector/type combination:
+
+```javascript
+class MultiChangeManager {
+  constructor(plugin) {
+    this.plugin = plugin;
+  }
+
+  applyVariantChanges(variant) {
+    const experimentName = `${variant.id}-preview`;
+    
+    // Remove all existing changes
+    this.plugin.removeChanges(experimentName);
+    
+    // Apply all enabled changes in order
+    variant.changes
+      .filter(change => change.enabled)
+      .forEach(change => {
+        this.plugin.applyChange(change, experimentName);
+      });
+  }
+
+  toggleSingleChange(variant, changeId, enabled) {
+    const change = variant.changes.find(c => c.id === changeId);
+    if (!change) return;
+    
+    change.enabled = enabled;
+    
+    // For multiple same-type changes, refresh all is safest
+    this.applyVariantChanges(variant);
+  }
+}
+```
+
+### Style Rules UI Components
+
+For implementing UI to create styleRules changes:
+
+```javascript
+class StyleRulesEditor {
+  constructor(onChange) {
+    this.onChange = onChange;
+    this.currentStates = {
+      normal: {},
+      hover: {},
+      active: {},
+      focus: {}
+    };
+  }
+
+  render() {
+    return `
+      <div class="style-rules-editor">
+        <div class="state-tabs">
+          <button onclick="this.switchState('normal')">Normal</button>
+          <button onclick="this.switchState('hover')">Hover</button>
+          <button onclick="this.switchState('active')">Active</button>
+          <button onclick="this.switchState('focus')">Focus</button>
+        </div>
+        
+        <div class="properties-editor">
+          <div class="property-row">
+            <label>Background Color:</label>
+            <input type="color" onchange="this.updateProperty('backgroundColor', this.value)">
+          </div>
+          <div class="property-row">
+            <label>Text Color:</label>
+            <input type="color" onchange="this.updateProperty('color', this.value)">
+          </div>
+          <div class="property-row">
+            <label>Transform:</label>
+            <input type="text" placeholder="e.g., translateY(-2px)" onchange="this.updateProperty('transform', this.value)">
+          </div>
+        </div>
+        
+        <button onclick="this.generateChange()">Apply Style Rules</button>
+      </div>
+    `;
+  }
+
+  updateProperty(property, value) {
+    this.currentStates[this.activeState][property] = value;
+    this.onChange({
+      type: 'styleRules',
+      states: this.currentStates
+    });
+  }
+}
+```
+
+### Best Practices
+
+#### 1. Exposure Timing Strategy
 
 ```javascript
 // Above-fold, critical changes
@@ -588,7 +788,7 @@ if (hasOnlyImmediateChanges) {
 }
 ```
 
-### 2. Performance Optimization
+#### 2. Performance Optimization
 
 ```javascript
 // Use observerRoot for better performance
@@ -615,7 +815,9 @@ function applyBulkChanges(changes, experimentName) {
 }
 ```
 
-### 3. Handling React/Vue Apps
+#### 3. Handling React/Vue Re-renders
+
+For frameworks that re-render components:
 
 ```javascript
 // Use styleRules for hover states (survives re-renders)
@@ -637,13 +839,100 @@ function applyBulkChanges(changes, experimentName) {
 }
 ```
 
-### 4. Debugging
+#### 4. Complete Extension Architecture
+
+```javascript
+class ABSmartlyExtension {
+  constructor() {
+    this.plugin = null;
+    this.previewManager = null;
+    this.visualEditor = null;
+    this.experiments = new Map();
+  }
+
+  async initialize() {
+    // Initialize plugin
+    this.plugin = new DOMChangesPlugin({
+      context: await this.getContext(),
+      autoApply: true,
+      spa: true,
+      extensionBridge: true,
+      debug: true
+    });
+    
+    await this.plugin.initialize();
+    
+    // Initialize managers
+    this.previewManager = new PreviewManager(this.plugin);
+    this.visualEditor = new VisualEditor(this.plugin);
+    
+    // Load experiments
+    await this.loadExperiments();
+    
+    // Setup message listeners
+    this.setupMessageListeners();
+  }
+
+  setupMessageListeners() {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      switch (request.action) {
+        case 'START_PREVIEW':
+          this.previewManager.startPreview(request.variant);
+          break;
+        case 'STOP_PREVIEW':
+          this.previewManager.stopPreview();
+          break;
+        case 'TOGGLE_CHANGE':
+          this.previewManager.toggleChange(request.changeId, request.enabled);
+          break;
+        case 'ENTER_VISUAL_EDITOR':
+          this.visualEditor.activate();
+          break;
+        case 'EXIT_VISUAL_EDITOR':
+          this.visualEditor.deactivate();
+          break;
+      }
+    });
+  }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    new ABSmartlyExtension().initialize();
+  });
+} else {
+  new ABSmartlyExtension().initialize();
+}
+```
+
+### Common Issues and Solutions
+
+1. **Changes not applying**: Check selector validity and ensure elements exist
+2. **Hover states not working**: Use `styleRules` instead of inline `style` changes
+3. **React re-render issues**: Use `styleRules` and `waitForElement` for dynamic content
+4. **Sample ratio mismatch**: Use `trigger_on_view: true` for below-fold elements
+5. **Performance issues**: Use `observerRoot` to narrow observation scope
+6. **Extension not connecting**: Ensure `extensionBridge: true` in plugin config
+7. **Preview not removing**: Use the complete refresh pattern instead of individual removes
+
+### Debugging and Monitoring
 
 ```javascript
 // Enable comprehensive logging
 const plugin = new DOMChangesPlugin({
   context: absmartlyContext,
   debug: true
+});
+
+// Monitor plugin events
+plugin.on('changes-applied', (data) => {
+  console.log('Changes applied:', data);
+});
+
+plugin.on('error', (error) => {
+  console.error('Plugin error:', error);
+  // Send to error tracking service
 });
 
 // Console output includes:
@@ -654,219 +943,362 @@ const plugin = new DOMChangesPlugin({
 // - Error details
 ```
 
-### 5. Clean Architecture
+
+
+### StyleRules Templates for Common Use Cases
 
 ```javascript
-class ExperimentManager {
-  constructor() {
-    this.experiments = new Map();
-  }
-
-  registerExperiment(name, changes) {
-    this.experiments.set(name, {
-      name,
-      changes,
-      applied: false
-    });
-  }
-
-  applyExperiment(name) {
-    const exp = this.experiments.get(name);
-    if (!exp || exp.applied) return;
-
-    exp.changes.forEach(change => {
-      this.plugin.applyChange(change, name);
-    });
-    
-    exp.applied = true;
-  }
-
-  cleanupExperiment(name) {
-    this.plugin.removeChanges(name);
-    this.experiments.delete(name);
-  }
-
-  cleanupAll() {
-    for (const [name] of this.experiments) {
-      this.cleanupExperiment(name);
+const STYLE_TEMPLATES = {
+  primaryButton: {
+    states: {
+      normal: {
+        backgroundColor: '#007bff',
+        color: 'white',
+        padding: '10px 20px',
+        borderRadius: '4px',
+        border: 'none',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease'
+      },
+      hover: {
+        backgroundColor: '#0056b3',
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+      },
+      active: {
+        backgroundColor: '#004085',
+        transform: 'translateY(0)',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+      }
+    }
+  },
+  
+  cardHover: {
+    states: {
+      normal: {
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        transition: 'all 0.3s ease'
+      },
+      hover: {
+        transform: 'translateY(-4px)',
+        boxShadow: '0 8px 16px rgba(0,0,0,0.15)'
+      }
+    }
+  },
+  
+  linkUnderline: {
+    states: {
+      normal: {
+        color: '#007bff',
+        textDecoration: 'none',
+        position: 'relative',
+        transition: 'color 0.2s ease'
+      },
+      hover: {
+        color: '#0056b3',
+        textDecoration: 'underline'
+      }
     }
   }
-}
+};
 
-// Use in extension
-window.addEventListener('beforeunload', () => {
-  experimentManager.cleanupAll();
-});
-```
-
-## Common Issues & Solutions
-
-### Issue: Changes Not Applying
-
-```javascript
-// Problem: Element doesn't exist yet
-// Solution: Use waitForElement
-{
-  selector: '.dynamic-element',
-  type: 'style',
-  value: { color: 'red' },
-  waitForElement: true
+// Usage in extension
+function applyButtonTemplate(selector) {
+  return {
+    selector,
+    type: 'styleRules',
+    ...STYLE_TEMPLATES.primaryButton
+  };
 }
 ```
 
-### Issue: Hover States Lost on React Re-render
+### Undo/Redo System Implementation
 
 ```javascript
-// Problem: Inline styles don't handle :hover
-// Solution: Use styleRules
-{
-  selector: '.button',
-  type: 'styleRules',
-  states: {
-    normal: { backgroundColor: 'blue' },
-    hover: { backgroundColor: 'darkblue' }
+class UndoRedoManager {
+  constructor(plugin) {
+    this.plugin = plugin;
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxHistory = 50;
   }
-}
-```
 
-### Issue: Sample Ratio Mismatch
+  executeChange(change, experimentName) {
+    // Apply the change
+    const success = this.plugin.applyChange(change, experimentName);
+    
+    if (success) {
+      // Add to undo stack
+      this.undoStack.push({
+        action: 'apply',
+        change,
+        experimentName,
+        timestamp: Date.now()
+      });
+      
+      // Clear redo stack
+      this.redoStack = [];
+      
+      // Limit history size
+      if (this.undoStack.length > this.maxHistory) {
+        this.undoStack.shift();
+      }
+    }
+    
+    return success;
+  }
 
-```javascript
-// Problem: Different visibility across variants
-// Solution: Use trigger_on_view for below-fold
-{
-  selector: '.below-fold',
-  type: 'text',
-  value: 'New text',
-  trigger_on_view: true
-}
-```
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    
+    const lastAction = this.undoStack.pop();
+    
+    // Remove the change
+    this.plugin.removeSpecificChange(
+      lastAction.experimentName,
+      lastAction.change.selector,
+      lastAction.change.type
+    );
+    
+    // Add to redo stack
+    this.redoStack.push(lastAction);
+    
+    return true;
+  }
 
-### Issue: Performance with Many Elements
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    
+    const action = this.redoStack.pop();
+    
+    // Reapply the change
+    const success = this.plugin.applyChange(
+      action.change,
+      action.experimentName
+    );
+    
+    if (success) {
+      this.undoStack.push(action);
+    }
+    
+    return success;
+  }
 
-```javascript
-// Problem: Watching entire document
-// Solution: Use observerRoot
-{
-  selector: '.list-item',
-  type: 'style',
-  value: { border: '1px solid blue' },
-  waitForElement: true,
-  observerRoot: '.list-container'  // Narrow scope
+  clear() {
+    this.undoStack = [];
+    this.redoStack = [];
+  }
 }
 ```
 
 ## Complete Implementation Example
 
 ```javascript
-class ABTestingExtension {
+class ABSmartlyVisualExtension {
   constructor() {
     this.plugin = null;
-    this.activeExperiments = new Map();
+    this.previewManager = null;
+    this.visualEditor = null;
+    this.undoManager = null;
+    this.experiments = new Map();
+    this.activeVariant = null;
   }
 
   async initialize() {
-    // Get ABSmartly context
-    const context = await this.createABSmartlyContext();
-    
-    // Initialize plugin with all features
+    // Initialize plugin
     this.plugin = new DOMChangesPlugin({
-      context,
-      debug: true,
-      autoApply: true,  // Auto-apply from SDK
-      spa: true,        // Handle SPAs
-      dataFieldName: '__dom_changes'
+      context: await this.getABSmartlyContext(),
+      autoApply: true,
+      spa: true,
+      extensionBridge: true,
+      debug: true
     });
     
     await this.plugin.initialize();
     
-    // Plugin automatically handles SDK changes
-    // Additional manual control available:
-    this.setupManualControls();
-  }
-
-  setupManualControls() {
-    // Preview mode
+    // Initialize managers
     this.previewManager = new PreviewManager(this.plugin);
-    
-    // Visual editor
     this.visualEditor = new VisualEditor(this.plugin);
+    this.undoManager = new UndoRedoManager(this.plugin);
     
-    // SPA handler
-    this.spaHandler = new SPAHandler(this.plugin);
+    // Load experiments from storage/API
+    await this.loadExperiments();
+    
+    // Setup message listeners for popup communication
+    this.setupMessageListeners();
+    
+    // Setup keyboard shortcuts
+    this.setupKeyboardShortcuts();
   }
 
-  // Manual experiment application
-  applyExperiment(experimentName, changes) {
-    // Validate changes
-    const validChanges = changes.filter(this.validateChange);
-    
-    // Apply with proper exposure tracking
-    validChanges.forEach(change => {
-      // Ensure proper exposure tracking
-      const trackedChange = {
-        ...change,
-        trigger_on_view: this.shouldTriggerOnView(change)
-      };
-      
-      this.plugin.applyChange(trackedChange, experimentName);
+  setupMessageListeners() {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      switch (request.action) {
+        case 'START_PREVIEW':
+          this.startPreview(request.experimentId, request.variantId);
+          sendResponse({ success: true });
+          break;
+          
+        case 'STOP_PREVIEW':
+          this.stopPreview();
+          sendResponse({ success: true });
+          break;
+          
+        case 'TOGGLE_CHANGE':
+          this.toggleChange(request.changeId, request.enabled);
+          sendResponse({ success: true });
+          break;
+          
+        case 'ENTER_VISUAL_EDITOR':
+          this.enterVisualEditor();
+          sendResponse({ success: true });
+          break;
+          
+        case 'EXIT_VISUAL_EDITOR':
+          this.exitVisualEditor();
+          sendResponse({ success: true });
+          break;
+          
+        case 'GET_STATE':
+          sendResponse(this.getExtensionState());
+          break;
+          
+        case 'UNDO':
+          const undoSuccess = this.undoManager.undo();
+          sendResponse({ success: undoSuccess });
+          break;
+          
+        case 'REDO':
+          const redoSuccess = this.undoManager.redo();
+          sendResponse({ success: redoSuccess });
+          break;
+      }
     });
-    
-    this.activeExperiments.set(experimentName, validChanges);
   }
 
-  shouldTriggerOnView(change) {
-    // Move changes always use viewport tracking
-    if (change.type === 'move') return true;
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Ctrl/Cmd + Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        this.undoManager.undo();
+        this.updateUI();
+      }
+      
+      // Ctrl/Cmd + Shift + Z for redo
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        this.undoManager.redo();
+        this.updateUI();
+      }
+    });
+  }
+
+  startPreview(experimentId, variantId) {
+    const experiment = this.experiments.get(experimentId);
+    const variant = experiment?.variants.find(v => v.id === variantId);
     
-    // Check if element is likely below fold
-    const element = document.querySelector(change.selector);
-    if (element) {
-      const rect = element.getBoundingClientRect();
-      return rect.top > window.innerHeight;
+    if (!variant) {
+      console.error('Variant not found');
+      return false;
     }
+
+    // Stop current preview
+    if (this.activeVariant) {
+      this.stopPreview();
+    }
+
+    this.activeVariant = variant;
+    this.previewManager.startPreview(variant);
     
-    // Default to immediate for unknown elements
-    return false;
+    this.updateUI();
+    return true;
   }
 
-  validateChange(change) {
-    // Required fields
-    if (!change.selector || !change.type) return false;
-    
-    // Type-specific validation
-    switch (change.type) {
-      case 'styleRules':
-        return change.states && change.states.normal;
-      case 'move':
-        return Boolean(change.targetSelector);
-      case 'create':
-        return Boolean(change.element && change.targetSelector);
-      default:
-        return true;
+  stopPreview() {
+    if (this.activeVariant) {
+      this.previewManager.stopPreview();
+      this.activeVariant = null;
+      this.updateUI();
     }
   }
 
-  // Cleanup
+  toggleChange(changeId, enabled) {
+    if (this.activeVariant) {
+      this.previewManager.toggleChange(changeId, enabled);
+      this.updateUI();
+    }
+  }
+
+  enterVisualEditor() {
+    this.visualEditor.activate();
+    this.updateUI();
+  }
+
+  exitVisualEditor() {
+    this.visualEditor.deactivate();
+    this.undoManager.clear(); // Clear undo history when exiting
+    this.updateUI();
+  }
+
+  getExtensionState() {
+    return {
+      experiments: Array.from(this.experiments.values()),
+      activeVariant: this.activeVariant,
+      previewActive: this.previewManager?.isPreviewMode || false,
+      visualEditorActive: this.visualEditor?.active || false,
+      canUndo: this.undoManager?.undoStack.length > 0,
+      canRedo: this.undoManager?.redoStack.length > 0
+    };
+  }
+
+  updateUI() {
+    // Send state update to popup
+    chrome.runtime.sendMessage({
+      type: 'STATE_UPDATE',
+      state: this.getExtensionState()
+    });
+  }
+
+  async loadExperiments() {
+    try {
+      // Load from your API or storage
+      const experiments = await this.fetchExperiments();
+      experiments.forEach(exp => {
+        this.experiments.set(exp.id, exp);
+      });
+    } catch (error) {
+      console.error('Failed to load experiments:', error);
+    }
+  }
+
+  async getABSmartlyContext() {
+    // Your ABSmartly context creation logic
+    // This depends on your specific setup
+    return yourContextCreationLogic();
+  }
+
   cleanup() {
-    // Remove all active experiments
-    for (const [name] of this.activeExperiments) {
-      this.plugin.removeChanges(name);
-    }
-    
-    // Destroy plugin
-    this.plugin.destroy();
+    this.stopPreview();
+    this.exitVisualEditor();
+    this.plugin?.destroy();
   }
 }
 
 // Initialize extension
-const extension = new ABTestingExtension();
-extension.initialize();
+const extension = new ABSmartlyVisualExtension();
+extension.initialize().catch(console.error);
 
 // Cleanup on unload
 window.addEventListener('beforeunload', () => {
   extension.cleanup();
 });
+
+// Make available for debugging
+window.absmartlyExtension = extension;
 ```
 
 ## Summary
@@ -885,4 +1317,23 @@ For additional details, see:
 - [EXTENSION_STYLERULES_UI_GUIDE.md](./EXTENSION_STYLERULES_UI_GUIDE.md) - Building UI for styleRules
 - [HOVER_AND_PERSISTENCE_GUIDE.md](./HOVER_AND_PERSISTENCE_GUIDE.md) - Handling hover states and React
 
-This guide contains everything needed to integrate the DOM Changes Plugin into your Chrome extension with all the latest features.
+## Testing Your Extension
+
+To ensure your extension works correctly:
+
+1. **Preview Mode**: Test starting/stopping preview for different variants
+2. **Individual Toggle**: Test enabling/disabling individual changes
+3. **Visual Editor**: Test creating changes through element interaction
+4. **Undo/Redo**: Test keyboard shortcuts and UI buttons
+5. **SPA Support**: Test on single-page applications with dynamic content
+6. **Error Handling**: Test with invalid selectors and network failures
+
+## Debugging Tips
+
+- Enable `debug: true` in plugin configuration
+- Use browser DevTools to inspect applied changes
+- Monitor console for plugin logs and errors
+- Use `getExtensionState()` to inspect current state
+- Test with React Developer Tools for SPA debugging
+
+This guide provides complete implementation examples for integrating the DOM Changes Plugin into your Chrome extension with all advanced features including preview mode, visual editing, undo/redo, and comprehensive state management.
