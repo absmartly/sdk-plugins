@@ -1,26 +1,39 @@
 # ABSmartly DOM Changes Plugin - Complete Extension Integration Guide
 
-This guide covers everything you need to integrate the DOM Changes Plugin into your Chrome extension.
+This guide covers everything you need to integrate the DOM Changes Plugin into your Chrome extension, including all latest features.
 
 ## Table of Contents
 1. [Plugin Initialization](#plugin-initialization)
 2. [Core API Methods](#core-api-methods)
 3. [Change Types Reference](#change-types-reference)
-4. [Managing Multiple Changes](#managing-multiple-changes)
-5. [Common Implementation Patterns](#common-implementation-patterns)
-6. [Best Practices](#best-practices)
+4. [Exposure Tracking](#exposure-tracking)
+5. [Managing Multiple Changes](#managing-multiple-changes)
+6. [Common Implementation Patterns](#common-implementation-patterns)
+7. [Automatic SDK Integration](#automatic-sdk-integration)
+8. [Best Practices](#best-practices)
 
 ## Plugin Initialization
 
+### Basic Setup
 ```javascript
-// Initialize the plugin
 const plugin = new DOMChangesPlugin({
-  debug: true,  // Enable console logging
-  context: absmartlyContext  // Your ABSmartly context
+  context: absmartlyContext,     // Required: ABSmartly context
+  debug: true,                   // Enable console logging
+  autoApply: true,               // Auto-apply changes from SDK payload
+  spa: true,                     // Handle single-page applications
+  visibilityTracking: true,      // Track element visibility (deprecated, use trigger_on_view)
+  dataFieldName: '__dom_changes' // Field name in variant variables
 });
 
 await plugin.initialize();
 ```
+
+### Configuration Options
+- `context` (required): ABSmartly context instance
+- `debug`: Enable detailed console logging
+- `autoApply`: Automatically apply changes from SDK when initialized
+- `spa`: Enable SPA mode with dynamic element tracking
+- `dataFieldName`: Variable name containing DOM changes in variants (default: `__dom_changes`)
 
 ## Core API Methods
 
@@ -32,11 +45,14 @@ const success = plugin.applyChange(change, experimentName);
 
 ### Remove Changes
 ```javascript
-// Remove all changes for an experiment/variant
+// Remove all changes for an experiment
 plugin.removeChanges(experimentName);
 
 // Remove a specific change (removes the first matching one)
 plugin.removeSpecificChange(experimentName, selector, changeType);
+
+// Revert a specific applied change
+plugin.revertChange(appliedChange);
 ```
 
 ### Query Applied Changes
@@ -46,20 +62,34 @@ const changes = plugin.getAppliedChanges(experimentName);
 
 // Check if any changes exist
 const hasChanges = plugin.hasChanges(experimentName);
+
+// Get all tracked experiments
+const experiments = plugin.getExperiments();
 ```
 
 ## Change Types Reference
 
-### Text Change
+### 1. Text Change
 ```javascript
 {
   selector: '.header h1',
   type: 'text',
-  value: 'New Text Content'
+  value: 'New Text Content',
+  trigger_on_view: false  // Optional: control exposure timing
 }
 ```
 
-### Style Change
+### 2. HTML Change
+```javascript
+{
+  selector: '.content',
+  type: 'html',
+  value: '<p>New <strong>HTML</strong> content</p>',
+  trigger_on_view: true
+}
+```
+
+### 3. Style Change (Inline)
 ```javascript
 {
   selector: '.button',
@@ -68,43 +98,12 @@ const hasChanges = plugin.hasChanges(experimentName);
     backgroundColor: 'red',    // Use camelCase for CSS properties
     fontSize: '16px',
     padding: '10px 20px'
-  }
+  },
+  trigger_on_view: false
 }
 ```
 
-### Class Change
-```javascript
-{
-  selector: '.card',
-  type: 'class',
-  add: ['highlight', 'featured'],    // Classes to add
-  remove: ['hidden', 'disabled']     // Classes to remove
-}
-```
-
-### Attribute Change
-```javascript
-{
-  selector: 'input',
-  type: 'attribute',
-  value: {
-    disabled: 'true',
-    'data-tracked': 'yes',
-    placeholder: 'Enter email'
-  }
-}
-```
-
-### HTML Change
-```javascript
-{
-  selector: '.content',
-  type: 'html',
-  value: '<p>New <strong>HTML</strong> content</p>'
-}
-```
-
-### Style Rules (with hover states)
+### 4. Style Rules (With Pseudo-States) ⭐ NEW
 ```javascript
 {
   selector: '.button',
@@ -114,6 +113,7 @@ const hasChanges = plugin.hasChanges(experimentName);
       backgroundColor: '#007bff',
       color: 'white',
       padding: '10px 20px',
+      borderRadius: '4px',
       transition: 'all 0.2s ease'
     },
     hover: {
@@ -122,18 +122,90 @@ const hasChanges = plugin.hasChanges(experimentName);
       boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
     },
     active: {
-      backgroundColor: '#004085'
+      backgroundColor: '#004085',
+      transform: 'translateY(0)'
     },
     focus: {
       outline: '2px solid #007bff',
       outlineOffset: '2px'
     }
   },
-  important: true  // default is true
+  important: true,  // default is true
+  trigger_on_view: true
 }
 ```
 
-### Pending Changes (for elements not yet in DOM)
+**Benefits of styleRules:**
+- Handles CSS pseudo-states properly (hover, active, focus)
+- Survives React re-renders through stylesheet injection
+- More performant than inline styles for complex interactions
+- Automatically handles vendor prefixes
+
+### 5. Class Change
+```javascript
+{
+  selector: '.card',
+  type: 'class',
+  add: ['highlight', 'featured'],    // Classes to add
+  remove: ['hidden', 'disabled'],    // Classes to remove
+  trigger_on_view: false
+}
+```
+
+### 6. Attribute Change
+```javascript
+{
+  selector: 'input',
+  type: 'attribute',
+  value: {
+    disabled: 'true',
+    'data-tracked': 'yes',
+    placeholder: 'Enter email',
+    'aria-label': 'Email input'
+  },
+  trigger_on_view: false
+}
+```
+
+### 7. Move Element
+```javascript
+{
+  selector: '.sidebar',
+  type: 'move',
+  targetSelector: '.main-content',
+  position: 'before',  // 'before' | 'after' | 'firstChild' | 'lastChild'
+  trigger_on_view: true  // Always use true for moves to avoid bias
+}
+```
+
+### 8. Create Element
+```javascript
+{
+  selector: 'unique-id-for-created-element',
+  type: 'create',
+  element: '<div class="new-banner">Special Offer!</div>',
+  targetSelector: '.header',
+  position: 'lastChild',
+  trigger_on_view: false
+}
+```
+
+### 9. JavaScript Execution
+```javascript
+{
+  selector: '.dynamic-element',
+  type: 'javascript',
+  value: `
+    element.addEventListener('click', () => {
+      console.log('Clicked!', element);
+    });
+    element.setAttribute('data-initialized', 'true');
+  `,
+  trigger_on_view: false
+}
+```
+
+### 10. Pending Changes (Elements Not Yet in DOM) ⭐ NEW
 ```javascript
 {
   selector: '.lazy-loaded-button',
@@ -143,616 +215,674 @@ const hasChanges = plugin.hasChanges(experimentName);
     color: 'white'
   },
   waitForElement: true,  // Wait for element to appear
-  observerRoot: '.main-content'  // Optional: specific container to watch
+  observerRoot: '.main-content',  // Optional: specific container to watch
+  trigger_on_view: true
 }
 ```
 
-The plugin will automatically:
-1. Check if the element exists when applying the change
-2. If not found and `waitForElement: true`, add to pending changes
-3. Use MutationObserver to watch for the element to appear
-4. Apply the change immediately when the element is added to DOM
+**How it works:**
+1. Check if element exists when applying
+2. If not found and `waitForElement: true`, add to pending queue
+3. Use MutationObserver to watch for element appearance
+4. Apply change immediately when element is added to DOM
 5. Clean up observer when no pending changes remain
 
-This is perfect for:
+**Perfect for:**
 - Lazy-loaded content
 - React components that mount/unmount
-- Modal dialogs that appear later
-- Dynamic content from API calls
+- Modal dialogs
+- API-loaded content
+- Infinite scroll items
 
-### Move Element
+## Exposure Tracking ⭐ NEW
+
+### Understanding trigger_on_view
+
+The `trigger_on_view` property controls when an A/B test exposure event is recorded:
+
 ```javascript
 {
-  selector: '.sidebar',
+  selector: '.element',
+  type: 'style',
+  value: { color: 'red' },
+  trigger_on_view: true  // Wait for element visibility
+}
+```
+
+- **`false` or undefined** (default): Exposure triggers immediately when change is applied
+- **`true`**: Exposure triggers only when element enters viewport
+
+### Why This Matters - Preventing Sample Ratio Mismatch
+
+Consider this scenario:
+```javascript
+// Experiment A: Changes hero (visible immediately)
+// Experiment B: Changes footer (requires scrolling)
+
+// Without proper tracking:
+// - Experiment A: 10,000 exposures
+// - Experiment B: 3,000 exposures
+// Result: Biased, unusable data
+```
+
+### Cross-Variant Tracking
+
+The plugin tracks elements from **ALL variants**, not just the active one:
+
+```javascript
+// Variant 0: Button stays in header
+// Variant 1: Button moves to sidebar
+// Variant 2: Button moves to footer
+
+// ALL variants track: .header, .sidebar, AND .footer
+// Exposure triggers when ANY container becomes visible
+// Result: Equal exposure opportunity for all variants
+```
+
+### Move Changes - Special Handling
+
+For move changes, the plugin tracks **parent containers**:
+
+```javascript
+{
+  selector: '.cta-button',
   type: 'move',
-  targetSelector: '.main-content',
-  position: 'before'  // 'before' | 'after' | 'firstChild' | 'lastChild'
+  targetSelector: '.footer',
+  position: 'firstChild',
+  trigger_on_view: true  // ALWAYS use true for moves
 }
-```
 
-### Create Element
-```javascript
-{
-  selector: 'unique-id-for-created-element',
-  type: 'create',
-  element: '<div class="new-banner">Special Offer!</div>',
-  targetSelector: '.header',
-  position: 'lastChild'
-}
-```
-
-### JavaScript Execution
-```javascript
-{
-  selector: '.dynamic-element',
-  type: 'javascript',
-  value: 'element.addEventListener("click", () => console.log("Clicked!"))'
-}
+// Tracks both:
+// - Original parent container (.header)
+// - Target parent container (.footer)
+// Ensures unbiased exposure across variants
 ```
 
 ## Managing Multiple Changes
 
 ### The Challenge
-When you have multiple changes of the same type for the same selector (e.g., multiple style changes for `.button`), you need to manage them carefully.
-
-### Solution: Track with Unique IDs
+Multiple changes of the same type for the same selector need careful management:
 
 ```javascript
-// Your variant structure in the extension
 const variant = {
   id: 'variant-1',
   changes: [
     {
-      id: 'change-001',  // Unique ID
+      id: 'change-001',
       selector: '.button',
       type: 'style',
       value: { backgroundColor: 'red' },
       enabled: true
     },
     {
-      id: 'change-002',  // Same selector & type, different ID
+      id: 'change-002',  // Same selector & type
       selector: '.button',
       type: 'style',
       value: { fontSize: '20px' },
       enabled: true
-    },
-    {
-      id: 'change-003',
-      selector: '.button',
-      type: 'style',
-      value: { padding: '15px 30px' },
-      enabled: false  // This one is disabled
     }
   ]
 };
 ```
 
-### Implementation Pattern
-
-**Important:** When toggling individual changes, always use the "remove all and reapply" pattern:
+### Solution: Remove All & Reapply Pattern
 
 ```javascript
-class VariantPreviewManager {
-  constructor(plugin) {
-    this.plugin = plugin;
-    this.currentVariant = null;
-  }
-
-  // Start preview for a variant
-  startPreview(variant) {
-    this.currentVariant = variant;
-    this.refreshPreview();
-  }
-
-  // Toggle individual change
-  onChangeToggled(changeId, isChecked) {
-    if (!this.currentVariant) return;
-    
-    // Update the change's enabled state
-    const change = this.currentVariant.changes.find(c => c.id === changeId);
-    if (change) {
-      change.enabled = isChecked;
-      this.refreshPreview();
-    }
-  }
-
-  // Refresh all changes (safest approach for multiple same-type changes)
+class VariantManager {
   refreshPreview() {
-    if (!this.currentVariant) return;
-    
-    const experimentName = `${this.currentVariant.id}-preview`;
+    const experimentName = `${this.variant.id}-preview`;
     
     // Step 1: Remove ALL changes
     this.plugin.removeChanges(experimentName);
     
     // Step 2: Reapply ONLY enabled changes
-    this.currentVariant.changes
+    this.variant.changes
       .filter(change => change.enabled)
       .forEach(change => {
         this.plugin.applyChange(change, experimentName);
       });
-  }
-
-  // Stop preview
-  stopPreview() {
-    if (!this.currentVariant) return;
-    
-    const experimentName = `${this.currentVariant.id}-preview`;
-    this.plugin.removeChanges(experimentName);
-    this.currentVariant = null;
   }
 }
 ```
 
 ## Common Implementation Patterns
 
-### Preview Mode Pattern
+### Preview Mode with Exposure Control
 
 ```javascript
-// Switching between variants
-function switchVariant(oldVariantId, newVariantId, newVariantChanges) {
-  // Remove old variant changes
-  if (oldVariantId) {
-    plugin.removeChanges(`${oldVariantId}-preview`);
-  }
-  
-  // Apply new variant changes
-  newVariantChanges
-    .filter(change => change.enabled !== false)
-    .forEach(change => {
-      plugin.applyChange(change, `${newVariantId}-preview`);
-    });
-}
-```
-
-### Visual Editor Pattern
-
-```javascript
-// Track changes made in visual editor
-const visualEditorSession = {
-  sessionId: Date.now(),
-  changes: []
-};
-
-// User edits text inline
-function handleTextEdit(element, newText) {
-  const change = {
-    selector: generateSelector(element),
-    type: 'text',
-    value: newText
-  };
-  
-  // Apply immediately
-  plugin.applyChange(change, `visual-editor-${visualEditorSession.sessionId}`);
-  
-  // Store for saving
-  visualEditorSession.changes.push(change);
-}
-
-// Clean up when exiting visual editor
-function exitVisualEditor() {
-  plugin.removeChanges(`visual-editor-${visualEditorSession.sessionId}`);
-  // Save changes to variant if user confirms
-}
-```
-
-### Undo/Redo Pattern
-
-```javascript
-class UndoManager {
-  constructor(plugin, experimentName) {
+class PreviewManager {
+  constructor(plugin) {
     this.plugin = plugin;
-    this.experimentName = experimentName;
+  }
+
+  startPreview(variant) {
+    const experimentName = `${variant.id}-preview`;
+    
+    variant.changes.forEach(change => {
+      // For preview, typically don't trigger exposures
+      const previewChange = {
+        ...change,
+        trigger_on_view: false  // Override for preview
+      };
+      this.plugin.applyChange(previewChange, experimentName);
+    });
+  }
+}
+```
+
+### Visual Editor with Undo/Redo
+
+```javascript
+class VisualEditor {
+  constructor(plugin) {
+    this.plugin = plugin;
     this.history = [];
     this.currentIndex = -1;
   }
-  
+
   applyChange(change) {
-    // Apply the change
-    this.plugin.applyChange(change, this.experimentName);
+    // Apply with immediate trigger for instant feedback
+    const editorChange = {
+      ...change,
+      trigger_on_view: false,
+      waitForElement: false  // Apply immediately in editor
+    };
+    
+    this.plugin.applyChange(editorChange, 'visual-editor');
     
     // Add to history
     this.history = this.history.slice(0, this.currentIndex + 1);
-    this.history.push(change);
+    this.history.push(editorChange);
     this.currentIndex++;
   }
-  
+
   undo() {
     if (this.currentIndex < 0) return;
     
-    // For undo, we need to refresh all changes
-    // because removeSpecificChange only removes the first match
     this.currentIndex--;
-    this.reapplyUpToIndex();
+    this.reapplyHistory();
   }
-  
+
   redo() {
     if (this.currentIndex >= this.history.length - 1) return;
     
     this.currentIndex++;
-    const change = this.history[this.currentIndex];
-    this.plugin.applyChange(change, this.experimentName);
+    this.reapplyHistory();
   }
-  
-  reapplyUpToIndex() {
-    // Remove all and reapply up to current index
-    this.plugin.removeChanges(this.experimentName);
+
+  reapplyHistory() {
+    this.plugin.removeChanges('visual-editor');
     
     for (let i = 0; i <= this.currentIndex; i++) {
-      this.plugin.applyChange(this.history[i], this.experimentName);
+      this.plugin.applyChange(this.history[i], 'visual-editor');
     }
   }
 }
 ```
 
-## Best Practices
-
-### 1. Experiment Naming Convention
-
-Use clear, consistent naming:
+### SPA Support with Dynamic Content
 
 ```javascript
-`${variantId}-preview`           // For preview mode
-`${variantId}-saved`              // For saved changes
-`visual-editor-${sessionId}`      // For visual editor session
-`undo-history-${timestamp}`       // For undo/redo tracking
-```
-
-### 2. Change Validation
-
-Always validate before applying:
-
-```javascript
-function validateChange(change) {
-  // Check required fields
-  if (!change.selector || !change.type) {
-    console.error('Missing required fields');
-    return false;
-  }
-  
-  // Check selector exists (except for create type)
-  if (change.type !== 'create') {
-    const elements = document.querySelectorAll(change.selector);
-    if (elements.length === 0) {
-      console.warn(`No elements found for selector: ${change.selector}`);
-      return false;
-    }
-  }
-  
-  // Type-specific validation
-  switch (change.type) {
-    case 'style':
-      return change.value && typeof change.value === 'object';
-    case 'text':
-    case 'html':
-      return change.value !== undefined;
-    case 'class':
-      return Boolean(change.add || change.remove);
-    case 'move':
-      return Boolean(change.targetSelector && change.position);
-    case 'create':
-      return Boolean(change.element && change.targetSelector);
-    default:
-      return true;
-  }
-}
-
-// Use it
-if (validateChange(change)) {
-  plugin.applyChange(change, experimentName);
-}
-```
-
-### 3. Performance Optimization
-
-For many changes, batch operations:
-
-```javascript
-function applyManyChanges(changes, experimentName) {
-  // Remove once
-  plugin.removeChanges(experimentName);
-  
-  // Apply all in sequence
-  const results = [];
-  changes.forEach(change => {
-    if (change.enabled !== false) {
-      const success = plugin.applyChange(change, experimentName);
-      results.push({ change, success });
-    }
-  });
-  
-  return results;
-}
-```
-
-### 4. Clean Up
-
-Always clean up when done:
-
-```javascript
-// When user navigates away or closes extension
-function cleanup() {
-  // Remove all preview changes
-  plugin.removeChanges('variant-preview');
-  
-  // Remove visual editor changes
-  plugin.removeChanges('visual-editor-session');
-  
-  // Clear any temporary changes
-  plugin.removeChanges('temp-changes');
-}
-
-window.addEventListener('beforeunload', cleanup);
-```
-
-### 5. Error Handling
-
-Handle failures gracefully:
-
-```javascript
-function safeApplyChange(change, experimentName) {
-  try {
-    const success = plugin.applyChange(change, experimentName);
-    
-    if (!success) {
-      console.error('Failed to apply change:', change);
-      // Show user notification
-      showNotification('Failed to apply change', 'error');
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error applying change:', error);
-    // Log to error tracking service
-    logError(error, { change, experimentName });
-    return false;
-  }
-}
-```
-
-## Important Notes
-
-1. **Plugin is stateless about experiments** - It only knows the experiment names you provide
-2. **Changes are not persistent** - Lost on page reload
-3. **Sequential application** - Multiple changes of same type are applied in order
-4. **Original state** - Stored once per selector+type combination
-5. **Order matters** - Changes build on each other
-6. **Pending changes** - Automatically handled for elements not yet in DOM
-7. **Observer efficiency** - MutationObservers are batched and cleaned up automatically
-
-## Debugging
-
-Enable debug mode for detailed logs:
-
-```javascript
-const plugin = new DOMChangesPlugin({
-  debug: true  // Logs all operations to console
-});
-```
-
-## Handling Dynamic Content
-
-### Wait for Elements Pattern
-
-```javascript
-// For content that loads after initial page load
-function applyDynamicChanges(variant) {
-  // Modal button that doesn't exist yet
-  plugin.applyChange({
-    selector: '.modal-button',
-    type: 'style',
-    value: { backgroundColor: 'green' },
-    waitForElement: true  // Will wait for element to appear
-  }, `${variant.id}-preview`);
-  
-  // React component that mounts later
-  plugin.applyChange({
-    selector: '.user-profile-card',
-    type: 'text',
-    value: 'Updated Profile',
-    waitForElement: true,
-    observerRoot: '.app-container'  // Watch specific container for better performance
-  }, `${variant.id}-preview`);
-}
-```
-
-### Optimized Observer Roots
-
-```javascript
-// Performance optimization: specify where to watch for elements
-const changes = [
-  {
-    selector: '.sidebar-widget',
-    type: 'style',
-    value: { display: 'none' },
-    waitForElement: true,
-    observerRoot: '.sidebar'  // Only watch sidebar for this element
-  },
-  {
-    selector: '.main-cta',
-    type: 'text',
-    value: 'Buy Now',
-    waitForElement: true,
-    observerRoot: '.main-content'  // Only watch main content area
-  }
-];
-
-changes.forEach(change => {
-  plugin.applyChange(change, experimentName);
-});
-```
-
-### Handling SPA Navigation
-
-```javascript
-// For single-page applications where content changes dynamically
 class SPAHandler {
   constructor(plugin) {
     this.plugin = plugin;
     this.watchRouteChanges();
   }
-  
+
   watchRouteChanges() {
     // Listen for route changes
-    window.addEventListener('popstate', () => this.reapplyChanges());
-    
-    // For frameworks like React Router
     const observer = new MutationObserver(() => {
       if (window.location.pathname !== this.lastPath) {
         this.lastPath = window.location.pathname;
         this.reapplyChanges();
       }
     });
-    
+
     observer.observe(document.body, {
       childList: true,
       subtree: true
     });
   }
-  
+
   reapplyChanges() {
-    // Changes with waitForElement will automatically
-    // apply when new route content appears
     this.currentVariant.changes.forEach(change => {
-      this.plugin.applyChange({
+      // Ensure changes wait for elements on route change
+      const spaChange = {
         ...change,
-        waitForElement: true  // Ensure it waits for elements
-      }, `${this.currentVariant.id}-spa`);
+        waitForElement: true
+      };
+      this.plugin.applyChange(spaChange, `${this.currentVariant.id}-spa`);
     });
   }
 }
 ```
 
-## Complete Example
+## Automatic SDK Integration
 
-Here's a complete example of managing variants with preview and visual editor:
+### How autoApply Works
+
+When `autoApply: true`, the plugin automatically:
+
+1. **Reads experiments** from `context.data()`
+2. **Gets current variant** using `context.peek(experimentName)`
+3. **Extracts changes** from `__dom_changes` variable
+4. **Applies changes** for current variant only
+5. **Tracks all positions** across all variants for exposure
+6. **Triggers exposures** based on `trigger_on_view` settings
+
+### SDK Payload Structure
+
+Configure your A/B testing platform:
+
+```json
+{
+  "experiment_name": "homepage_optimization",
+  "variants": [
+    {
+      "name": "control",
+      "variables": {
+        "__dom_changes": []
+      }
+    },
+    {
+      "name": "treatment_a",
+      "variables": {
+        "__dom_changes": [
+          {
+            "selector": ".hero-title",
+            "type": "text",
+            "value": "Revolutionary Product",
+            "trigger_on_view": false
+          },
+          {
+            "selector": ".cta-button",
+            "type": "styleRules",
+            "states": {
+              "normal": {
+                "backgroundColor": "#28a745",
+                "padding": "15px 30px"
+              },
+              "hover": {
+                "backgroundColor": "#218838",
+                "transform": "scale(1.05)"
+              }
+            },
+            "trigger_on_view": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "treatment_b",
+      "variables": {
+        "__dom_changes": [
+          {
+            "selector": ".hero-title",
+            "type": "text",
+            "value": "Game-Changing Solution",
+            "trigger_on_view": false
+          },
+          {
+            "selector": ".cta-button",
+            "type": "move",
+            "targetSelector": ".hero-section",
+            "position": "lastChild",
+            "trigger_on_view": true
+          },
+          {
+            "selector": ".testimonials",
+            "type": "style",
+            "value": {
+              "backgroundColor": "#f8f9fa",
+              "padding": "40px"
+            },
+            "waitForElement": true,
+            "trigger_on_view": true
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+### Exposure Flow
 
 ```javascript
-class ExtensionController {
+// Automatic exposure handling
+if (hasOnlyImmediateChanges) {
+  context.treatment(experimentName);  // Trigger immediately
+} else if (hasViewportChanges) {
+  // Wait for ANY tracked element to become visible
+  // Tracks elements from ALL variants to prevent bias
+}
+```
+
+## Best Practices
+
+### 1. Exposure Timing Strategy
+
+```javascript
+// Above-fold, critical changes
+{
+  selector: '.hero-banner',
+  type: 'text',
+  value: 'New Headline',
+  trigger_on_view: false  // Immediate exposure
+}
+
+// Below-fold, non-critical changes
+{
+  selector: '.footer-cta',
+  type: 'style',
+  value: { backgroundColor: 'blue' },
+  trigger_on_view: true  // Wait for visibility
+}
+
+// Move changes - always wait
+{
+  selector: '.element',
+  type: 'move',
+  targetSelector: '.new-location',
+  trigger_on_view: true  // Prevent position bias
+}
+```
+
+### 2. Performance Optimization
+
+```javascript
+// Use observerRoot for better performance
+{
+  selector: '.modal-content',
+  type: 'text',
+  value: 'Updated content',
+  waitForElement: true,
+  observerRoot: '.modal-container'  // Watch specific area
+}
+
+// Batch changes
+function applyBulkChanges(changes, experimentName) {
+  // Remove once
+  plugin.removeChanges(experimentName);
+  
+  // Apply all
+  const results = changes.map(change => ({
+    change,
+    success: plugin.applyChange(change, experimentName)
+  }));
+  
+  return results;
+}
+```
+
+### 3. Handling React/Vue Apps
+
+```javascript
+// Use styleRules for hover states (survives re-renders)
+{
+  selector: '.react-button',
+  type: 'styleRules',
+  states: {
+    normal: { backgroundColor: 'blue' },
+    hover: { backgroundColor: 'darkblue' }
+  }
+}
+
+// Use waitForElement for dynamic components
+{
+  selector: '.lazy-component',
+  type: 'style',
+  value: { border: '2px solid red' },
+  waitForElement: true
+}
+```
+
+### 4. Debugging
+
+```javascript
+// Enable comprehensive logging
+const plugin = new DOMChangesPlugin({
+  context: absmartlyContext,
+  debug: true
+});
+
+// Console output includes:
+// - Change applications
+// - Exposure triggers
+// - Element tracking
+// - Observer lifecycle
+// - Error details
+```
+
+### 5. Clean Architecture
+
+```javascript
+class ExperimentManager {
   constructor() {
-    this.plugin = null;
-    this.currentVariant = null;
-    this.isPreviewActive = false;
-    this.visualEditorSession = null;
+    this.experiments = new Map();
   }
 
-  async initialize() {
-    // Initialize plugin
-    this.plugin = new DOMChangesPlugin({
-      debug: true,
-      context: await this.getABSmartlyContext()
+  registerExperiment(name, changes) {
+    this.experiments.set(name, {
+      name,
+      changes,
+      applied: false
     });
-    await this.plugin.initialize();
   }
 
-  // Preview management
-  startPreview(variant) {
-    this.currentVariant = variant;
-    this.isPreviewActive = true;
-    this.applyVariantChanges();
-  }
+  applyExperiment(name) {
+    const exp = this.experiments.get(name);
+    if (!exp || exp.applied) return;
 
-  stopPreview() {
-    if (!this.currentVariant) return;
-    
-    this.plugin.removeChanges(`${this.currentVariant.id}-preview`);
-    this.isPreviewActive = false;
-    this.currentVariant = null;
-  }
-
-  // Toggle individual change
-  toggleChange(changeId, enabled) {
-    if (!this.currentVariant) return;
-    
-    const change = this.currentVariant.changes.find(c => c.id === changeId);
-    if (!change) return;
-    
-    change.enabled = enabled;
-    this.applyVariantChanges();
-  }
-
-  // Apply all variant changes (remove & reapply pattern)
-  applyVariantChanges() {
-    if (!this.currentVariant) return;
-    
-    const experimentName = `${this.currentVariant.id}-preview`;
-    
-    // Remove all
-    this.plugin.removeChanges(experimentName);
-    
-    // Apply enabled only
-    this.currentVariant.changes
-      .filter(c => c.enabled)
-      .forEach(change => {
-        this.plugin.applyChange(change, experimentName);
-      });
-  }
-
-  // Visual editor
-  startVisualEditor() {
-    this.visualEditorSession = {
-      id: Date.now(),
-      changes: [],
-      undoManager: new UndoManager(this.plugin, `visual-editor-${Date.now()}`)
-    };
-  }
-
-  addVisualEditorChange(change) {
-    if (!this.visualEditorSession) return;
-    
-    // Apply and track
-    this.visualEditorSession.undoManager.applyChange(change);
-    this.visualEditorSession.changes.push(change);
-  }
-
-  saveVisualEditorChanges() {
-    if (!this.visualEditorSession || !this.currentVariant) return;
-    
-    // Add visual editor changes to variant
-    this.visualEditorSession.changes.forEach(change => {
-      this.currentVariant.changes.push({
-        id: `change-${Date.now()}-${Math.random()}`,
-        ...change,
-        enabled: true
-      });
+    exp.changes.forEach(change => {
+      this.plugin.applyChange(change, name);
     });
     
-    // Clean up visual editor session
-    this.plugin.removeChanges(`visual-editor-${this.visualEditorSession.id}`);
-    this.visualEditorSession = null;
-    
-    // Reapply variant with new changes
-    this.applyVariantChanges();
+    exp.applied = true;
   }
 
-  // Cleanup
-  cleanup() {
-    this.stopPreview();
-    if (this.visualEditorSession) {
-      this.plugin.removeChanges(`visual-editor-${this.visualEditorSession.id}`);
+  cleanupExperiment(name) {
+    this.plugin.removeChanges(name);
+    this.experiments.delete(name);
+  }
+
+  cleanupAll() {
+    for (const [name] of this.experiments) {
+      this.cleanupExperiment(name);
     }
   }
 }
 
-// Usage
-const controller = new ExtensionController();
-await controller.initialize();
-
-// Start preview
-controller.startPreview(variant);
-
-// Toggle change
-controller.toggleChange('change-001', false);
-
-// Visual editor
-controller.startVisualEditor();
-controller.addVisualEditorChange({
-  selector: '.header',
-  type: 'text',
-  value: 'New Header'
+// Use in extension
+window.addEventListener('beforeunload', () => {
+  experimentManager.cleanupAll();
 });
-controller.saveVisualEditorChanges();
 ```
 
-This single guide contains everything you need to integrate the DOM Changes Plugin into your extension.
+## Common Issues & Solutions
+
+### Issue: Changes Not Applying
+
+```javascript
+// Problem: Element doesn't exist yet
+// Solution: Use waitForElement
+{
+  selector: '.dynamic-element',
+  type: 'style',
+  value: { color: 'red' },
+  waitForElement: true
+}
+```
+
+### Issue: Hover States Lost on React Re-render
+
+```javascript
+// Problem: Inline styles don't handle :hover
+// Solution: Use styleRules
+{
+  selector: '.button',
+  type: 'styleRules',
+  states: {
+    normal: { backgroundColor: 'blue' },
+    hover: { backgroundColor: 'darkblue' }
+  }
+}
+```
+
+### Issue: Sample Ratio Mismatch
+
+```javascript
+// Problem: Different visibility across variants
+// Solution: Use trigger_on_view for below-fold
+{
+  selector: '.below-fold',
+  type: 'text',
+  value: 'New text',
+  trigger_on_view: true
+}
+```
+
+### Issue: Performance with Many Elements
+
+```javascript
+// Problem: Watching entire document
+// Solution: Use observerRoot
+{
+  selector: '.list-item',
+  type: 'style',
+  value: { border: '1px solid blue' },
+  waitForElement: true,
+  observerRoot: '.list-container'  // Narrow scope
+}
+```
+
+## Complete Implementation Example
+
+```javascript
+class ABTestingExtension {
+  constructor() {
+    this.plugin = null;
+    this.activeExperiments = new Map();
+  }
+
+  async initialize() {
+    // Get ABSmartly context
+    const context = await this.createABSmartlyContext();
+    
+    // Initialize plugin with all features
+    this.plugin = new DOMChangesPlugin({
+      context,
+      debug: true,
+      autoApply: true,  // Auto-apply from SDK
+      spa: true,        // Handle SPAs
+      dataFieldName: '__dom_changes'
+    });
+    
+    await this.plugin.initialize();
+    
+    // Plugin automatically handles SDK changes
+    // Additional manual control available:
+    this.setupManualControls();
+  }
+
+  setupManualControls() {
+    // Preview mode
+    this.previewManager = new PreviewManager(this.plugin);
+    
+    // Visual editor
+    this.visualEditor = new VisualEditor(this.plugin);
+    
+    // SPA handler
+    this.spaHandler = new SPAHandler(this.plugin);
+  }
+
+  // Manual experiment application
+  applyExperiment(experimentName, changes) {
+    // Validate changes
+    const validChanges = changes.filter(this.validateChange);
+    
+    // Apply with proper exposure tracking
+    validChanges.forEach(change => {
+      // Ensure proper exposure tracking
+      const trackedChange = {
+        ...change,
+        trigger_on_view: this.shouldTriggerOnView(change)
+      };
+      
+      this.plugin.applyChange(trackedChange, experimentName);
+    });
+    
+    this.activeExperiments.set(experimentName, validChanges);
+  }
+
+  shouldTriggerOnView(change) {
+    // Move changes always use viewport tracking
+    if (change.type === 'move') return true;
+    
+    // Check if element is likely below fold
+    const element = document.querySelector(change.selector);
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      return rect.top > window.innerHeight;
+    }
+    
+    // Default to immediate for unknown elements
+    return false;
+  }
+
+  validateChange(change) {
+    // Required fields
+    if (!change.selector || !change.type) return false;
+    
+    // Type-specific validation
+    switch (change.type) {
+      case 'styleRules':
+        return change.states && change.states.normal;
+      case 'move':
+        return Boolean(change.targetSelector);
+      case 'create':
+        return Boolean(change.element && change.targetSelector);
+      default:
+        return true;
+    }
+  }
+
+  // Cleanup
+  cleanup() {
+    // Remove all active experiments
+    for (const [name] of this.activeExperiments) {
+      this.plugin.removeChanges(name);
+    }
+    
+    // Destroy plugin
+    this.plugin.destroy();
+  }
+}
+
+// Initialize extension
+const extension = new ABTestingExtension();
+extension.initialize();
+
+// Cleanup on unload
+window.addEventListener('beforeunload', () => {
+  extension.cleanup();
+});
+```
+
+## Summary
+
+The DOM Changes Plugin provides:
+
+1. **Complete DOM Manipulation**: All change types including styleRules for pseudo-states
+2. **Smart Exposure Tracking**: Prevents sample ratio mismatch with cross-variant tracking
+3. **Dynamic Content Support**: Handles lazy-loaded and SPA content
+4. **React/Vue Compatibility**: Changes survive re-renders
+5. **Performance Optimized**: Efficient observers with automatic cleanup
+6. **Developer Friendly**: Comprehensive debugging and clean API
+
+For additional details, see:
+- [EXPOSURE_TRACKING_GUIDE.md](./EXPOSURE_TRACKING_GUIDE.md) - Deep dive into exposure tracking
+- [EXTENSION_STYLERULES_UI_GUIDE.md](./EXTENSION_STYLERULES_UI_GUIDE.md) - Building UI for styleRules
+- [HOVER_AND_PERSISTENCE_GUIDE.md](./HOVER_AND_PERSISTENCE_GUIDE.md) - Handling hover states and React
+
+This guide contains everything needed to integrate the DOM Changes Plugin into your Chrome extension with all the latest features.

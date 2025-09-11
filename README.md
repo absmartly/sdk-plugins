@@ -4,13 +4,16 @@ A powerful plugin for the ABsmartly JavaScript SDK that enables DOM manipulation
 
 ## Features
 
-- **DOM Manipulation**: Apply various types of DOM changes (text, HTML, styles, classes, attributes, JavaScript execution, element moves, and element creation)
+- **Complete DOM Manipulation**: All change types including styleRules with pseudo-states (hover, active, focus)
+- **Smart Exposure Tracking**: Cross-variant tracking prevents sample ratio mismatch with `trigger_on_view` control
+- **Dynamic Content Support**: Pending changes with `waitForElement` for lazy-loaded content and SPAs
+- **React/Vue Compatibility**: StyleRules survive re-renders through stylesheet injection
 - **Browser Extension Integration**: Two-way communication with the ABsmartly Browser Extension for visual editing
-- **SPA Support**: Automatic handling of dynamically loaded content with MutationObserver
-- **Preview Mode**: Test DOM changes before creating experiments
+- **Automatic SDK Integration**: Auto-apply changes from ABsmartly SDK with `autoApply` mode
+- **Performance Optimized**: Efficient MutationObservers with automatic cleanup and scoped watching
+- **Preview Mode**: Test DOM changes before creating experiments with exposure control
 - **Cookie-Based Overrides**: Server-compatible experiment overrides via cookies
 - **Code Injection**: Support for custom code injection at various page locations
-- **Viewport Tracking**: Delayed experiment exposure until changes are visible
 - **Flexible Data Sources**: Support for both variables and custom fields
 
 ## Installation
@@ -54,7 +57,9 @@ await plugin.initialize();
 
 ## DOM Change Types
 
-The plugin supports the following DOM change types:
+The plugin supports comprehensive DOM manipulation with advanced features:
+
+### Core Change Types
 
 ### Text Change
 ```javascript
@@ -74,18 +79,56 @@ The plugin supports the following DOM change types:
 }
 ```
 
-### Style Change
+### Style Change (Inline)
 ```javascript
 {
   selector: '.button',
   type: 'style',
   value: {
-    'background-color': '#ff0000',
-    'color': '#ffffff',
-    'font-size': '18px'
-  }
+    backgroundColor: 'red',    // Use camelCase for CSS properties
+    color: '#ffffff',
+    fontSize: '18px'
+  },
+  trigger_on_view: false  // Control exposure timing
 }
 ```
+
+### Style Rules (With Pseudo-States) ⭐ NEW
+```javascript
+{
+  selector: '.button',
+  type: 'styleRules',
+  states: {
+    normal: {
+      backgroundColor: '#007bff',
+      color: 'white',
+      padding: '10px 20px',
+      borderRadius: '4px',
+      transition: 'all 0.2s ease'
+    },
+    hover: {
+      backgroundColor: '#0056b3',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+    },
+    active: {
+      backgroundColor: '#004085',
+      transform: 'translateY(0)'
+    },
+    focus: {
+      outline: '2px solid #007bff',
+      outlineOffset: '2px'
+    }
+  },
+  important: true,  // default is true
+  trigger_on_view: true
+}
+```
+
+**Benefits of styleRules:**
+- Handles CSS pseudo-states properly (hover, active, focus)
+- Survives React re-renders through stylesheet injection
+- More performant than inline styles for complex interactions
 
 ### Class Change
 ```javascript
@@ -135,9 +178,32 @@ The plugin supports the following DOM change types:
   type: 'create',
   element: '<div class="banner">Special Offer!</div>',
   targetSelector: 'body',
-  position: 'firstChild'
+  position: 'firstChild',
+  trigger_on_view: false
 }
 ```
+
+### Pending Changes (Elements Not Yet in DOM) ⭐ NEW
+```javascript
+{
+  selector: '.lazy-loaded-button',
+  type: 'style',
+  value: {
+    backgroundColor: 'red',
+    color: 'white'
+  },
+  waitForElement: true,  // Wait for element to appear
+  observerRoot: '.main-content',  // Optional: specific container to watch
+  trigger_on_view: true
+}
+```
+
+**Perfect for:**
+- Lazy-loaded content
+- React components that mount/unmount
+- Modal dialogs
+- API-loaded content
+- Infinite scroll items
 
 ## API Reference
 
@@ -158,15 +224,54 @@ new DOMChangesPlugin(config: PluginConfig)
 - `overrideCookieName`: Cookie name for experiment overrides (default: 'absmartly_overrides')
 - `debug`: Enable debug logging (default: false)
 
+## Exposure Tracking ⭐ NEW
+
+### Understanding trigger_on_view
+
+The `trigger_on_view` property controls when an A/B test exposure event is recorded:
+
+- **`false` or undefined** (default): Exposure triggers immediately when change is applied
+- **`true`**: Exposure triggers only when element enters viewport
+
+### Why This Matters - Preventing Sample Ratio Mismatch
+
+Consider this scenario:
+```javascript
+// Experiment A: Changes hero (visible immediately)
+// Experiment B: Changes footer (requires scrolling)
+
+// Without proper tracking:
+// - Experiment A: 10,000 exposures
+// - Experiment B: 3,000 exposures
+// Result: Biased, unusable data
+```
+
+### Cross-Variant Tracking
+
+The plugin tracks elements from **ALL variants**, not just the active one:
+
+```javascript
+// Variant 0: Button stays in header
+// Variant 1: Button moves to sidebar
+// Variant 2: Button moves to footer
+
+// ALL variants track: .header, .sidebar, AND .footer
+// Exposure triggers when ANY container becomes visible
+// Result: Equal exposure opportunity for all variants
+```
+
 ### Core Methods
 
 #### Apply Changes
 ```javascript
-// Apply all experiment changes
+// Apply all experiment changes from SDK (autoApply mode)
 await plugin.applyChanges();
 
 // Apply changes for specific experiment
 await plugin.applyChanges('experiment-name');
+
+// Apply single change manually
+const success = plugin.applyChange(change, experimentName);
 ```
 
 #### Remove Changes
@@ -176,6 +281,12 @@ plugin.removeChanges();
 
 // Remove changes for specific experiment
 plugin.removeChanges('experiment-name');
+
+// Remove a specific change (removes the first matching one)
+plugin.removeSpecificChange(experimentName, selector, changeType);
+
+// Revert a specific applied change
+plugin.revertChange(appliedChange);
 ```
 
 #### Preview Mode
@@ -195,13 +306,16 @@ const isActive = plugin.isPreviewActive();
 #### State Inspection
 ```javascript
 // Get all applied changes
-const applied = plugin.getAppliedChanges();
+const applied = plugin.getAppliedChanges(experimentName);
 
 // Get pending changes (for SPA)
 const pending = plugin.getPendingChanges();
 
 // Check if experiment has changes
 const hasChanges = plugin.hasChanges('experiment-name');
+
+// Get all tracked experiments
+const experiments = plugin.getExperiments();
 
 // Get original state of an element
 const original = plugin.getOriginalState('.my-element');
@@ -306,7 +420,22 @@ The plugin expects DOM changes in your ABsmartly experiments as either variables
             "selector": ".hero-title",
             "type": "text",
             "value": "Welcome to Our Store!",
-            "enabled": true
+            "trigger_on_view": false
+          },
+          {
+            "selector": ".cta-button",
+            "type": "styleRules",
+            "states": {
+              "normal": {
+                "backgroundColor": "#28a745",
+                "padding": "15px 30px"
+              },
+              "hover": {
+                "backgroundColor": "#218838",
+                "transform": "scale(1.05)"
+              }
+            },
+            "trigger_on_view": false
           }
         ]
       }
