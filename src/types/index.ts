@@ -42,6 +42,9 @@ export interface DOMChange {
   // For pending changes (elements not yet in DOM)
   observerRoot?: string; // CSS selector for the root element to observe (e.g., '.main-content')
   waitForElement?: boolean; // If true, wait for element to appear before applying
+
+  // For exposure tracking
+  trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport
 }
 
 export interface InjectionData {
@@ -166,3 +169,14 @@ export interface EventCallbackData {
 
 // Message handler type
 export type MessageHandler = (payload: MessagePayloadData) => void;
+
+// Exposure tracking types
+export interface ExperimentTracking {
+  experimentName: string;
+  variant: number;
+  changes: DOMChange[];
+  allPossibleSelectors: Set<string>; // All selectors that need viewport tracking across all variants
+  triggered: boolean;
+  hasImmediateTrigger: boolean;
+  hasViewportTrigger: boolean;
+}

@@ -15,6 +15,7 @@ import { MessageBridge } from './MessageBridge';
 import { CodeInjector } from '../injection/CodeInjector';
 import { VariantExtractor } from '../parsers/VariantExtractor';
 import { StyleSheetManager } from './StyleSheetManager';
+import { ExposureTracker } from './ExposureTracker';
 import {
   logDebug,
   logExperimentSummary,
@@ -32,6 +33,7 @@ export class DOMChangesPlugin {
   private messageBridge: MessageBridge | null = null;
   private codeInjector: CodeInjector;
   private variantExtractor: VariantExtractor;
+  private exposureTracker: ExposureTracker;
   private mutationObserver: MutationObserver | null = null;
   private visibilityObserver: IntersectionObserver | null = null;
   private persistenceObserver: MutationObserver | null = null;
@@ -68,6 +70,7 @@ export class DOMChangesPlugin {
       this.config.dataFieldName,
       this.config.debug
     );
+    this.exposureTracker = new ExposureTracker(this.config.context, this.config.debug);
   }
 
   async initialize(): Promise<void> {
@@ -105,10 +108,8 @@ export class DOMChangesPlugin {
         this.setupMutationObserver();
       }
 
-      // Set up visibility tracking
-      if (this.config.visibilityTracking) {
-        this.setupVisibilityObserver();
-      }
+      // Note: Visibility tracking is now handled by ExposureTracker
+      // The old visibilityTracking config is kept for backward compatibility
 
       // Auto-apply changes if configured
       if (this.config.autoApply) {
@@ -224,31 +225,10 @@ export class DOMChangesPlugin {
     this.mutationObserver = observer;
   }
 
+  // Legacy method - exposure tracking now handled by ExposureTracker
   private setupVisibilityObserver(): void {
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const element = entry.target;
-          const experimentName = element.getAttribute('data-absmartly-experiment');
-
-          if (experimentName && !this.exposedExperiments.has(experimentName)) {
-            // Trigger treatment to log exposure
-            this.config.context.treatment(experimentName);
-            this.exposedExperiments.add(experimentName);
-
-            logVisibilityEvent(experimentName, element, true);
-
-            this.emit('experiment-triggered', { experimentName });
-            const variant = this.config.context.peek(experimentName);
-            if (variant !== undefined) {
-              this.messageBridge?.notifyExperimentTriggered(experimentName, variant);
-            }
-          }
-        }
-      });
-    });
-
-    this.visibilityObserver = observer;
+    // Deprecated - kept for backward compatibility
+    // ExposureTracker now handles all viewport-based exposure tracking
   }
 
   async applyChanges(experimentName?: string): Promise<void> {
@@ -276,14 +256,33 @@ export class DOMChangesPlugin {
         totalChanges: changes.length,
       });
 
+      // Get the current variant for this experiment
+      const currentVariant = this.config.context.peek(expName);
+      if (currentVariant === undefined || currentVariant === null) {
+        logDebug(`No variant selected for experiment: ${expName}`);
+        continue;
+      }
+
+      // Get ALL variant changes for exposure tracking
+      const allVariantChanges = this.variantExtractor.getAllVariantChanges(expName);
+      
+      // Track what types of triggers we have
+      let hasImmediateTrigger = false;
+      let hasViewportTrigger = false;
+
       for (const change of changes) {
         const elements = document.querySelectorAll(change.selector);
 
         if (elements.length === 0 && change.type !== 'create') {
-          // Element not found, add to pending if SPA mode
-          if (this.config.spa) {
+          // Element not found, add to pending if SPA mode or waitForElement
+          if (this.config.spa || change.waitForElement) {
             this.stateManager.addPendingChange(expName, change);
             stats.pending++;
+            
+            // Still need to track for exposure if trigger_on_view
+            if (change.trigger_on_view) {
+              hasViewportTrigger = true;
+            }
           }
         } else {
           const success = this.domManipulator.applyChange(change, expName);
@@ -291,17 +290,31 @@ export class DOMChangesPlugin {
             totalApplied++;
             stats.success++;
 
-            // Set up visibility tracking for applied elements
-            if (this.config.visibilityTracking && this.visibilityObserver) {
-              const appliedElements = document.querySelectorAll(
-                `[data-absmartly-experiment="${expName}"]`
-              );
-              appliedElements.forEach(el => {
-                this.visibilityObserver!.observe(el);
-              });
+            // Determine trigger type
+            if (change.trigger_on_view) {
+              hasViewportTrigger = true;
+            } else {
+              hasImmediateTrigger = true;
             }
           }
         }
+      }
+
+      // Set up exposure tracking for this experiment
+      if (hasViewportTrigger || hasImmediateTrigger) {
+        this.exposureTracker.registerExperiment(
+          expName,
+          currentVariant,
+          changes,
+          allVariantChanges
+        );
+      }
+
+      // If there are only immediate triggers (no viewport tracking), trigger exposure now
+      if (hasImmediateTrigger && !hasViewportTrigger) {
+        this.config.context.treatment(expName);
+        this.exposedExperiments.add(expName);
+        logDebug(`Triggered immediate exposure for experiment: ${expName}`);
       }
 
       experimentStats.set(expName, stats);
@@ -660,6 +673,9 @@ export class DOMChangesPlugin {
 
     // Clean up DOM manipulator (includes pending manager)
     this.domManipulator.destroy();
+    
+    // Clean up exposure tracker
+    this.exposureTracker.destroy();
 
     // Clean up style managers
     this.styleManagers.forEach(manager => manager.destroy());

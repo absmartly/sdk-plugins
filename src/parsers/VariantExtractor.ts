@@ -221,4 +221,57 @@ export class VariantExtractor {
 
     return this.extractExperimentChanges(experiment);
   }
+
+  /**
+   * Get all variant changes for an experiment (not just the current variant)
+   * This is needed for proper exposure tracking across variants
+   */
+  getAllVariantChanges(experimentName: string): DOMChange[][] {
+    const contextData = this.context.data() as ContextData;
+
+    if (!contextData || !contextData.experiments) {
+      return [];
+    }
+
+    const experiment = contextData.experiments.find(exp => exp.name === experimentName);
+    if (!experiment || !experiment.variants) {
+      return [];
+    }
+
+    const allChanges: DOMChange[][] = [];
+
+    // Extract changes for each variant
+    for (let i = 0; i < experiment.variants.length; i++) {
+      const variant = experiment.variants[i];
+      
+      if (!variant || !variant.variables) {
+        allChanges.push([]);
+        continue;
+      }
+
+      const changesData = variant.variables[this.dataFieldName];
+      if (!changesData) {
+        allChanges.push([]);
+        continue;
+      }
+
+      const changes = this.parseChanges(changesData);
+      allChanges.push(changes || []);
+    }
+
+    return allChanges;
+  }
+
+  /**
+   * Get the experiment data by name
+   */
+  getExperiment(experimentName: string): ExperimentData | null {
+    const contextData = this.context.data() as ContextData;
+
+    if (!contextData || !contextData.experiments) {
+      return null;
+    }
+
+    return contextData.experiments.find(exp => exp.name === experimentName) || null;
+  }
 }
