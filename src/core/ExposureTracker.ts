@@ -39,31 +39,21 @@ export class ExposureTracker {
     const viewportSelectors = new Set<string>();
     const moveParentSelectors = new Set<string>(); // Parent containers for move changes
     
-    // Analyze all variants to find what needs tracking
+    // First pass: collect all move changes across all variants
+    // We need to track ALL possible positions where elements could be
+    const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
+    
     allVariantsChanges.forEach((variantChanges, variantIndex) => {
       variantChanges.forEach(change => {
         if (change.trigger_on_view) {
           if (change.type === 'move') {
-            // For move changes, we need to track ONLY parent containers
-            // This ensures all variants track the same elements
-            
-            // Get the original parent container (where element starts in control)
-            // We need to determine this from the control variant (usually index 0)
-            if (variantIndex === 0) {
-              // Control variant - element is in original position
-              const element = document.querySelector(change.selector);
-              if (element?.parentElement) {
-                const parentSelector = this.getStableParentSelector(element.parentElement);
-                if (parentSelector) {
-                  moveParentSelectors.add(parentSelector);
-                }
-              }
+            if (!moveElements.has(change.selector)) {
+              moveElements.set(change.selector, new Set());
             }
             
-            // Always add the target container for move destinations
+            // Add the target parent for this move
             if (change.targetSelector) {
-              // The target selector should be a container, not the element itself
-              moveParentSelectors.add(change.targetSelector);
+              moveElements.get(change.selector)!.add(change.targetSelector);
             }
           } else {
             // For non-move changes, track the selector directly
@@ -71,6 +61,23 @@ export class ExposureTracker {
           }
         }
       });
+    });
+    
+    // For each element that can move, track both original and all target positions
+    // This ensures ALL variants watch the SAME set of parent containers
+    moveElements.forEach((targetParents, selector) => {
+      // Find the element's original position (where it is without any moves applied)
+      const element = document.querySelector(selector);
+      if (element?.parentElement) {
+        const originalParentSelector = this.getStableParentSelector(element.parentElement);
+        if (originalParentSelector) {
+          // Track the original parent (where element is in variants without move)
+          moveParentSelectors.add(originalParentSelector);
+        }
+      }
+      
+      // Track all possible target parents (where element could be moved to)
+      targetParents.forEach(parent => moveParentSelectors.add(parent));
     });
 
     // Determine what triggers are needed
