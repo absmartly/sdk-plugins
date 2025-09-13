@@ -194,7 +194,7 @@ describe('MessageBridge', () => {
         {
           source: 'absmartly-sdk',
           type: 'TEST_TYPE',
-          payload: { data: 'test' },
+          payload: { changes: [{ selector: '.test', type: 'text' }] },
         },
         '*'
       );
@@ -364,7 +364,7 @@ describe('MessageBridge', () => {
 
       debugBridge.sendMessage('TEST', { changes: [{ selector: '.test', type: 'text' }] } as any);
 
-      expect(logSpy).toHaveBeenCalledWith('[ABsmartly] Sending message:', 'TEST', { data: 'test' });
+      expect(logSpy).toHaveBeenCalledWith('[ABsmartly] Sending message:', 'TEST', { changes: [{ selector: '.test', type: 'text' }] });
 
       debugBridge.destroy();
     });

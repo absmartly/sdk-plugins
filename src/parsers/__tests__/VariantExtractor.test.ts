@@ -568,4 +568,431 @@ describe('VariantExtractor', () => {
       });
     });
   });
+
+  describe('getAllVariantChanges', () => {
+    beforeEach(() => {
+      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+    });
+
+    it('should get changes for all variants of an experiment', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __dom_changes: [{ selector: '.test1', type: 'text', value: 'Variant 0' }],
+                },
+              },
+              {
+                variables: {
+                  __dom_changes: [{ selector: '.test2', type: 'text', value: 'Variant 1' }],
+                },
+              },
+              {
+                variables: {
+                  // No changes for variant 2
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+
+      const allChanges = variantExtractor.getAllVariantChanges('exp1');
+
+      expect(allChanges).toHaveLength(3);
+      expect(allChanges[0]).toEqual([{ selector: '.test1', type: 'text', value: 'Variant 0' }]);
+      expect(allChanges[1]).toEqual([{ selector: '.test2', type: 'text', value: 'Variant 1' }]);
+      expect(allChanges[2]).toEqual([]);
+    });
+
+    it('should return empty array for non-existent experiment', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+
+      const allChanges = variantExtractor.getAllVariantChanges('non-existent');
+
+      expect(allChanges).toEqual([]);
+    });
+
+    it('should handle experiment with no variants', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            // No variants property
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+
+      const allChanges = variantExtractor.getAllVariantChanges('exp1');
+
+      expect(allChanges).toEqual([]);
+    });
+  });
+
+  describe('getExperiment', () => {
+    beforeEach(() => {
+      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+    });
+
+    it('should get experiment data by name', () => {
+      const experimentData = {
+        name: 'exp1',
+        variants: [
+          {
+            variables: {
+              __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
+            },
+          },
+        ],
+      };
+
+      const contextData: ContextData = {
+        experiments: [experimentData],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+
+      const experiment = variantExtractor.getExperiment('exp1');
+
+      expect(experiment).toEqual(experimentData);
+    });
+
+    it('should return null for non-existent experiment', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+
+      const experiment = variantExtractor.getExperiment('non-existent');
+
+      expect(experiment).toBeNull();
+    });
+
+    it('should handle null context data', () => {
+      (mockContext.data as jest.Mock).mockReturnValue(null);
+
+      const experiment = variantExtractor.getExperiment('exp1');
+
+      expect(experiment).toBeNull();
+    });
+  });
+
+  describe('edge cases and complex scenarios', () => {
+    beforeEach(() => {
+      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+    });
+
+    it('should handle null/undefined variant index', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(null);
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+    });
+
+    it('should handle missing variant at index', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              // Variant 0 exists
+              {
+                variables: {
+                  __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(1); // Request variant 1 which doesn't exist
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+    });
+
+    it('should handle variant with no variables', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                // No variables property
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+    });
+
+    it('should handle missing data field in variables', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  other_field: 'some value',
+                  // No __dom_changes field
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+    });
+
+    it('should handle valid JSON string data', () => {
+      const changesArray = [{ selector: '.test', type: 'text', value: 'From JSON' }];
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __dom_changes: JSON.stringify(changesArray),
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.get('exp1')).toEqual(changesArray);
+    });
+
+    it('should handle empty array of changes', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __dom_changes: [], // Empty array
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+    });
+
+    it('should handle all invalid changes in array', () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __dom_changes: [
+                    { invalid: 'change1' },
+                    { invalid: 'change2' },
+                    null,
+                    undefined,
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+    });
+
+    it('should handle context.data() throwing an error', () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      (mockContext.data as jest.Mock).mockImplementation(() => {
+        throw new Error('Context data error');
+      });
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[ABsmartly] Error extracting DOM changes:',
+        expect.any(Error)
+      );
+
+      errorSpy.mockRestore();
+    });
+
+    it('should handle experiment extraction errors with debug', () => {
+      const debugExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', true);
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockImplementation(() => {
+        throw new Error('Peek error');
+      });
+
+      const changes = debugExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[ABsmartly] Error extracting changes for exp1:',
+        expect.any(Error)
+      );
+
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('custom field edge cases', () => {
+    beforeEach(() => {
+      variantExtractor = new VariantExtractor(
+        mockContext,
+        'customField',
+        'custom_dom_changes',
+        false
+      );
+    });
+
+    it('should handle custom field with string JSON data', () => {
+      const changesArray = [{ selector: '.custom', type: 'text', value: 'Custom' }];
+      const contextData: ContextData = {
+        experiments: [{ name: 'exp1' }],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.customFieldValue as jest.Mock).mockReturnValue(JSON.stringify(changesArray));
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.get('exp1')).toEqual(changesArray);
+    });
+
+    it('should handle custom field with invalid JSON', () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const contextData: ContextData = {
+        experiments: [{ name: 'exp1' }],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.customFieldValue as jest.Mock).mockReturnValue('{ invalid json }');
+
+      const changes = variantExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[ABsmartly] Failed to parse DOM changes JSON:',
+        expect.any(Error)
+      );
+
+      errorSpy.mockRestore();
+    });
+
+    it('should handle null custom field with debug', () => {
+      const debugExtractor = new VariantExtractor(
+        mockContext,
+        'customField',
+        'custom_field',
+        true
+      );
+      const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const contextData: ContextData = {
+        experiments: [{ name: 'exp1' }],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.customFieldValue as jest.Mock).mockReturnValue(null);
+
+      const changes = debugExtractor.extractAllChanges();
+
+      expect(changes.size).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        '[ABsmartly] No custom field custom_field found for exp1'
+      );
+
+      logSpy.mockRestore();
+    });
+  });
 });

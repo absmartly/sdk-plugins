@@ -5,11 +5,15 @@ import { DOMChange } from '../../types';
 describe('DOMManipulator - Sequential Changes', () => {
   let domManipulator: DOMManipulator;
   let stateManager: StateManager;
+  let mockPlugin: any;
 
   beforeEach(() => {
     document.body.innerHTML = '';
     stateManager = new StateManager();
-    domManipulator = new DOMManipulator(stateManager, false, {} as any);
+    mockPlugin = {
+      watchElement: jest.fn(),
+    };
+    domManipulator = new DOMManipulator(stateManager, false, mockPlugin);
   });
 
   afterEach(() => {

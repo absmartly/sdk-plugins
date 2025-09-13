@@ -258,11 +258,15 @@ describe('ExposureTracker', () => {
         },
       ];
 
-      tracker.registerExperiment('exp1', 0, changes, [changes]);
+      const allVariantChanges = [changes, changes]; // Same format as successful test
+      tracker.registerExperiment('exp1', 0, changes, allVariantChanges);
 
-      expect(tracker.isTriggered('exp1')).toBe(true);
+      // Check if treatment was called (should be immediate trigger)
+      expect(treatmentMock).toHaveBeenCalledWith('exp1');
       
-      // After triggering, experiment should be cleaned up
+      // After triggering, experiment should be cleaned up and removed
+      // isTriggered returns false because the experiment is no longer tracked
+      expect(tracker.isTriggered('exp1')).toBe(false);
       expect(tracker.needsViewportTracking('exp1')).toBe(false);
     });
 
