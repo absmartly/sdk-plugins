@@ -9,7 +9,7 @@ interface TrackedElement {
 export class ExposureTracker {
   private experiments = new Map<string, ExperimentTracking>();
   private trackedElements = new Map<Element, TrackedElement>();
-  private observer: IntersectionObserver;
+  private observer!: IntersectionObserver;
   private mutationObserver: MutationObserver | null = null;
   private debug: boolean;
   private placeholders = new Map<string, HTMLElement>(); // experimentName-selector -> placeholder
@@ -43,7 +43,7 @@ export class ExposureTracker {
     // We need to track ALL possible positions where elements could be
     const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
     
-    allVariantsChanges.forEach((variantChanges, variantIndex) => {
+    allVariantsChanges.forEach((variantChanges) => {
       variantChanges.forEach(change => {
         if (change.trigger_on_view) {
           if (change.type === 'move') {
@@ -197,7 +197,7 @@ export class ExposureTracker {
   /**
    * Watch for elements matching a selector to appear
    */
-  private watchForSelector(selector: string, experimentName: string): void {
+  private watchForSelector(_selector: string, _experimentName: string): void {
     if (!this.mutationObserver) {
       this.setupMutationObserver();
     }

@@ -289,7 +289,7 @@ For move changes, the plugin tracks **parent containers**:
   type: 'move',
   targetSelector: '.footer',
   position: 'firstChild',
-  trigger_on_view: true  // ALWAYS use true for moves
+  trigger_on_view: true
 }
 
 // Tracks both:
@@ -554,7 +554,7 @@ if (hasOnlyImmediateChanges) {
   context.treatment(experimentName);  // Trigger immediately
 } else if (hasViewportChanges) {
   // Wait for ANY tracked element to become visible
-  // Tracks elements from ALL variants to prevent bias
+  // Tracks elements from ALL variants to prevent SRMs
 }
 ```
 
@@ -911,7 +911,7 @@ if (document.readyState === 'loading') {
 1. **Changes not applying**: Check selector validity and ensure elements exist
 2. **Hover states not working**: Use `styleRules` instead of inline `style` changes
 3. **React re-render issues**: Use `styleRules` and `waitForElement` for dynamic content
-4. **Sample ratio mismatch**: Use `trigger_on_view: true` for below-fold elements
+4. **Sample ratio mismatch**: Track DOM changes from all variants, not just the current variant
 5. **Performance issues**: Use `observerRoot` to narrow observation scope
 6. **Extension not connecting**: Ensure `extensionBridge: true` in plugin config
 7. **Preview not removing**: Use the complete refresh pattern instead of individual removes

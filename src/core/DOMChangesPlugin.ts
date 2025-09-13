@@ -19,7 +19,6 @@ import { ExposureTracker } from './ExposureTracker';
 import {
   logDebug,
   logExperimentSummary,
-  logVisibilityEvent,
   logPerformance,
   DEBUG,
 } from '../utils/debug';
@@ -225,11 +224,6 @@ export class DOMChangesPlugin {
     this.mutationObserver = observer;
   }
 
-  // Legacy method - exposure tracking now handled by ExposureTracker
-  private setupVisibilityObserver(): void {
-    // Deprecated - kept for backward compatibility
-    // ExposureTracker now handles all viewport-based exposure tracking
-  }
 
   async applyChanges(experimentName?: string): Promise<void> {
     const startTime = performance.now();
