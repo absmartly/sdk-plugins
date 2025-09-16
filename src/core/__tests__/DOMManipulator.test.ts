@@ -713,7 +713,7 @@ describe('DOMManipulator', () => {
       const change: DOMChange = {
         selector: '.test',
         type: 'javascript',
-        value: 'element.textContent = "Modified by JS";'
+        value: 'element.textContent = "Modified by JS";',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -728,18 +728,18 @@ describe('DOMManipulator', () => {
       const change: DOMChange = {
         selector: '.test',
         type: 'javascript',
-        value: 'invalid javascript syntax ==='
+        value: 'invalid javascript syntax ===',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
 
       expect(success).toBe(false); // Returns false when JavaScript execution fails
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[ABsmartly] JavaScript execution error:', 
+        '[ABsmartly] JavaScript execution error:',
         expect.any(Error)
       );
       expect(document.querySelector('.test')?.textContent).toBe('Original');
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -748,7 +748,7 @@ describe('DOMManipulator', () => {
       const change: DOMChange = {
         selector: '.test',
         type: 'javascript',
-        value: ''
+        value: '',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -766,29 +766,33 @@ describe('DOMManipulator', () => {
         </div>
         <div class="target">Target Container</div>
       `;
-      
+
       const change: DOMChange = {
         selector: '.source',
         type: 'move',
         targetSelector: '.target',
-        position: 'lastChild'
+        position: 'lastChild',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
 
       expect(success).toBe(true);
-      expect(document.querySelector('.target')?.contains(document.querySelector('.source'))).toBe(true);
-      expect(document.querySelector('.container')?.contains(document.querySelector('.source'))).toBe(false);
+      expect(document.querySelector('.target')?.contains(document.querySelector('.source'))).toBe(
+        true
+      );
+      expect(
+        document.querySelector('.container')?.contains(document.querySelector('.source'))
+      ).toBe(false);
     });
 
     it('should handle move when target does not exist', () => {
       document.body.innerHTML = '<div class="source">Source Element</div>';
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const change: DOMChange = {
         selector: '.source',
         type: 'move',
-        targetSelector: '.non-existent-target'
+        targetSelector: '.non-existent-target',
       };
 
       // Create with debug enabled to test warning
@@ -796,8 +800,10 @@ describe('DOMManipulator', () => {
       const success = debugDomManipulator.applyChange(change, 'exp1');
 
       expect(success).toBe(false); // Returns false when move target doesn't exist
-      expect(consoleWarnSpy).toHaveBeenCalledWith('[ABsmartly] Move target not found: .non-existent-target');
-      
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[ABsmartly] Move target not found: .non-existent-target'
+      );
+
       consoleWarnSpy.mockRestore();
     });
 
@@ -808,12 +814,12 @@ describe('DOMManipulator', () => {
         </div>
         <div class="source">Source Element</div>
       `;
-      
+
       const change: DOMChange = {
         selector: '.source',
         type: 'move',
         targetSelector: '.target',
-        position: 'firstChild'
+        position: 'firstChild',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -829,19 +835,19 @@ describe('DOMManipulator', () => {
       // Mock the plugin methods for style rules
       const mockPlugin = {
         getStyleManager: jest.fn().mockReturnValue({
-          setRule: jest.fn()
+          setRule: jest.fn(),
         }),
-        buildStateRules: jest.fn().mockReturnValue('.test:hover { color: red; }')
+        buildStateRules: jest.fn().mockReturnValue('.test:hover { color: red; }'),
       } as any;
 
       const domManipulatorWithPlugin = new DOMManipulator(stateManager, false, mockPlugin);
-      
+
       const change: DOMChange = {
         selector: '.test:hover',
         type: 'styleRules',
         states: {
-          hover: { color: 'red' }
-        }
+          hover: { color: 'red' },
+        },
       };
 
       const success = domManipulatorWithPlugin.applyChange(change, 'exp1');
@@ -857,47 +863,49 @@ describe('DOMManipulator', () => {
 
     it('should handle complex pseudo-selectors in style rules', () => {
       document.body.innerHTML = '<div class="complex-test">Element</div>';
-      
+
       const mockPlugin = {
         getStyleManager: jest.fn().mockReturnValue({
-          setRule: jest.fn()
+          setRule: jest.fn(),
         }),
-        buildStateRules: jest.fn().mockReturnValue('.complex-test:hover:focus { color: blue; }')
+        buildStateRules: jest.fn().mockReturnValue('.complex-test:hover:focus { color: blue; }'),
       } as any;
 
       const domManipulatorWithPlugin = new DOMManipulator(stateManager, false, mockPlugin);
-      
+
       const change: DOMChange = {
         selector: '.complex-test:hover:focus',
         type: 'styleRules',
         states: {
-          hover: { color: 'blue' }
-        }
+          hover: { color: 'blue' },
+        },
       };
 
       const success = domManipulatorWithPlugin.applyChange(change, 'exp1');
 
       expect(success).toBe(true);
       // Should still try to mark the base element
-      expect(document.querySelector('.complex-test')?.getAttribute('data-absmartly-style-rules')).toBe('true');
+      expect(
+        document.querySelector('.complex-test')?.getAttribute('data-absmartly-style-rules')
+      ).toBe('true');
     });
 
     it('should handle invalid selectors in style rules gracefully', () => {
       const mockPlugin = {
         getStyleManager: jest.fn().mockReturnValue({
-          setRule: jest.fn()
+          setRule: jest.fn(),
         }),
-        buildStateRules: jest.fn().mockReturnValue('invalid::selector { color: red; }')
+        buildStateRules: jest.fn().mockReturnValue('invalid::selector { color: red; }'),
       } as any;
 
       const domManipulatorWithPlugin = new DOMManipulator(stateManager, false, mockPlugin);
-      
+
       const change: DOMChange = {
         selector: 'invalid::selector',
         type: 'styleRules',
         states: {
-          hover: { color: 'red' }
-        }
+          hover: { color: 'red' },
+        },
       };
 
       const success = domManipulatorWithPlugin.applyChange(change, 'exp1');
@@ -909,27 +917,29 @@ describe('DOMManipulator', () => {
   describe('Create element changes', () => {
     it('should create new element when selector has no matches', () => {
       document.body.innerHTML = '<div class="parent"></div>';
-      
+
       const change: DOMChange = {
         selector: '.new-element',
         type: 'create',
         element: '<div class="new-element">New Element</div>',
         targetSelector: '.parent',
-        position: 'lastChild'
+        position: 'lastChild',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
 
       expect(success).toBe(true);
       expect(document.querySelector('.new-element')?.textContent).toBe('New Element');
-      expect(document.querySelector('.parent')?.contains(document.querySelector('.new-element'))).toBe(true);
+      expect(
+        document.querySelector('.parent')?.contains(document.querySelector('.new-element'))
+      ).toBe(true);
     });
 
     it('should handle create element without target selector', () => {
       const change: DOMChange = {
         selector: '.new-element',
         type: 'create',
-        value: '<div class="new-element">New Element</div>'
+        value: '<div class="new-element">New Element</div>',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -944,7 +954,7 @@ describe('DOMManipulator', () => {
         selector: '.not-found',
         type: 'text',
         value: 'Modified',
-        waitForElement: true
+        waitForElement: true,
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -955,38 +965,44 @@ describe('DOMManipulator', () => {
     it('should log when element not found for pending changes', () => {
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
       const debugDomManipulator = new DOMManipulator(stateManager, true, mockPlugin);
-      
+
       const change: DOMChange = {
         selector: '.not-found',
         type: 'text',
         value: 'Modified',
-        waitForElement: true
+        waitForElement: true,
       };
 
       debugDomManipulator.applyChange(change, 'exp1');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('[ABsmartly] Element not found, adding to pending: .not-found');
-      
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        '[ABsmartly] Element not found, adding to pending: .not-found'
+      );
+
       consoleLogSpy.mockRestore();
     });
 
     it('should apply pending changes when specific element is provided', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
       const element = document.querySelector('.test') as HTMLElement;
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'text',
-        value: 'Modified by Specific'
+        value: 'Modified by Specific',
       };
 
       // Test the private method via the pending manager callback
       const domManipulatorWithCallback = new DOMManipulator(stateManager, false, mockPlugin);
       // Access pending manager for coverage
       expect((domManipulatorWithCallback as any).pendingManager).toBeDefined();
-      
+
       // Simulate the callback that would be called by PendingChangeManager
-      const success = (domManipulatorWithCallback as any).applyChangeToSpecificElement(change, 'exp1', element);
+      const success = (domManipulatorWithCallback as any).applyChangeToSpecificElement(
+        change,
+        'exp1',
+        element
+      );
 
       expect(success).toBe(true);
       expect(element.textContent).toBe('Modified by Specific');
@@ -996,15 +1012,15 @@ describe('DOMManipulator', () => {
   describe('Edge cases and error handling', () => {
     it('should handle null/undefined values in attribute changes', () => {
       document.body.innerHTML = '<div class="test" data-old="old-value">Test</div>';
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'attribute',
         value: {
           'data-new': 'new-value',
           'data-old': null as any,
-          'data-undefined': undefined as any
-        }
+          'data-undefined': undefined as any,
+        },
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -1018,12 +1034,12 @@ describe('DOMManipulator', () => {
 
     it('should handle empty class arrays', () => {
       document.body.innerHTML = '<div class="test existing-class">Test</div>';
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'class',
         add: [],
-        remove: []
+        remove: [],
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -1034,15 +1050,15 @@ describe('DOMManipulator', () => {
 
     it('should handle style changes with camelCase properties', () => {
       document.body.innerHTML = '<div class="test">Test</div>';
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'style',
         value: {
           backgroundColor: 'red',
           marginTop: '10px',
-          borderRadius: '5px'
-        }
+          borderRadius: '5px',
+        },
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -1057,14 +1073,14 @@ describe('DOMManipulator', () => {
     it('should handle changes when element is removed from DOM', () => {
       document.body.innerHTML = '<div class="test">Test</div>';
       const element = document.querySelector('.test');
-      
+
       // Remove element from DOM
       element?.remove();
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'text',
-        value: 'Modified'
+        value: 'Modified',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -1080,11 +1096,11 @@ describe('DOMManipulator', () => {
           </div>
         </div>
       `;
-      
+
       const change: DOMChange = {
         selector: '.parent .child .grandchild',
         type: 'text',
-        value: 'Modified'
+        value: 'Modified',
       };
 
       const success = domManipulator.applyChange(change, 'exp1');
@@ -1114,7 +1130,7 @@ describe('DOMManipulator', () => {
         selector: '.moveable',
         type: 'move',
         targetSelector: '.target-parent',
-        position: 'lastChild'
+        position: 'lastChild',
       };
 
       // Apply the move
@@ -1123,7 +1139,7 @@ describe('DOMManipulator', () => {
 
       // Remove changes to restore original position
       const removed = domManipulator.removeAllChanges('exp1');
-      
+
       expect(removed.length).toBeGreaterThan(0);
       expect(originalParent?.contains(moveable)).toBe(true);
       // Should be in original position relative to siblings
@@ -1132,11 +1148,11 @@ describe('DOMManipulator', () => {
 
     it('should restore style attribute correctly when original was empty', () => {
       document.body.innerHTML = '<div class="test">Test</div>'; // No style attribute
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'style',
-        value: { color: 'red' }
+        value: { color: 'red' },
       };
 
       domManipulator.applyChange(change, 'exp1');
@@ -1149,12 +1165,12 @@ describe('DOMManipulator', () => {
 
     it('should restore class list correctly', () => {
       document.body.innerHTML = '<div class="test original-class another-class">Test</div>';
-      
+
       const change: DOMChange = {
         selector: '.test',
         type: 'class',
         add: ['new-class'],
-        remove: ['original-class']
+        remove: ['original-class'],
       };
 
       domManipulator.applyChange(change, 'exp1');
@@ -1169,17 +1185,18 @@ describe('DOMManipulator', () => {
     });
 
     it('should handle attribute restoration with complex scenarios', () => {
-      document.body.innerHTML = '<div class="test" data-original="value" title="original">Test</div>';
-      
+      document.body.innerHTML =
+        '<div class="test" data-original="value" title="original">Test</div>';
+
       const change: DOMChange = {
         selector: '.test',
         type: 'attribute',
         value: {
           'data-original': 'modified',
           'data-new': 'added',
-          'title': null as any, // Remove existing
-          'data-another': 'another-value'
-        }
+          title: null as any, // Remove existing
+          'data-another': 'another-value',
+        },
       };
 
       domManipulator.applyChange(change, 'exp1');
@@ -1200,15 +1217,16 @@ describe('DOMManipulator', () => {
   describe('Performance and bulk operations', () => {
     it('should handle multiple elements efficiently', () => {
       // Create many elements
-      const elements = Array.from({ length: 100 }, (_, i) => 
-        `<div class="bulk-test" data-index="${i}">Element ${i}</div>`
+      const elements = Array.from(
+        { length: 100 },
+        (_, i) => `<div class="bulk-test" data-index="${i}">Element ${i}</div>`
       ).join('');
       document.body.innerHTML = elements;
 
       const change: DOMChange = {
         selector: '.bulk-test',
         type: 'text',
-        value: 'Modified'
+        value: 'Modified',
       };
 
       const startTime = performance.now();
@@ -1217,7 +1235,7 @@ describe('DOMManipulator', () => {
 
       expect(success).toBe(true);
       expect(endTime - startTime).toBeLessThan(100); // Should complete quickly
-      
+
       // Verify all elements were modified
       const modifiedElements = document.querySelectorAll('.bulk-test');
       modifiedElements.forEach(element => {
@@ -1228,23 +1246,23 @@ describe('DOMManipulator', () => {
 
     it('should handle removal of multiple experiments efficiently', () => {
       document.body.innerHTML = '<div class="multi-test">Original</div>';
-      
+
       // Apply multiple experiments to same element
       const experiments = ['exp1', 'exp2', 'exp3'];
       experiments.forEach((exp, index) => {
         const change: DOMChange = {
           selector: '.multi-test',
           type: 'attribute',
-          value: { [`data-${exp}`]: `value-${index}` }
+          value: { [`data-${exp}`]: `value-${index}` },
         };
         domManipulator.applyChange(change, exp);
       });
 
       // Remove all changes
       const removed = domManipulator.removeAllChanges();
-      
+
       expect(removed.length).toBe(experiments.length);
-      
+
       const element = document.querySelector('.multi-test');
       experiments.forEach(exp => {
         expect(element?.hasAttribute(`data-${exp}`)).toBe(false);

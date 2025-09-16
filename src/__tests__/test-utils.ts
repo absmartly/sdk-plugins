@@ -1,6 +1,6 @@
 /**
  * Comprehensive Test Utilities for DOM Changes Plugin
- * 
+ *
  * This file provides advanced utilities, mocks, and setup functions
  * to facilitate thorough testing of the DOM Changes Plugin.
  */
@@ -11,19 +11,23 @@ import { DOMChange, ContextData, ExperimentData, ABsmartlyContext } from '../typ
  * Test Data Factories for creating test data
  */
 export class TestDataFactory {
-  static createExperiment(name: string, changes: DOMChange[], variantIndex: number = 0): ExperimentData {
+  static createExperiment(
+    name: string,
+    changes: DOMChange[],
+    variantIndex: number = 0
+  ): ExperimentData {
     const variants = [];
     for (let i = 0; i <= variantIndex; i++) {
       variants.push({
         variables: {
-          __dom_changes: i === variantIndex ? changes : []
-        }
+          __dom_changes: i === variantIndex ? changes : [],
+        },
       });
     }
-    
+
     return {
       name,
-      variants
+      variants,
     };
   }
 
@@ -32,67 +36,95 @@ export class TestDataFactory {
       name,
       variants: variantChanges.map(changes => ({
         variables: {
-          __dom_changes: changes
-        }
-      }))
+          __dom_changes: changes,
+        },
+      })),
     };
   }
 
-  static createTextChange(selector: string, value: string, options: Partial<DOMChange> = {}): DOMChange {
+  static createTextChange(
+    selector: string,
+    value: string,
+    options: Partial<DOMChange> = {}
+  ): DOMChange {
     return {
       selector,
       type: 'text',
       value,
-      ...options
+      ...options,
     };
   }
 
-  static createStyleChange(selector: string, styles: Record<string, string>, options: Partial<DOMChange> = {}): DOMChange {
+  static createStyleChange(
+    selector: string,
+    styles: Record<string, string>,
+    options: Partial<DOMChange> = {}
+  ): DOMChange {
     return {
       selector,
       type: 'style',
       value: styles,
-      ...options
+      ...options,
     };
   }
 
-  static createClassChange(selector: string, add: string[] = [], remove: string[] = [], options: Partial<DOMChange> = {}): DOMChange {
+  static createClassChange(
+    selector: string,
+    add: string[] = [],
+    remove: string[] = [],
+    options: Partial<DOMChange> = {}
+  ): DOMChange {
     return {
       selector,
       type: 'class',
       add,
       remove,
-      ...options
+      ...options,
     };
   }
 
-  static createMoveChange(selector: string, targetSelector: string, position: 'before' | 'after' | 'firstChild' | 'lastChild' = 'lastChild', options: Partial<DOMChange> = {}): DOMChange {
+  static createMoveChange(
+    selector: string,
+    targetSelector: string,
+    position: 'before' | 'after' | 'firstChild' | 'lastChild' = 'lastChild',
+    options: Partial<DOMChange> = {}
+  ): DOMChange {
     return {
       selector,
       type: 'move',
       targetSelector,
       position,
-      ...options
+      ...options,
     };
   }
 
-  static createViewportChange(selector: string, type: 'text' | 'style' | 'class', value: any, options: Partial<DOMChange> = {}): DOMChange {
+  static createViewportChange(
+    selector: string,
+    type: 'text' | 'style' | 'class',
+    value: any,
+    options: Partial<DOMChange> = {}
+  ): DOMChange {
     return {
       selector,
       type,
       value,
       trigger_on_view: true,
-      ...options
+      ...options,
     };
   }
 
-  static createPendingChange(selector: string, type: 'text' | 'style', value: any, options: Partial<DOMChange> = {}): DOMChange {
+  static createPendingChange(
+    selector: string,
+    type: 'text' | 'style',
+    value: any,
+    options: Partial<DOMChange> = {}
+  ): DOMChange {
     return {
       selector,
       type,
       value,
       waitForElement: true,
-      ...options
+      ...options,
     };
   }
 }
@@ -111,26 +143,36 @@ export class MockContextFactory {
     };
   }
 
-  static withVariants(experiments: ExperimentData[], variants: Record<string, number>): ABsmartlyContext {
+  static withVariants(
+    experiments: ExperimentData[],
+    variants: Record<string, number>
+  ): ABsmartlyContext {
     const context = this.create(experiments);
-    (context.peek as jest.Mock).mockImplementation((experimentName: string) => 
-      variants[experimentName] ?? 0
+    (context.peek as jest.Mock).mockImplementation(
+      (experimentName: string) => variants[experimentName] ?? 0
     );
-    (context.treatment as jest.Mock).mockImplementation((experimentName: string) => 
-      variants[experimentName] ?? 0
+    (context.treatment as jest.Mock).mockImplementation(
+      (experimentName: string) => variants[experimentName] ?? 0
     );
     return context;
   }
 
-  static withCustomFields(experiments: ExperimentData[], customFields: Record<string, Record<string, any>>): ABsmartlyContext {
+  static withCustomFields(
+    experiments: ExperimentData[],
+    customFields: Record<string, Record<string, any>>
+  ): ABsmartlyContext {
     const context = this.create(experiments);
-    (context.customFieldValue as jest.Mock).mockImplementation((experimentName: string, fieldName: string) => 
-      customFields[experimentName]?.[fieldName] || null
+    (context.customFieldValue as jest.Mock).mockImplementation(
+      (experimentName: string, fieldName: string) =>
+        customFields[experimentName]?.[fieldName] || null
     );
     return context;
   }
 
-  static withTreatmentTracking(experiments: ExperimentData[]): { context: ABsmartlyContext; treatmentCalls: jest.Mock } {
+  static withTreatmentTracking(experiments: ExperimentData[]): {
+    context: ABsmartlyContext;
+    treatmentCalls: jest.Mock;
+  } {
     const context = this.create(experiments);
     const treatmentCalls = context.treatment as jest.Mock;
     return { context, treatmentCalls };
@@ -248,15 +290,17 @@ export class TestDOMUtils {
     const observers = (globalThis as any).__intersectionObservers || [];
     observers.forEach((observer: any) => {
       if (observer.callback) {
-        observer.callback([{
-          target: element,
-          isIntersecting,
-          intersectionRatio: isIntersecting ? 1 : 0,
-          boundingClientRect: element.getBoundingClientRect(),
-          intersectionRect: isIntersecting ? element.getBoundingClientRect() : null,
-          rootBounds: null,
-          time: performance.now()
-        }]);
+        observer.callback([
+          {
+            target: element,
+            isIntersecting,
+            intersectionRatio: isIntersecting ? 1 : 0,
+            boundingClientRect: element.getBoundingClientRect(),
+            intersectionRect: isIntersecting ? element.getBoundingClientRect() : null,
+            rootBounds: null,
+            time: performance.now(),
+          },
+        ]);
       }
     });
   }
@@ -290,7 +334,9 @@ export class TestPerformanceUtils {
   /**
    * Measure execution time of an async operation
    */
-  static async measureAsync<T>(operation: () => Promise<T>): Promise<{ result: T; duration: number }> {
+  static async measureAsync<T>(
+    operation: () => Promise<T>
+  ): Promise<{ result: T; duration: number }> {
     const start = performance.now();
     const result = await operation();
     const duration = performance.now() - start;
@@ -311,10 +357,11 @@ export class TestPerformanceUtils {
    * Create performance test scenario with many elements
    */
   static createPerformanceTestDOM(elementCount: number = 1000): void {
-    const elements = Array.from({ length: elementCount }, (_, i) => 
-      `<div class="perf-item-${i}" data-index="${i}">Performance Test Item ${i}</div>`
+    const elements = Array.from(
+      { length: elementCount },
+      (_, i) => `<div class="perf-item-${i}" data-index="${i}">Performance Test Item ${i}</div>`
     ).join('');
-    
+
     document.body.innerHTML = `
       <div class="performance-container">
         ${elements}
@@ -326,7 +373,7 @@ export class TestPerformanceUtils {
    * Generate bulk changes for performance testing
    */
   static createBulkChanges(count: number): DOMChange[] {
-    return Array.from({ length: count }, (_, i) => 
+    return Array.from({ length: count }, (_, i) =>
       TestDataFactory.createTextChange(`.perf-item-${i}`, `Modified Item ${i}`)
     );
   }
@@ -355,24 +402,24 @@ export class TestMemoryUtils {
     iterations: number = 10
   ): Promise<{ leaked: boolean; initialMemory: number | null; finalMemory: number | null }> {
     const initialMemory = this.getMemoryUsage();
-    
+
     // Run multiple iterations to detect leaks
     for (let i = 0; i < iterations; i++) {
       const context = await setup();
       await teardown(context);
-      
+
       // Force garbage collection if possible
       if (global.gc) {
         global.gc();
       }
     }
-    
+
     const finalMemory = this.getMemoryUsage();
-    
+
     return {
       leaked: initialMemory !== null && finalMemory !== null && finalMemory > initialMemory * 1.1,
       initialMemory,
-      finalMemory
+      finalMemory,
     };
   }
 }
@@ -388,7 +435,7 @@ export class TestAssertions {
     const element = document.querySelector(selector);
     expect(element).not.toBeNull();
     expect(element?.getAttribute('data-absmartly-modified')).toBe('true');
-    
+
     if (experimentName) {
       expect(element?.getAttribute('data-absmartly-experiment')).toBe(experimentName);
     }
@@ -407,7 +454,11 @@ export class TestAssertions {
   /**
    * Assert performance is within acceptable bounds
    */
-  static expectPerformantOperation(duration: number, maxMs: number, operation: string = 'Operation'): void {
+  static expectPerformantOperation(
+    duration: number,
+    maxMs: number,
+    operation: string = 'Operation'
+  ): void {
     expect(duration).toBeLessThan(maxMs);
     if (duration > maxMs * 0.8) {
       console.warn(`${operation} took ${duration}ms, approaching limit of ${maxMs}ms`);
@@ -417,10 +468,14 @@ export class TestAssertions {
   /**
    * Assert no memory leaks
    */
-  static expectNoMemoryLeak(memoryResult: { leaked: boolean; initialMemory: number | null; finalMemory: number | null }): void {
+  static expectNoMemoryLeak(memoryResult: {
+    leaked: boolean;
+    initialMemory: number | null;
+    finalMemory: number | null;
+  }): void {
     if (memoryResult.initialMemory !== null && memoryResult.finalMemory !== null) {
       expect(memoryResult.leaked).toBe(false);
-      
+
       if (memoryResult.finalMemory > memoryResult.initialMemory) {
         const increase = memoryResult.finalMemory - memoryResult.initialMemory;
         const percentIncrease = (increase / memoryResult.initialMemory) * 100;
@@ -434,10 +489,14 @@ export class TestAssertions {
    */
   static expectValidDOMStructure(): void {
     // Check for orphaned ABsmartly attributes
-    const modifiedWithoutExperiment = document.querySelectorAll('[data-absmartly-modified]:not([data-absmartly-experiment])');
+    const modifiedWithoutExperiment = document.querySelectorAll(
+      '[data-absmartly-modified]:not([data-absmartly-experiment])'
+    );
     expect(modifiedWithoutExperiment).toHaveLength(0);
-    
-    const experimentWithoutModified = document.querySelectorAll('[data-absmartly-experiment]:not([data-absmartly-modified])');
+
+    const experimentWithoutModified = document.querySelectorAll(
+      '[data-absmartly-experiment]:not([data-absmartly-modified])'
+    );
     expect(experimentWithoutModified).toHaveLength(0);
   }
 
@@ -447,7 +506,7 @@ export class TestAssertions {
   static expectStylesApplied(selector: string, expectedStyles: Record<string, string>): void {
     const element = document.querySelector(selector) as HTMLElement;
     expect(element).not.toBeNull();
-    
+
     Object.entries(expectedStyles).forEach(([property, value]) => {
       const computedStyle = getComputedStyle(element);
       expect(computedStyle.getPropertyValue(property)).toBe(value);
@@ -470,10 +529,11 @@ export class IntegrationTestHelpers {
   } {
     const experiment = TestDataFactory.createMultiVariantExperiment(testName, [
       [], // Control variant
-      [   // Treatment variant
+      [
+        // Treatment variant
         TestDataFactory.createTextChange('.hero-title', 'Treatment Title'),
-        TestDataFactory.createStyleChange('.hero-cta', { backgroundColor: 'red' })
-      ]
+        TestDataFactory.createStyleChange('.hero-cta', { backgroundColor: 'red' }),
+      ],
     ]);
 
     return {
@@ -481,12 +541,16 @@ export class IntegrationTestHelpers {
       setupDOM: TestDOMUtils.createTestPage,
       verifyVariantA: () => {
         expect(document.querySelector('.hero-title')?.textContent).toBe('Welcome to Our Site');
-        expect((document.querySelector('.hero-cta') as HTMLElement)?.style.backgroundColor).toBe('');
+        expect((document.querySelector('.hero-cta') as HTMLElement)?.style.backgroundColor).toBe(
+          ''
+        );
       },
       verifyVariantB: () => {
         expect(document.querySelector('.hero-title')?.textContent).toBe('Treatment Title');
-        expect((document.querySelector('.hero-cta') as HTMLElement)?.style.backgroundColor).toBe('red');
-      }
+        expect((document.querySelector('.hero-cta') as HTMLElement)?.style.backgroundColor).toBe(
+          'red'
+        );
+      },
     };
   }
 
@@ -499,7 +563,7 @@ export class IntegrationTestHelpers {
     triggerViewport: () => void;
   } {
     const experiment = TestDataFactory.createExperiment('viewport_test', [
-      TestDataFactory.createViewportChange('.hidden-element', 'text', 'Now Visible!')
+      TestDataFactory.createViewportChange('.hidden-element', 'text', 'Now Visible!'),
     ]);
 
     return {
@@ -510,7 +574,7 @@ export class IntegrationTestHelpers {
         if (element) {
           TestDOMUtils.simulateIntersection(element, true);
         }
-      }
+      },
     };
   }
 }
@@ -522,5 +586,5 @@ export default {
   TestPerformanceUtils,
   TestMemoryUtils,
   TestAssertions,
-  IntegrationTestHelpers
+  IntegrationTestHelpers,
 };

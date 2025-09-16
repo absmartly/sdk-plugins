@@ -275,41 +275,7 @@ describe('DOMChangesPlugin', () => {
     });
   });
 
-  describe('cookie overrides', () => {
-    beforeEach(async () => {
-      plugin = new DOMChangesPlugin({
-        ...config,
-        overrideCookieName: 'absmartly_overrides',
-      });
-      await plugin.initialize();
-    });
-
-    it('should get overrides from cookie', () => {
-      document.cookie = 'absmartly_overrides={"exp1":1,"exp2":2}';
-
-      const overrides = plugin.getOverridesFromCookie();
-
-      expect(overrides).toEqual({ exp1: 1, exp2: 2 });
-    });
-
-    it('should return empty object when no cookie', () => {
-      // Clear cookies
-      document.cookie = 'absmartly_overrides=; expires=Thu, 01 Jan 1970 00:00:00 UTC';
-
-      const overrides = plugin.getOverridesFromCookie();
-
-      expect(overrides).toEqual({});
-    });
-
-    it('should apply overrides to context', () => {
-      document.cookie = 'absmartly_overrides={"exp1":1,"exp2":2}';
-
-      plugin.applyOverridesToContext();
-
-      expect(mockContext.override).toHaveBeenCalledWith('exp1', 1);
-      expect(mockContext.override).toHaveBeenCalledWith('exp2', 2);
-    });
-  });
+  // Cookie overrides tests removed - now handled by OverridesPlugin
 
   describe('code injection', () => {
     beforeEach(async () => {

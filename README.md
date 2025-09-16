@@ -1,31 +1,46 @@
-# ABsmartly DOM Changes SDK Plugin
+# ABsmartly SDK Plugins
 
-A powerful plugin for the ABsmartly JavaScript SDK that enables DOM manipulation, visual editing, and seamless integration with the ABsmartly Browser Extension.
+A comprehensive collection of plugins for the ABsmartly JavaScript SDK including DOM manipulation, experiment overrides, cookie management, and web vitals tracking.
 
-## Features
+## Available Plugins
 
-- **Complete DOM Manipulation**: All change types including styleRules with pseudo-states (hover, active, focus)
-- **Smart Exposure Tracking**: Cross-variant tracking prevents sample ratio mismatch with `trigger_on_view` control
-- **Dynamic Content Support**: Pending changes with `waitForElement` for lazy-loaded content and SPAs
-- **React/Vue Compatibility**: StyleRules survive re-renders through stylesheet injection
-- **Browser Extension Integration**: Two-way communication with the ABsmartly Browser Extension for visual editing
-- **Automatic SDK Integration**: Auto-apply changes from ABsmartly SDK with `autoApply` mode
-- **Performance Optimized**: Efficient MutationObservers with automatic cleanup and scoped watching
-- **Preview Mode**: Test DOM changes before creating experiments with exposure control
-- **Cookie-Based Overrides**: Server-compatible experiment overrides via cookies
-- **Code Injection**: Support for custom code injection at various page locations
-- **Flexible Data Sources**: Support for both variables and custom fields
+### 1. DOMChangesPlugin
+- **Complete DOM Manipulation**: All change types including styleRules with pseudo-states
+- **Smart Exposure Tracking**: Cross-variant tracking prevents sample ratio mismatch
+- **Dynamic Content Support**: Pending changes with `waitForElement` for SPAs
+- **React/Vue Compatibility**: StyleRules survive re-renders
+- **Browser Extension Integration**: Two-way communication for visual editing
+
+### 2. OverridesPlugin
+- **Query String Overrides**: Force experiments via URL parameters
+- **Cookie Persistence**: Server-compatible experiment overrides
+- **API Integration**: Fetch non-running experiments (Full version)
+- **Development Support**: Test experiments in any environment
+
+### 3. CookiePlugin
+- **Unit ID Management**: Generate and persist user identifiers
+- **UTM Tracking**: Capture and store UTM parameters
+- **Landing Page Tracking**: Track first visits and referrers
+- **Storage Fallbacks**: Cookie → localStorage → memory
+
+### 4. WebVitalsPlugin
+- **Core Web Vitals**: Track CLS, LCP, FCP, INP, TTFB
+- **Page Metrics**: Network timing, DOM processing, resource counts
+- **Performance Ratings**: Automatic good/needs-improvement/poor classification
+- **Compression Metrics**: Track page size and compression ratios
 
 ## Installation
 
 ```bash
-npm install @absmartly/dom-changes-plugin
+npm install @absmartly/sdk-plugins
 ```
 
 ## Quick Start
 
+### Basic Usage
+
 ```javascript
-import { DOMChangesPlugin } from '@absmartly/dom-changes-plugin';
+import { DOMChangesPlugin, CookiePlugin, WebVitalsPlugin } from '@absmartly/sdk-plugins';
 import absmartly from '@absmartly/javascript-sdk';
 
 // Initialize ABsmartly SDK
@@ -39,8 +54,8 @@ const sdk = new absmartly.SDK({
 // Create context
 const context = sdk.createContext(request);
 
-// Initialize the DOM Changes Plugin
-const plugin = new DOMChangesPlugin({
+// Initialize plugins
+const domPlugin = new DOMChangesPlugin({
   context: context,
   autoApply: true,              // Automatically apply changes on init
   spa: true,                     // Enable SPA support
@@ -52,8 +67,158 @@ const plugin = new DOMChangesPlugin({
 });
 
 // Initialize the plugin
-await plugin.initialize();
+await domPlugin.initialize();
+
+// Initialize cookie management
+const cookiePlugin = new CookiePlugin({
+  context: context,
+  cookieDomain: '.yourdomain.com',
+  autoUpdateExpiry: true
+});
+await cookiePlugin.initialize();
+
+// Initialize web vitals tracking
+const vitalsPlugin = new WebVitalsPlugin({
+  context: context,
+  trackWebVitals: true,
+  trackPageMetrics: true
+});
+await vitalsPlugin.initialize();
 ```
+
+### With Experiment Overrides (Browser Extension Support)
+
+The OverridesPlugin enables experiment overrides for internal testing and the ABsmartly Browser Extension. For optimal performance in production, only load it when overrides are present:
+
+#### Production-Optimized Conditional Loading (Recommended)
+
+```javascript
+import {
+  DOMChangesPlugin,
+  OverridesPlugin,
+  detectOverrides
+} from '@absmartly/dom-changes-plugin';
+import absmartly from '@absmartly/javascript-sdk';
+
+// Initialize SDK and create context
+const sdk = new absmartly.SDK({ /* ... */ });
+const context = sdk.createContext({ /* ... */ });
+
+// Configuration for override detection
+const overrideConfig = {
+  cookieName: 'absmartly_overrides',
+  queryPrefix: '_exp_',      // Prefix for query parameters
+  envParam: 'env'           // Environment parameter name
+};
+
+// Only load OverridesPlugin if overrides are detected
+if (detectOverrides(overrideConfig)) {
+  const overridesPlugin = new OverridesPlugin({
+    context: context,
+    cookieName: overrideConfig.cookieName,
+    useQueryString: true,
+    queryPrefix: overrideConfig.queryPrefix,
+    envParam: overrideConfig.envParam,
+    persistQueryToCookie: true,  // Save query overrides to cookie
+    sdkEndpoint: 'https://your-endpoint.absmartly.io',
+    debug: true
+  });
+
+  await overridesPlugin.initialize();
+  console.log('Overrides applied');
+}
+
+// Always initialize DOMChangesPlugin for regular experiments
+const domPlugin = new DOMChangesPlugin({
+  context: context,
+  autoApply: true,
+  dataSource: 'variable',
+  dataFieldName: '__dom_changes',
+  debug: true
+});
+
+await domPlugin.initialize();
+
+```
+
+#### Override Configuration Options
+
+```javascript
+const overridesPlugin = new OverridesPlugin({
+  context: context,                    // Required: ABsmartly context
+
+  // Cookie configuration
+  cookieName: 'absmartly_overrides',   // Cookie name (omit to disable cookies)
+  cookieOptions: {
+    path: '/',
+    secure: true,
+    sameSite: 'Lax'
+  },
+
+  // Query string configuration
+  useQueryString: true,                // Enable query string parsing (default: true on client)
+  queryPrefix: '_exp_',                 // Prefix for experiment params (default: '_exp_')
+  envParam: 'env',                     // Environment parameter name (default: 'env')
+  persistQueryToCookie: false,         // Save query overrides to cookie (default: false)
+
+  // Endpoints
+  sdkEndpoint: 'https://...',          // SDK endpoint (required if not in context)
+  absmartlyEndpoint: 'https://...',    // API endpoint for fetching experiments
+
+  // Server-side configuration
+  url: req.url,                        // URL for server-side (Node.js)
+  cookieAdapter: customAdapter,        // Custom cookie adapter for server-side
+
+  debug: true                          // Enable debug logging
+});
+```
+
+#### Query String Format (New)
+
+Use individual query parameters with configurable prefix:
+```
+# Single experiment
+https://example.com?_exp_button_color=1
+
+# Multiple experiments
+https://example.com?_exp_hero_title=0&_exp_nav_style=2
+
+# With environment
+https://example.com?env=staging&_exp_dev_feature=1,1
+
+# With experiment ID
+https://example.com?_exp_archived_test=1,2,12345
+```
+
+#### Cookie Format
+
+Cookies use comma as separator (no encoding needed):
+```javascript
+// Simple overrides (comma-separated experiments)
+document.cookie = 'absmartly_overrides=exp1:1,exp2:0';
+
+// With environment flags (dot-separated values)
+document.cookie = 'absmartly_overrides=exp1:1.0,exp2:0.1';
+
+// With experiment ID
+document.cookie = 'absmartly_overrides=exp1:1.2.12345';
+
+// With dev environment
+document.cookie = 'absmartly_overrides=devEnv=staging|exp1:1.1,exp2:0.1';
+```
+
+**Format**: `name:variant[.env][.id]` where:
+- Experiments are separated by `,` (comma)
+- Values within an experiment are separated by `.` (dot)
+- Environment prefix uses `|` (pipe) separator
+
+#### How Overrides Work
+
+1. **Query String Priority**: Query parameters take precedence over cookies
+2. **Environment Support**: Use `env` parameter for dev/staging experiments
+3. **API Fetching**: Non-running experiments are fetched from ABsmartly API
+4. **Context Injection**: Experiments are transparently injected into context.data()
+5. **DOM Application**: DOMChangesPlugin applies changes from all experiments
 
 ## DOM Change Types
 

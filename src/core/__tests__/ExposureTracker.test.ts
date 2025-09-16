@@ -9,7 +9,7 @@ describe('ExposureTracker', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     treatmentMock = jest.fn();
-    
+
     mockContext = {
       treatment: treatmentMock,
       peek: jest.fn().mockReturnValue(1),
@@ -139,7 +139,7 @@ describe('ExposureTracker', () => {
   describe('viewport triggering', () => {
     it('should trigger exposure when tracked element becomes visible', async () => {
       document.body.innerHTML = '<div class="content" style="height: 2000px;"></div>';
-      
+
       const changes: DOMChange[] = [
         {
           selector: '.content',
@@ -263,7 +263,7 @@ describe('ExposureTracker', () => {
 
       // Check if treatment was called (should be immediate trigger)
       expect(treatmentMock).toHaveBeenCalledWith('exp1');
-      
+
       // After triggering, experiment should be cleaned up and removed
       // isTriggered returns false because the experiment is no longer tracked
       expect(tracker.isTriggered('exp1')).toBe(false);
@@ -294,7 +294,7 @@ describe('ExposureTracker', () => {
   describe('edge cases', () => {
     it('should handle empty changes array', () => {
       tracker.registerExperiment('exp1', 0, [], [[], []]);
-      
+
       // Should not crash and should not trigger
       expect(treatmentMock).not.toHaveBeenCalled();
     });

@@ -1,16 +1,120 @@
 # ABSmartly DOM Changes Plugin - Extension Integration Guide
 
-Complete guide for integrating the DOM Changes Plugin into your Chrome extension, including preview mode, visual editing, styleRules, exposure tracking, and advanced state management.
+Complete guide for integrating the DOM Changes Plugin into your Chrome extension, including experiment overrides, preview mode, visual editing, styleRules, exposure tracking, and advanced state management.
+
+**Last Updated**: Cookie format changed to use comma separator for better efficiency.
 
 ## Table of Contents
-1. [Plugin Initialization](#plugin-initialization)
-2. [Core API Methods](#core-api-methods)
-3. [Change Types Reference](#change-types-reference)
-4. [Exposure Tracking](#exposure-tracking)
-5. [Managing Multiple Changes](#managing-multiple-changes)
-6. [Common Implementation Patterns](#common-implementation-patterns)
-7. [Automatic SDK Integration](#automatic-sdk-integration)
-8. [Best Practices](#best-practices)
+1. [Cookie-Based Overrides](#cookie-based-overrides)
+2. [Plugin Initialization](#plugin-initialization)
+3. [Core API Methods](#core-api-methods)
+4. [Change Types Reference](#change-types-reference)
+5. [Exposure Tracking](#exposure-tracking)
+6. [Managing Multiple Changes](#managing-multiple-changes)
+7. [Common Implementation Patterns](#common-implementation-patterns)
+8. [Automatic SDK Integration](#automatic-sdk-integration)
+9. [Best Practices](#best-practices)
+
+## Cookie-Based Overrides
+
+### Setting Experiment Overrides
+
+The extension should set cookies to override experiment assignments:
+
+```javascript
+// Cookie format uses comma separator (no encoding needed)
+function setExperimentOverrides(overrides) {
+  const parts = [];
+
+  // Add experiments
+  for (const [name, config] of Object.entries(overrides)) {
+    if (typeof config === 'number') {
+      // Simple variant override
+      parts.push(`${name}:${config}`);
+    } else {
+      // With environment and/or ID
+      let str = `${name}:${config.variant}`;
+      if (config.env !== undefined) str += `.${config.env}`;
+      if (config.id !== undefined) str += `.${config.id}`;
+      parts.push(str);
+    }
+  }
+
+  // Set cookie (comma-separated, no encoding needed)
+  document.cookie = `absmartly_overrides=${parts.join(',')};path=/;max-age=86400`;
+}
+
+// Examples
+setExperimentOverrides({
+  'button_color': 1,                    // Simple: variant 1
+  'hero_text': { variant: 2, env: 0 },  // With environment flag
+  'footer_cta': { variant: 1, env: 2, id: 12345 }  // Non-running experiment
+});
+// Result: absmartly_overrides=button_color:1,hero_text:2.0,footer_cta:1.2.12345
+```
+
+### Cookie Format Reference
+
+```javascript
+// Format: name:variant[.env][.id]
+// Experiments separated by comma (,)
+// Values within experiment separated by dot (.)
+
+// Simple overrides
+document.cookie = 'absmartly_overrides=exp1:0,exp2:1,exp3:2';
+
+// With environment flags (0=running, 1=dev, 2=archived)
+document.cookie = 'absmartly_overrides=exp1:1.0,exp2:0.1,exp3:2.2';
+
+// With experiment IDs (for non-running experiments)
+document.cookie = 'absmartly_overrides=exp1:1.2.12345,exp2:0.2.67890';
+
+// With dev environment prefix
+document.cookie = 'absmartly_overrides=devEnv=staging|exp1:1.1,exp2:0.1';
+```
+
+### Clearing Overrides
+
+```javascript
+function clearExperimentOverrides() {
+  // Remove cookie by setting expiration in the past
+  document.cookie = 'absmartly_overrides=;path=/;expires=Thu, 01 Jan 1970 00:00:00 UTC';
+}
+```
+
+### Website Integration
+
+The website should use both OverridesPlugin and DOMChangesPlugin:
+
+```javascript
+import {
+  DOMChangesPlugin,
+  OverridesPlugin,
+  detectOverrides
+} from '@absmartly/dom-changes-plugin';
+
+// Only load OverridesPlugin if overrides are present (performance optimization)
+if (detectOverrides({ cookieName: 'absmartly_overrides' })) {
+  const overridesPlugin = new OverridesPlugin({
+    context: context,
+    cookieName: 'absmartly_overrides',
+    sdkEndpoint: 'https://your-endpoint.absmartly.io',
+    debug: true
+  });
+
+  await overridesPlugin.initialize();
+}
+
+// Always initialize DOMChangesPlugin
+const domPlugin = new DOMChangesPlugin({
+  context: context,
+  autoApply: true,
+  extensionBridge: true,
+  debug: true
+});
+
+await domPlugin.initialize();
+```
 
 ## Plugin Initialization
 
@@ -560,6 +664,82 @@ if (hasOnlyImmediateChanges) {
 
 ## Complete Extension Development Guide
 
+### Managing Experiment Overrides
+
+```javascript
+class OverrideManager {
+  constructor() {
+    this.activeOverrides = new Map();
+  }
+
+  setOverride(experimentName, variant, env = undefined, id = undefined) {
+    this.activeOverrides.set(experimentName, { variant, env, id });
+    this.updateCookie();
+  }
+
+  removeOverride(experimentName) {
+    this.activeOverrides.delete(experimentName);
+    this.updateCookie();
+  }
+
+  clearAll() {
+    this.activeOverrides.clear();
+    this.updateCookie();
+  }
+
+  updateCookie() {
+    if (this.activeOverrides.size === 0) {
+      // Clear cookie
+      document.cookie = 'absmartly_overrides=;path=/;expires=Thu, 01 Jan 1970 00:00:00 UTC';
+      return;
+    }
+
+    const parts = [];
+    for (const [name, config] of this.activeOverrides) {
+      let str = `${name}:${config.variant}`;
+      if (config.env !== undefined) str += `.${config.env}`;
+      if (config.id !== undefined) str += `.${config.id}`;
+      parts.push(str);
+    }
+
+    // Set cookie with comma separator
+    const cookieValue = parts.join(',');
+    document.cookie = `absmartly_overrides=${cookieValue};path=/;max-age=86400`;
+
+    // Reload page to apply overrides
+    window.location.reload();
+  }
+
+  getCurrentOverrides() {
+    const cookie = document.cookie
+      .split(';')
+      .find(c => c.trim().startsWith('absmartly_overrides='));
+
+    if (!cookie) return new Map();
+
+    const value = cookie.split('=')[1];
+    const overrides = new Map();
+
+    // Parse comma-separated experiments
+    const experiments = value.split(',');
+    for (const exp of experiments) {
+      const [name, values] = exp.split(':');
+      if (!name || !values) continue;
+
+      // Parse dot-separated values
+      const parts = values.split('.');
+      overrides.set(name, {
+        variant: parseInt(parts[0], 10),
+        env: parts[1] ? parseInt(parts[1], 10) : undefined,
+        id: parts[2] ? parseInt(parts[2], 10) : undefined
+      });
+    }
+
+    return overrides;
+  }
+}
+```
+
 ### Preview Mode Implementation
 
 Implementing preview mode in your extension requires managing state and DOM changes:
@@ -1108,18 +1288,35 @@ class ABSmartlyVisualExtension {
   }
 
   async initialize() {
-    // Initialize plugin
+    // Get ABSmartly context
+    const context = await this.getABSmartlyContext();
+
+    // Check for overrides and initialize OverridesPlugin if needed
+    if (this.hasOverrides()) {
+      const overridesPlugin = new OverridesPlugin({
+        context: context,
+        cookieName: 'absmartly_overrides',
+        sdkEndpoint: 'https://your-endpoint.absmartly.io',
+        debug: true
+      });
+
+      await overridesPlugin.initialize();
+      console.log('Overrides applied from cookie');
+    }
+
+    // Initialize DOM Changes plugin
     this.plugin = new DOMChangesPlugin({
-      context: await this.getABSmartlyContext(),
+      context: context,
       autoApply: true,
       spa: true,
       extensionBridge: true,
       debug: true
     });
-    
+
     await this.plugin.initialize();
     
     // Initialize managers
+    this.overrideManager = new OverrideManager();
     this.previewManager = new PreviewManager(this.plugin);
     this.visualEditor = new VisualEditor(this.plugin);
     this.undoManager = new UndoRedoManager(this.plugin);
@@ -1174,6 +1371,21 @@ class ABSmartlyVisualExtension {
         case 'REDO':
           const redoSuccess = this.undoManager.redo();
           sendResponse({ success: redoSuccess });
+          break;
+
+        case 'SET_OVERRIDE':
+          this.overrideManager.setOverride(
+            request.experimentName,
+            request.variant,
+            request.env,
+            request.id
+          );
+          sendResponse({ success: true });
+          break;
+
+        case 'CLEAR_OVERRIDES':
+          this.overrideManager.clearAll();
+          sendResponse({ success: true });
           break;
       }
     });
@@ -1273,6 +1485,13 @@ class ABSmartlyVisualExtension {
     } catch (error) {
       console.error('Failed to load experiments:', error);
     }
+  }
+
+  hasOverrides() {
+    const cookie = document.cookie
+      .split(';')
+      .find(c => c.trim().startsWith('absmartly_overrides='));
+    return !!cookie && cookie.split('=')[1];
   }
 
   async getABSmartlyContext() {

@@ -1,10 +1,4 @@
-import {
-  MessagePayload,
-  MessagePayloadData,
-  Overrides,
-  MessageHandler,
-  ExperimentData,
-} from '../types';
+import { MessagePayload, MessagePayloadData, MessageHandler, ExperimentData } from '../types';
 import { logMessage } from '../utils/debug';
 
 export class MessageBridge {
@@ -96,7 +90,7 @@ export class MessageBridge {
     this.sendMessage('EXPERIMENT_DATA', { experiments });
   }
 
-  sendOverridesData(overrides: Overrides): void {
+  sendOverridesData(overrides: any): void {
     this.sendMessage('OVERRIDES_DATA', { overrides });
   }
 

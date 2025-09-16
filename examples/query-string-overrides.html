@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Query String Overrides - ABsmartly DOM Changes Plugin</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .test-element {
+      padding: 20px;
+      margin: 20px 0;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: #f5f5f5;
+    }
+    .controls {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      background: #e8f4f8;
+      border: 1px solid #b8e0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Query String Overrides Demo</h1>
+
+  <div class="controls">
+    <h2>Test Override Methods</h2>
+
+    <h3>Query String Overrides (takes precedence)</h3>
+    <button onclick="setQueryOverride('test_exp:0')">Set Variant 0</button>
+    <button onclick="setQueryOverride('test_exp:1')">Set Variant 1</button>
+    <button onclick="setQueryOverride('test_exp:2')">Set Variant 2</button>
+    <button onclick="setQueryOverride('exp1:0,exp2:1,exp3:2')">Multiple Experiments</button>
+    <button onclick="setQueryOverride('devEnv=staging|dev_exp:1.1')">Dev Environment</button>
+    <button onclick="clearQueryOverride()">Clear Query String</button>
+
+    <h3>Cookie Overrides (fallback)</h3>
+    <button onclick="setCookieOverride('test_exp:0')">Cookie Variant 0</button>
+    <button onclick="setCookieOverride('test_exp:1')">Cookie Variant 1</button>
+    <button onclick="clearCookieOverride()">Clear Cookie</button>
+
+    <h3>Current Status</h3>
+    <div id="status" class="status">
+      <div>Query String: <code id="query-value">none</code></div>
+      <div>Cookie: <code id="cookie-value">none</code></div>
+      <div>Will Use: <strong id="active-value">none</strong></div>
+    </div>
+  </div>
+
+  <div class="test-element">
+    <h3>Test Element</h3>
+    <p>This element would be modified by DOM changes if experiments were configured.</p>
+  </div>
+
+  <script src="https://unpkg.com/@absmartly/javascript-sdk"></script>
+  <script src="../dist/absmartly-dom-changes.dev.js"></script>
+
+  <script>
+    // Helper functions for testing
+    function setQueryOverride(value) {
+      const url = new URL(window.location);
+      url.searchParams.set('absmartly_overrides', value);
+      window.location.href = url.toString();
+    }
+
+    function clearQueryOverride() {
+      const url = new URL(window.location);
+      url.searchParams.delete('absmartly_overrides');
+      window.location.href = url.toString();
+    }
+
+    function setCookieOverride(value) {
+      document.cookie = `absmartly_overrides=${encodeURIComponent(value)}; path=/`;
+      updateStatus();
+      console.log('Cookie set. Reload page to apply override.');
+      alert('Cookie set! Reload the page to see it take effect.');
+    }
+
+    function clearCookieOverride() {
+      document.cookie = 'absmartly_overrides=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+      updateStatus();
+      console.log('Cookie cleared. Reload page to apply.');
+      alert('Cookie cleared! Reload the page to see it take effect.');
+    }
+
+    function updateStatus() {
+      // Get query string value
+      const queryValue = new URLSearchParams(window.location.search).get('absmartly_overrides');
+      document.getElementById('query-value').textContent = queryValue || 'none';
+
+      // Get cookie value
+      const cookieMatch = document.cookie.match(/absmartly_overrides=([^;]+)/);
+      const cookieValue = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+      document.getElementById('cookie-value').textContent = cookieValue || 'none';
+
+      // Show which will be used (query has priority)
+      const activeValue = queryValue || cookieValue || 'none';
+      document.getElementById('active-value').textContent = activeValue;
+    }
+
+    // Initialize status display
+    updateStatus();
+
+    // Initialize ABsmartly SDK
+    const sdk = new ABsmartly.SDK({
+      endpoint: 'https://demo.absmartly.io/v1',
+      apiKey: 'demo-api-key',
+      environment: 'production',
+      application: 'demo-app'
+    });
+
+    // Create context
+    const context = sdk.createContext({
+      units: {
+        user_id: '123456'
+      }
+    });
+
+    // Initialize plugins
+    const { DOMChangesPlugin, OverridesPlugin } = window.ABsmartlySDKPlugins;
+
+    const overridesPlugin = new OverridesPlugin({
+      context: context,
+      cookieName: 'absmartly_overrides',
+      queryParam: 'absmartly_overrides',
+      sdkEndpoint: 'https://demo.absmartly.io',
+      debug: true
+    });
+
+    const domPlugin = new DOMChangesPlugin({
+      context: context,
+      dataSource: 'variable',
+      dataFieldName: '__dom_changes',
+      debug: true
+    });
+
+    // Initialize both plugins
+    (async () => {
+      try {
+        await overridesPlugin.initialize();
+        await domPlugin.initialize();
+        console.log('✅ Plugins initialized successfully');
+
+        // Log what was loaded
+        const queryValue = new URLSearchParams(window.location.search).get('absmartly_overrides');
+        const cookieMatch = document.cookie.match(/absmartly_overrides=([^;]+)/);
+        const cookieValue = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+
+        if (queryValue) {
+          console.log('📝 Using query string overrides:', queryValue);
+        } else if (cookieValue) {
+          console.log('🍪 Using cookie overrides:', cookieValue);
+        } else {
+          console.log('ℹ️ No overrides found');
+        }
+      } catch (error) {
+        console.error('❌ Failed to initialize plugins:', error);
+      }
+    })();
+  </script>
+</body>
+</html>

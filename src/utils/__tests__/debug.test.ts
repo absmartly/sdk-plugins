@@ -8,7 +8,7 @@ import {
   logMessage,
   logPerformance,
   DEBUG,
-  LogContext
+  LogContext,
 } from '../debug';
 
 const mockConsoleLog = jest.fn();
@@ -34,17 +34,19 @@ describe('Debug Utilities', () => {
 
     beforeAll(() => {
       // Mock DEBUG to true by overriding the imported value
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       Object.defineProperty(require('../debug'), 'DEBUG', {
         value: true,
-        configurable: true
+        configurable: true,
       });
     });
 
     afterAll(() => {
       // Restore original DEBUG value
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       Object.defineProperty(require('../debug'), 'DEBUG', {
         value: originalDebug,
-        configurable: true
+        configurable: true,
       });
     });
 
@@ -54,7 +56,7 @@ describe('Debug Utilities', () => {
         const context: LogContext = {
           experimentName: 'test-exp',
           selector: '.test',
-          changeType: 'text'
+          changeType: 'text',
         };
 
         logDebug(message, context);
@@ -63,10 +65,7 @@ describe('Debug Utilities', () => {
           expect.stringContaining('[ABsmartly Debug]'),
           context
         );
-        expect(mockConsoleLog).toHaveBeenCalledWith(
-          expect.stringContaining(message),
-          context
-        );
+        expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining(message), context);
       });
 
       it('should log debug message without context', () => {
@@ -74,9 +73,7 @@ describe('Debug Utilities', () => {
 
         logDebug(message);
 
-        expect(mockConsoleLog).toHaveBeenCalledWith(
-          expect.stringContaining('[ABsmartly Debug]')
-        );
+        expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('[ABsmartly Debug]'));
       });
 
       it('should include timestamp in log messages', () => {
@@ -85,7 +82,9 @@ describe('Debug Utilities', () => {
         logDebug(message);
 
         expect(mockConsoleLog).toHaveBeenCalledWith(
-          expect.stringMatching(/\[ABsmartly Debug\] \[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] Test timestamp/)
+          expect.stringMatching(
+            /\[ABsmartly Debug\] \[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\] Test timestamp/
+          )
         );
       });
 
@@ -122,7 +121,7 @@ describe('Debug Utilities', () => {
             selector: '.test',
             changeType: 'text',
             elementsCount: 3,
-            success: true
+            success: true,
           })
         );
       });
@@ -133,7 +132,7 @@ describe('Debug Utilities', () => {
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.stringContaining('✗ Applied style change to 0 element(s)'),
           expect.objectContaining({
-            success: false
+            success: false,
           })
         );
       });
@@ -150,7 +149,7 @@ describe('Debug Utilities', () => {
             selector: '.removed',
             changeType: 'text',
             elementsCount: 5,
-            action: 'restore'
+            action: 'restore',
           })
         );
       });
@@ -167,7 +166,7 @@ describe('Debug Utilities', () => {
             totalChanges: 10,
             successfulChanges: 8,
             pendingChanges: 2,
-            successRate: '80%'
+            successRate: '80%',
           })
         );
       });
@@ -178,7 +177,7 @@ describe('Debug Utilities', () => {
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.any(String),
           expect.objectContaining({
-            successRate: 'N/A'
+            successRate: 'N/A',
           })
         );
       });
@@ -189,7 +188,7 @@ describe('Debug Utilities', () => {
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.any(String),
           expect.objectContaining({
-            successRate: '33%'
+            successRate: '33%',
           })
         );
       });
@@ -211,7 +210,7 @@ describe('Debug Utilities', () => {
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.stringContaining('State retrieve operation'),
           expect.objectContaining({
-            experimentName: undefined
+            experimentName: undefined,
           })
         );
       });
@@ -226,7 +225,7 @@ describe('Debug Utilities', () => {
 
       it('should log triggered visibility event', () => {
         mockElement.className = 'test-visible';
-        
+
         logVisibilityEvent('visibility-exp', mockElement, true);
 
         expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -235,7 +234,7 @@ describe('Debug Utilities', () => {
             experimentName: 'visibility-exp',
             selector: 'test-visible',
             triggered: true,
-            action: 'visibility'
+            action: 'visibility',
           })
         );
       });
@@ -246,7 +245,7 @@ describe('Debug Utilities', () => {
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.any(String),
           expect.objectContaining({
-            selector: 'DIV'
+            selector: 'DIV',
           })
         );
       });
@@ -254,13 +253,13 @@ describe('Debug Utilities', () => {
       it('should prefer className over id', () => {
         mockElement.className = 'priority-class';
         mockElement.id = 'priority-id';
-        
+
         logVisibilityEvent('priority-exp', mockElement, true);
 
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.any(String),
           expect.objectContaining({
-            selector: 'priority-class'
+            selector: 'priority-class',
           })
         );
       });
@@ -269,7 +268,7 @@ describe('Debug Utilities', () => {
     describe('logMessage', () => {
       it('should log sent message', () => {
         const payload = { action: 'test', data: 'test-data' };
-        
+
         logMessage('sent', 'APPLY_CHANGES', payload);
 
         // The message is filtered out by the debug utility, so no console.log call is made
@@ -293,7 +292,7 @@ describe('Debug Utilities', () => {
           expect.objectContaining({
             operation: 'DOM manipulation',
             duration: 150,
-            performance: true
+            performance: true,
           })
         );
       });
@@ -301,9 +300,9 @@ describe('Debug Utilities', () => {
       it('should log performance with additional details', () => {
         const details = {
           elementsProcessed: 100,
-          changesApplied: 50
+          changesApplied: 50,
         };
-        
+
         logPerformance('Batch operation', 500, details);
 
         expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -313,7 +312,7 @@ describe('Debug Utilities', () => {
             duration: 500,
             performance: true,
             elementsProcessed: 100,
-            changesApplied: 50
+            changesApplied: 50,
           })
         );
       });
@@ -332,17 +331,19 @@ describe('Debug Utilities', () => {
 
     beforeAll(() => {
       // Mock DEBUG to false
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       Object.defineProperty(require('../debug'), 'DEBUG', {
         value: false,
-        configurable: true
+        configurable: true,
       });
     });
 
     afterAll(() => {
       // Restore original DEBUG value
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       Object.defineProperty(require('../debug'), 'DEBUG', {
         value: originalDebug,
-        configurable: true
+        configurable: true,
       });
     });
 
@@ -365,7 +366,7 @@ describe('Debug Utilities', () => {
         experimentName: 'interface-test',
         selector: '.interface',
         changeType: 'test',
-        elementsCount: 42
+        elementsCount: 42,
       };
 
       // This test just verifies the interface compiles correctly
@@ -380,7 +381,7 @@ describe('Debug Utilities', () => {
         experimentName: 'custom-test',
         customProp1: 'value1',
         customProp2: 123,
-        customArray: [1, 2, 3]
+        customArray: [1, 2, 3],
       };
 
       expect(context.customProp1).toBe('value1');

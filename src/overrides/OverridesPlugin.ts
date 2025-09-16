@@ -102,8 +102,8 @@ export class OverridesPlugin extends OverridesPluginLite {
   }
 
   async initialize(): Promise<void> {
-    // Skip if already initialized (from base class)
-    if ((this as any).initialized) {
+    // Check if already initialized (use base class property)
+    if (this.initialized) {
       if (this.fullConfig.debug) {
         console.log('[OverridesPlugin] Already initialized, skipping re-initialization');
       }
@@ -111,7 +111,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     // Mark as initialized immediately to prevent concurrent calls
-    (this as any).initialized = true;
+    this.initialized = true;
 
     // Get overrides using enhanced parsing
     const overridesData = this.getOverrides();
@@ -130,23 +130,32 @@ export class OverridesPlugin extends OverridesPluginLite {
   private getOverrides(): ParsedCookie {
     let overridesData: ParsedCookie = { overrides: {}, devEnv: null };
 
-    // Try query string first if enabled
-    if (this.fullConfig.useQueryString) {
-      overridesData = this.getEnhancedQueryStringOverrides();
-
-      // Persist to cookie if requested and we have overrides
-      if (
-        this.fullConfig.persistQueryToCookie &&
-        this.fullConfig.cookieName &&
-        Object.keys(overridesData.overrides).length > 0
-      ) {
-        this.persistEnhancedOverridesToCookie(overridesData);
-      }
+    // First get cookie overrides if enabled
+    if (this.fullConfig.cookieName) {
+      const cookieData = this.getEnhancedCookieOverrides();
+      overridesData.overrides = { ...cookieData.overrides };
+      overridesData.devEnv = cookieData.devEnv;
     }
 
-    // Fall back to cookie if no query string overrides and cookies are enabled
-    if (Object.keys(overridesData.overrides).length === 0 && this.fullConfig.cookieName) {
-      overridesData = this.getEnhancedCookieOverrides();
+    // Then check query string and merge/override if enabled
+    if (this.fullConfig.useQueryString) {
+      const queryData = this.getEnhancedQueryStringOverrides();
+
+      // Query string overrides take precedence over cookies
+      if (Object.keys(queryData.overrides).length > 0) {
+        // Merge overrides, with query string taking precedence
+        overridesData.overrides = { ...overridesData.overrides, ...queryData.overrides };
+
+        // Query string env takes precedence if specified
+        if (queryData.devEnv !== null) {
+          overridesData.devEnv = queryData.devEnv;
+        }
+
+        // Persist merged overrides to cookie if requested
+        if (this.fullConfig.persistQueryToCookie && this.fullConfig.cookieName) {
+          this.persistEnhancedOverridesToCookie(overridesData);
+        }
+      }
     }
 
     return overridesData;
@@ -241,7 +250,17 @@ export class OverridesPlugin extends OverridesPluginLite {
       }
     }
 
-    return this.parseEnhancedCookieValue(cookieValue);
+    if (this.fullConfig.debug && cookieValue) {
+      console.log('[OverridesPlugin] Raw cookie value:', cookieValue);
+    }
+
+    const parsed = this.parseEnhancedCookieValue(cookieValue);
+
+    if (this.fullConfig.debug && Object.keys(parsed.overrides).length > 0) {
+      console.log('[OverridesPlugin] Parsed cookie overrides:', parsed);
+    }
+
+    return parsed;
   }
 
   private parseEnhancedCookieValue(value: string | null): ParsedCookie {

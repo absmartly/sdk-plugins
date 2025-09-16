@@ -18,13 +18,13 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
     // Clear DOM
     document.body.innerHTML = '';
     document.head.innerHTML = '';
-    
+
     mockContext = createMockContext();
     plugin = new DOMChangesPlugin({
       context: mockContext,
       autoApply: false, // Manual control for testing
       spa: true,
-      debug: false
+      debug: false,
     });
   });
 
@@ -52,17 +52,17 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
                 {
                   selector: '.title',
                   type: 'text',
-                  value: 'New Improved Title'
+                  value: 'New Improved Title',
                 },
                 {
                   selector: '.cta',
                   type: 'text',
-                  value: 'Click Now!'
-                }
-              ]
-            }
-          }
-        ]
+                  value: 'Click Now!',
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
@@ -77,8 +77,12 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       expect(document.querySelector('.cta')?.textContent).toBe('Click Now!');
 
       // Verify elements are marked as modified
-      expect(document.querySelector('.title')?.getAttribute('data-absmartly-experiment')).toBe('hero_test');
-      expect(document.querySelector('.cta')?.getAttribute('data-absmartly-experiment')).toBe('hero_test');
+      expect(document.querySelector('.title')?.getAttribute('data-absmartly-experiment')).toBe(
+        'hero_test'
+      );
+      expect(document.querySelector('.cta')?.getAttribute('data-absmartly-experiment')).toBe(
+        'hero_test'
+      );
 
       // Test removal/rollback
       const removed = plugin.removeChanges('hero_test');
@@ -108,14 +112,14 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
                   value: {
                     backgroundColor: '#f0f0f0',
                     borderRadius: '8px',
-                    padding: '20px'
-                  }
+                    padding: '20px',
+                  },
                 },
                 {
                   selector: '.product-card',
                   type: 'class',
                   add: ['featured', 'highlight'],
-                  remove: ['original-style']
+                  remove: ['original-style'],
                 },
                 {
                   selector: '.product-price',
@@ -123,13 +127,13 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
                   value: {
                     color: 'red',
                     fontWeight: 'bold',
-                    fontSize: '1.2em'
-                  }
-                }
-              ]
-            }
-          }
-        ]
+                    fontSize: '1.2em',
+                  },
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
@@ -184,12 +188,12 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
                   selector: '.search-box',
                   type: 'move',
                   targetSelector: '.sidebar',
-                  position: 'firstChild'
-                }
-              ]
-            }
-          }
-        ]
+                  position: 'firstChild',
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
@@ -228,40 +232,52 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       const experiments: ExperimentData[] = [
         {
           name: 'title_exp',
-          variants: [{
-            variables: {
-              __dom_changes: [{
-                selector: '.main-title',
-                type: 'text',
-                value: 'Experiment 1 Title'
-              }]
-            }
-          }]
+          variants: [
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: '.main-title',
+                    type: 'text',
+                    value: 'Experiment 1 Title',
+                  },
+                ],
+              },
+            },
+          ],
         },
         {
           name: 'button_exp',
-          variants: [{
-            variables: {
-              __dom_changes: [{
-                selector: '.primary-btn',
-                type: 'style',
-                value: { backgroundColor: 'green' }
-              }]
-            }
-          }]
+          variants: [
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: '.primary-btn',
+                    type: 'style',
+                    value: { backgroundColor: 'green' },
+                  },
+                ],
+              },
+            },
+          ],
         },
         {
           name: 'description_exp',
-          variants: [{
-            variables: {
-              __dom_changes: [{
-                selector: '.description',
-                type: 'html',
-                value: '<strong>Enhanced description</strong>'
-              }]
-            }
-          }]
-        }
+          variants: [
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: '.description',
+                    type: 'html',
+                    value: '<strong>Enhanced description</strong>',
+                  },
+                ],
+              },
+            },
+          ],
+        },
       ];
 
       mockContext.data.mockReturnValue({ experiments });
@@ -272,19 +288,27 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
 
       // Verify all experiments applied
       expect(document.querySelector('.main-title')?.textContent).toBe('Experiment 1 Title');
-      expect((document.querySelector('.primary-btn') as HTMLElement)?.style.backgroundColor).toBe('green');
-      expect(document.querySelector('.description')?.innerHTML).toBe('<strong>Enhanced description</strong>');
+      expect((document.querySelector('.primary-btn') as HTMLElement)?.style.backgroundColor).toBe(
+        'green'
+      );
+      expect(document.querySelector('.description')?.innerHTML).toBe(
+        '<strong>Enhanced description</strong>'
+      );
 
       // Test selective removal
       plugin.removeChanges('button_exp');
-      
+
       expect(document.querySelector('.main-title')?.textContent).toBe('Experiment 1 Title'); // Still there
-      expect((document.querySelector('.primary-btn') as HTMLElement)?.style.backgroundColor).toBe(''); // Removed
-      expect(document.querySelector('.description')?.innerHTML).toBe('<strong>Enhanced description</strong>'); // Still there
+      expect((document.querySelector('.primary-btn') as HTMLElement)?.style.backgroundColor).toBe(
+        ''
+      ); // Removed
+      expect(document.querySelector('.description')?.innerHTML).toBe(
+        '<strong>Enhanced description</strong>'
+      ); // Still there
 
       // Test remove all
       plugin.removeAllChanges();
-      
+
       expect(document.querySelector('.main-title')?.textContent).toBe('Main Title');
       expect(document.querySelector('.description')?.innerHTML).toBe('Description text');
     });
@@ -295,28 +319,36 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       const experiments: ExperimentData[] = [
         {
           name: 'exp1',
-          variants: [{
-            variables: {
-              __dom_changes: [{
-                selector: '.title',
-                type: 'text',
-                value: 'First Experiment'
-              }]
-            }
-          }]
+          variants: [
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: '.title',
+                    type: 'text',
+                    value: 'First Experiment',
+                  },
+                ],
+              },
+            },
+          ],
         },
         {
-          name: 'exp2', 
-          variants: [{
-            variables: {
-              __dom_changes: [{
-                selector: '.title',
-                type: 'text',
-                value: 'Second Experiment'
-              }]
-            }
-          }]
-        }
+          name: 'exp2',
+          variants: [
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: '.title',
+                    type: 'text',
+                    value: 'Second Experiment',
+                  },
+                ],
+              },
+            },
+          ],
+        },
       ];
 
       mockContext.data.mockReturnValue({ experiments });
@@ -328,11 +360,11 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       // Last experiment should win
       const titleElement = document.querySelector('.title');
       expect(titleElement?.textContent).toBe('Second Experiment');
-      
+
       // But both experiments should be tracked
       const appliedChanges1 = plugin.getAppliedChanges('exp1');
       const appliedChanges2 = plugin.getAppliedChanges('exp2');
-      
+
       expect(appliedChanges1).toHaveLength(1);
       expect(appliedChanges2).toHaveLength(1);
 
@@ -354,16 +386,20 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
 
       const experiment: ExperimentData = {
         name: 'spa_test',
-        variants: [{
-          variables: {
-            __dom_changes: [{
-              selector: '.dynamic-element',
-              type: 'text',
-              value: 'Dynamic Content',
-              waitForElement: true
-            }]
-          }
-        }]
+        variants: [
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.dynamic-element',
+                  type: 'text',
+                  value: 'Dynamic Content',
+                  waitForElement: true,
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
@@ -374,14 +410,14 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
 
       // Element doesn't exist yet, should be added to pending
       expect(plugin.getPendingChanges()).toHaveLength(1);
-      
+
       // Simulate dynamic content loading
       const container = document.querySelector('.container')!;
       container.innerHTML = '<div class="dynamic-element">Original Text</div>';
-      
+
       // Trigger mutation observer manually (in real scenario, this happens automatically)
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       // Check if the change was applied
       expect(document.querySelector('.dynamic-element')?.textContent).toBe('Dynamic Content');
       expect(plugin.getPendingChanges()).toHaveLength(0);
@@ -391,8 +427,9 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
   describe('Performance and Memory Management', () => {
     it('should handle large numbers of changes efficiently', async () => {
       // Create many elements
-      const elements = Array.from({ length: 100 }, (_, i) => 
-        `<div class="item-${i}">Item ${i}</div>`
+      const elements = Array.from(
+        { length: 100 },
+        (_, i) => `<div class="item-${i}">Item ${i}</div>`
       ).join('');
       document.body.innerHTML = `<div class="container">${elements}</div>`;
 
@@ -400,22 +437,22 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       const changes: DOMChange[] = Array.from({ length: 100 }, (_, i) => ({
         selector: `.item-${i}`,
         type: 'text',
-        value: `Modified Item ${i}`
+        value: `Modified Item ${i}`,
       }));
 
       const experiment: ExperimentData = {
         name: 'bulk_test',
-        variants: [{ variables: { __dom_changes: changes } }]
+        variants: [{ variables: { __dom_changes: changes } }],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
       mockContext.peek.mockReturnValue(0);
 
       const startTime = performance.now();
-      
+
       await plugin.initialize();
       await plugin.applyChanges();
-      
+
       const endTime = performance.now();
 
       // Should complete in reasonable time (less than 100ms)
@@ -445,15 +482,19 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
 
       const experiment: ExperimentData = {
         name: 'cleanup_test',
-        variants: [{
-          variables: {
-            __dom_changes: [{
-              selector: '.test',
-              type: 'text',
-              value: 'Modified'
-            }]
-          }
-        }]
+        variants: [
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.test',
+                  type: 'text',
+                  value: 'Modified',
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
@@ -481,17 +522,19 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
     it('should handle malformed experiment data gracefully', async () => {
       const badExperiment: any = {
         name: 'bad_experiment',
-        variants: [{
-          variables: {
-            __dom_changes: [
-              { selector: '.test' }, // Missing type
-              { type: 'text' }, // Missing selector
-              { selector: '.test', type: 'invalid_type', value: 'test' }, // Invalid type
-              null, // Null change
-              'invalid' // Non-object change
-            ]
-          }
-        }]
+        variants: [
+          {
+            variables: {
+              __dom_changes: [
+                { selector: '.test' }, // Missing type
+                { type: 'text' }, // Missing selector
+                { selector: '.test', type: 'invalid_type', value: 'test' }, // Invalid type
+                null, // Null change
+                'invalid', // Non-object change
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [badExperiment] });
@@ -514,22 +557,26 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
 
       const experiment: ExperimentData = {
         name: 'mutation_test',
-        variants: [{
-          variables: {
-            __dom_changes: [{
-              selector: '.target',
-              type: 'text',
-              value: 'Modified'
-            }]
-          }
-        }]
+        variants: [
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.target',
+                  type: 'text',
+                  value: 'Modified',
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
       mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
-      
+
       // Modify DOM during processing
       setTimeout(() => {
         document.querySelector('.target')?.remove();
@@ -545,15 +592,19 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
 
       const experiment: ExperimentData = {
         name: 'state_test',
-        variants: [{
-          variables: {
-            __dom_changes: [{
-              selector: '.state-test',
-              type: 'text',
-              value: 'Modified'
-            }]
-          }
-        }]
+        variants: [
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.state-test',
+                  type: 'text',
+                  value: 'Modified',
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
@@ -575,15 +626,19 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       // Apply another experiment to same element
       const experiment2: ExperimentData = {
         name: 'state_test2',
-        variants: [{
-          variables: {
-            __dom_changes: [{
-              selector: '.state-test',
-              type: 'text',
-              value: 'Double Modified'
-            }]
-          }
-        }]
+        variants: [
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.state-test',
+                  type: 'text',
+                  value: 'Double Modified',
+                },
+              ],
+            },
+          },
+        ],
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment, experiment2] });

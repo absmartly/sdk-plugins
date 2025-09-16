@@ -38,19 +38,19 @@ export class ExposureTracker {
     // Collect all unique selectors that need viewport tracking across ALL variants
     const viewportSelectors = new Set<string>();
     const moveParentSelectors = new Set<string>(); // Parent containers for move changes
-    
+
     // First pass: collect all move changes across all variants
     // We need to track ALL possible positions where elements could be
     const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
-    
-    allVariantsChanges.forEach((variantChanges) => {
+
+    allVariantsChanges.forEach(variantChanges => {
       variantChanges.forEach(change => {
         if (change.trigger_on_view) {
           if (change.type === 'move') {
             if (!moveElements.has(change.selector)) {
               moveElements.set(change.selector, new Set());
             }
-            
+
             // Add the target parent for this move
             if (change.targetSelector) {
               moveElements.get(change.selector)!.add(change.targetSelector);
@@ -62,7 +62,7 @@ export class ExposureTracker {
         }
       });
     });
-    
+
     // For each element that can move, track both original and all target positions
     // This ensures ALL variants watch the SAME set of parent containers
     moveElements.forEach((targetParents, selector) => {
@@ -75,7 +75,7 @@ export class ExposureTracker {
           moveParentSelectors.add(originalParentSelector);
         }
       }
-      
+
       // Track all possible target parents (where element could be moved to)
       targetParents.forEach(parent => moveParentSelectors.add(parent));
     });
@@ -83,7 +83,7 @@ export class ExposureTracker {
     // Determine what triggers are needed
     let hasImmediateTrigger = false;
     let hasViewportTrigger = false;
-    
+
     currentChanges.forEach(change => {
       if (change.trigger_on_view) {
         hasViewportTrigger = true;
@@ -100,14 +100,16 @@ export class ExposureTracker {
       allPossibleSelectors: new Set([...viewportSelectors, ...moveParentSelectors]),
       triggered: false,
       hasImmediateTrigger,
-      hasViewportTrigger
+      hasViewportTrigger,
     };
 
     this.experiments.set(experimentName, tracking);
 
     if (this.debug) {
-      console.log(`[ABsmartly] Experiment ${experimentName} will track selectors:`, 
-        Array.from(tracking.allPossibleSelectors));
+      console.log(
+        `[ABsmartly] Experiment ${experimentName} will track selectors:`,
+        Array.from(tracking.allPossibleSelectors)
+      );
     }
 
     // Set up viewport observers
@@ -117,7 +119,10 @@ export class ExposureTracker {
 
     // Trigger immediately if needed
     if (hasImmediateTrigger) {
-      this.triggerExposure(experimentName);
+      // Don't await here to avoid blocking the tracking setup
+      this.triggerExposure(experimentName).catch(error => {
+        console.error(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
+      });
     }
   }
 
@@ -128,7 +133,7 @@ export class ExposureTracker {
   getOriginalParentForMove(selector: string): string | null {
     const element = document.querySelector(selector);
     if (!element?.parentElement) return null;
-    
+
     return this.getStableParentSelector(element.parentElement);
   }
 
@@ -140,14 +145,14 @@ export class ExposureTracker {
     if (element.id) {
       return `#${element.id}`;
     }
-    
+
     if (element.className) {
       const classes = element.className.split(' ').filter(c => c && !c.startsWith('absmartly'));
       if (classes.length > 0) {
         return `.${classes[0]}`;
       }
     }
-    
+
     // Fallback to tag name with positional info
     const parent = element.parentElement;
     if (parent) {
@@ -155,7 +160,7 @@ export class ExposureTracker {
       const index = siblings.indexOf(element);
       return `${element.tagName.toLowerCase()}:nth-child(${index + 1})`;
     }
-    
+
     return null;
   }
 
@@ -166,7 +171,7 @@ export class ExposureTracker {
     selectors.forEach(selector => {
       // Try to find existing elements
       const elements = document.querySelectorAll(selector);
-      
+
       if (elements.length > 0) {
         elements.forEach(element => {
           this.trackElement(element, experimentName);
@@ -186,7 +191,7 @@ export class ExposureTracker {
       this.trackedElements.set(element, {
         element,
         experiments: new Set([experimentName]),
-        isPlaceholder: element.hasAttribute('data-absmartly-placeholder')
+        isPlaceholder: element.hasAttribute('data-absmartly-placeholder'),
       });
       this.observer.observe(element);
     } else {
@@ -201,7 +206,7 @@ export class ExposureTracker {
     if (!this.mutationObserver) {
       this.setupMutationObserver();
     }
-    
+
     // Store pending selector (implementation would need a Map for this)
     // For now, we'll rely on checking in mutation callback
   }
@@ -210,23 +215,26 @@ export class ExposureTracker {
    * Set up the IntersectionObserver for viewport tracking
    */
   private setupIntersectionObserver(): void {
-    this.observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          this.handleElementVisible(entry.target);
-        }
-      });
-    }, {
-      threshold: 0.01, // Trigger when even 1% is visible
-      rootMargin: '0px'
-    });
+    this.observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            this.handleElementVisible(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.01, // Trigger when even 1% is visible
+        rootMargin: '0px',
+      }
+    );
   }
 
   /**
    * Set up MutationObserver for dynamic elements
    */
   private setupMutationObserver(): void {
-    this.mutationObserver = new MutationObserver((mutations) => {
+    this.mutationObserver = new MutationObserver(mutations => {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
           if (node instanceof Element) {
@@ -239,7 +247,7 @@ export class ExposureTracker {
 
     this.mutationObserver.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
   }
 
@@ -252,7 +260,7 @@ export class ExposureTracker {
         if (element.matches(selector)) {
           this.trackElement(element, experimentName);
         }
-        
+
         // Also check children
         element.querySelectorAll(selector).forEach(child => {
           this.trackElement(child, experimentName);
@@ -270,12 +278,15 @@ export class ExposureTracker {
 
     tracked.experiments.forEach(experimentName => {
       const experiment = this.experiments.get(experimentName);
-      
+
       if (experiment && !experiment.triggered) {
-        this.triggerExposure(experimentName);
-        
+        // Don't await here to avoid blocking the visibility handler
+        this.triggerExposure(experimentName).catch(error => {
+          console.error(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
+        });
+
         if (this.debug) {
-          const selector = tracked.isPlaceholder 
+          const selector = tracked.isPlaceholder
             ? element.getAttribute('data-absmartly-original-selector')
             : this.getElementSelector(element);
           console.log(`[ABsmartly] Triggering exposure for ${experimentName} via ${selector}`);
@@ -287,10 +298,12 @@ export class ExposureTracker {
   /**
    * Trigger exposure for an experiment
    */
-  private triggerExposure(experimentName: string): void {
+  private async triggerExposure(experimentName: string): Promise<void> {
     const experiment = this.experiments.get(experimentName);
     if (!experiment || experiment.triggered) return;
 
+    // Ensure context is ready before calling treatment
+    await (this.context as any).ready();
     // Call treatment to trigger exposure
     this.context.treatment(experimentName);
     experiment.triggered = true;
@@ -310,7 +323,7 @@ export class ExposureTracker {
     // Remove from tracked elements
     this.trackedElements.forEach((tracked, element) => {
       tracked.experiments.delete(experimentName);
-      
+
       if (tracked.experiments.size === 0) {
         this.observer.unobserve(element);
         this.trackedElements.delete(element);
@@ -375,7 +388,7 @@ export class ExposureTracker {
 
     // Remove all placeholders
     this.placeholders.forEach(placeholder => placeholder.remove());
-    
+
     // Clear all tracking
     this.experiments.clear();
     this.trackedElements.clear();

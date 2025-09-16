@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conditional Loading - ABsmartly DOM Changes Plugin</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      background: #f0f8ff;
+      border: 1px solid #4a90e2;
+    }
+    .no-overrides {
+      background: #f0fff0;
+      border-color: #4caf50;
+    }
+    .has-overrides {
+      background: #fff3e0;
+      border-color: #ff9800;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 14px;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .test-links {
+      margin: 20px 0;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .test-links a {
+      display: block;
+      margin: 10px 0;
+      color: #4a90e2;
+      text-decoration: none;
+    }
+    .test-links a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Conditional Loading Example</h1>
+
+  <p>
+    This example demonstrates how to detect overrides and only load the OverridesPlugin
+    when actually needed. This keeps your production bundle lean for regular users.
+  </p>
+
+  <div id="status" class="status">
+    Checking for overrides...
+  </div>
+
+  <div class="test-links">
+    <h3>Test These URLs:</h3>
+    <a href="?">No overrides (regular user)</a>
+    <a href="?_exp_button_color=1">Single experiment override</a>
+    <a href="?_exp_hero_title=1&_exp_nav_style=2">Multiple experiments</a>
+    <a href="?env=staging&_exp_dev_feature=1,1">Development environment</a>
+    <a href="?_exp_archived_test=1,2,12345">Non-running experiment</a>
+  </div>
+
+  <div id="demo-content">
+    <h2>Demo Content</h2>
+    <p class="hero-title">Original Hero Title</p>
+    <button class="cta-button">Original Button Text</button>
+  </div>
+
+  <h3>How It Works:</h3>
+  <pre id="code-example"></pre>
+
+  <script src="https://unpkg.com/@absmartly/javascript-sdk"></script>
+  <script src="../dist/absmartly-dom-changes.dev.js"></script>
+
+  <script>
+    // IMPORTANT: This is how you should use overrides in production
+    (async function() {
+      const statusEl = document.getElementById('status');
+      const codeEl = document.getElementById('code-example');
+
+      // 1. First, detect if there are any overrides
+      const { detectOverrides, getOverrideInfo, DOMChangesPlugin, OverridesPlugin } = window.ABsmartlySDKPlugins;
+
+      // Configuration for override detection
+      const overrideConfig = {
+        cookieName: 'absmartly_overrides',
+        queryPrefix: '_exp_',
+        envParam: 'env'
+      };
+
+      // Check if overrides are present
+      const hasOverrides = detectOverrides(overrideConfig);
+
+      // Get detailed info for debugging (optional)
+      const overrideInfo = getOverrideInfo(overrideConfig);
+
+      // Initialize ABsmartly SDK (always needed)
+      const sdk = new ABsmartly.SDK({
+        endpoint: 'https://demo.absmartly.io/v1',
+        apiKey: 'demo-api-key',
+        environment: 'production',
+        application: 'demo-app'
+      });
+
+      const context = sdk.createContext({
+        units: {
+          user_id: 'user-123',
+          session_id: 'session-456'
+        }
+      });
+
+      // 2. Only load OverridesPlugin if overrides are detected
+      if (hasOverrides) {
+        console.log('🔍 Overrides detected:', overrideInfo);
+
+        statusEl.className = 'status has-overrides';
+        statusEl.innerHTML = `
+          <strong>✅ Overrides Detected!</strong><br>
+          Source: <code>${overrideInfo.source}</code><br>
+          ${overrideInfo.env ? `Environment: <code>${overrideInfo.env}</code><br>` : ''}
+          ${overrideInfo.experiments ? `Experiments: <code>${overrideInfo.experiments.join(', ')}</code>` : ''}
+        `;
+
+        // Initialize OverridesPlugin ONLY when needed
+        const overridesPlugin = new OverridesPlugin({
+          context: context,
+          cookieName: overrideConfig.cookieName,
+          useQueryString: true,
+          queryPrefix: overrideConfig.queryPrefix,
+          envParam: overrideConfig.envParam,
+          persistQueryToCookie: true, // Optional: save query overrides to cookie
+          sdkEndpoint: 'https://demo.absmartly.io',
+          debug: true
+        });
+
+        await overridesPlugin.initialize();
+        console.log('OverridesPlugin initialized');
+
+      } else {
+        console.log('ℹ️ No overrides detected - OverridesPlugin not loaded');
+
+        statusEl.className = 'status no-overrides';
+        statusEl.innerHTML = `
+          <strong>✅ Production Mode</strong><br>
+          No overrides detected - running with regular experiments only.<br>
+          <em>OverridesPlugin was NOT loaded, saving bandwidth and resources.</em>
+        `;
+      }
+
+      // 3. Always initialize DOMChangesPlugin (for regular experiments)
+      const domPlugin = new DOMChangesPlugin({
+        context: context,
+        dataSource: 'variable',
+        dataFieldName: '__dom_changes',
+        debug: true
+      });
+
+      await domPlugin.initialize();
+      console.log('DOMChangesPlugin initialized');
+
+      // Show the code example
+      codeEl.textContent = `// Production code pattern:
+
+// 1. Import utilities
+import {
+  detectOverrides,
+  DOMChangesPlugin,
+  OverridesPlugin
+} from '@absmartly/dom-changes-plugin';
+
+// 2. Check for overrides
+const hasOverrides = detectOverrides({
+  cookieName: 'absmartly_overrides',
+  queryPrefix: '_exp_',
+  envParam: 'env'
+});
+
+// 3. Conditionally load OverridesPlugin
+if (hasOverrides) {
+  const overridesPlugin = new OverridesPlugin({
+    context,
+    useQueryString: true,
+    queryPrefix: '_exp_',
+    // ... other config
+  });
+  await overridesPlugin.initialize();
+}
+
+// 4. Always load DOMChangesPlugin
+const domPlugin = new DOMChangesPlugin({
+  context,
+  // ... config
+});
+await domPlugin.initialize();
+
+// Result: Regular users get a lean experience
+// Internal users get override capabilities`;
+
+      // For even better optimization, you could dynamically import the OverridesPlugin:
+      /*
+      if (hasOverrides) {
+        const { OverridesPlugin } = await import('@absmartly/dom-changes-plugin/overrides');
+        const overridesPlugin = new OverridesPlugin({ ... });
+        await overridesPlugin.initialize();
+      }
+      */
+
+    })();
+  </script>
+</body>
+</html>

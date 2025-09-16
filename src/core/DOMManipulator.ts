@@ -161,7 +161,7 @@ export class DOMManipulator {
         element.setAttribute('data-absmartly-original-parent', parentSelector);
       }
     }
-    
+
     switch (position) {
       case 'before':
         target.parentElement?.insertBefore(element, target);
@@ -584,14 +584,14 @@ export class DOMManipulator {
     if (element.id) {
       return `#${element.id}`;
     }
-    
+
     if (element.className) {
       const classes = element.className.split(' ').filter(c => c && !c.startsWith('absmartly'));
       if (classes.length > 0) {
         return `.${classes[0]}`;
       }
     }
-    
+
     return element.tagName.toLowerCase();
   }
 

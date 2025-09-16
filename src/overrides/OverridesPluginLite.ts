@@ -21,7 +21,7 @@ interface LiteConfig {
 
 export class OverridesPluginLite {
   private config: Required<LiteConfig>;
-  private initialized = false;
+  protected initialized = false;
 
   constructor(config: LiteConfig) {
     if (!config.context) {

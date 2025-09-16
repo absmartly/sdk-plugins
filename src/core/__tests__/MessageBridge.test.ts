@@ -1,5 +1,5 @@
 import { MessageBridge } from '../MessageBridge';
-import { Overrides, ExperimentData } from '../../types';
+import { ExperimentData } from '../../types';
 
 describe('MessageBridge', () => {
   let messageBridge: MessageBridge;
@@ -299,7 +299,7 @@ describe('MessageBridge', () => {
     });
 
     it('should send overrides data', () => {
-      const overrides: Overrides = {
+      const overrides = {
         exp1: 1,
         exp2: 2,
       };
@@ -364,7 +364,9 @@ describe('MessageBridge', () => {
 
       debugBridge.sendMessage('TEST', { changes: [{ selector: '.test', type: 'text' }] } as any);
 
-      expect(logSpy).toHaveBeenCalledWith('[ABsmartly] Sending message:', 'TEST', { changes: [{ selector: '.test', type: 'text' }] });
+      expect(logSpy).toHaveBeenCalledWith('[ABsmartly] Sending message:', 'TEST', {
+        changes: [{ selector: '.test', type: 'text' }],
+      });
 
       debugBridge.destroy();
     });

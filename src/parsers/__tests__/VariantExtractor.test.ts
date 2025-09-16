@@ -857,12 +857,7 @@ describe('VariantExtractor', () => {
             variants: [
               {
                 variables: {
-                  __dom_changes: [
-                    { invalid: 'change1' },
-                    { invalid: 'change2' },
-                    null,
-                    undefined,
-                  ],
+                  __dom_changes: [{ invalid: 'change1' }, { invalid: 'change2' }, null, undefined],
                 },
               },
             ],
@@ -970,12 +965,7 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle null custom field with debug', () => {
-      const debugExtractor = new VariantExtractor(
-        mockContext,
-        'customField',
-        'custom_field',
-        true
-      );
+      const debugExtractor = new VariantExtractor(mockContext, 'customField', 'custom_field', true);
       const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const contextData: ContextData = {
