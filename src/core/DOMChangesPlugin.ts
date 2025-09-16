@@ -2,7 +2,6 @@ import {
   PluginConfig,
   AppliedChange,
   PendingChange,
-  Overrides,
   InjectionData,
   ElementState,
   EventCallback,
@@ -16,12 +15,7 @@ import { CodeInjector } from '../injection/CodeInjector';
 import { VariantExtractor } from '../parsers/VariantExtractor';
 import { StyleSheetManager } from './StyleSheetManager';
 import { ExposureTracker } from './ExposureTracker';
-import {
-  logDebug,
-  logExperimentSummary,
-  logPerformance,
-  DEBUG,
-} from '../utils/debug';
+import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
 
 export class DOMChangesPlugin {
   public static readonly VERSION = '1.0.0';
@@ -51,7 +45,6 @@ export class DOMChangesPlugin {
       extensionBridge: config.extensionBridge ?? true,
       dataSource: config.dataSource ?? 'variable',
       dataFieldName: config.dataFieldName ?? '__dom_changes',
-      overrideCookieName: config.overrideCookieName ?? 'absmartly_overrides',
       debug: config.debug ?? false,
     };
 
@@ -92,11 +85,6 @@ export class DOMChangesPlugin {
     });
 
     try {
-      // Apply cookie overrides to context
-      if (this.config.overrideCookieName) {
-        this.applyOverridesToContext();
-      }
-
       // Set up extension bridge
       if (this.config.extensionBridge) {
         this.setupMessageBridge();
@@ -163,22 +151,11 @@ export class DOMChangesPlugin {
       this.injectCode(injectionData);
     });
 
-    // Handle override updates
-    this.messageBridge.on('UPDATE_OVERRIDES', payload => {
-      if (payload.overrides) {
-        this.setOverrideCookie(payload.overrides);
-        this.applyOverridesToContext();
-        this.refreshChanges();
-      }
-    });
-
     // Handle data requests
-    this.messageBridge.on('GET_OVERRIDES', () => {
-      const overrides = this.getOverridesFromCookie();
-      this.messageBridge?.sendOverridesData(overrides);
-    });
 
-    this.messageBridge.on('GET_EXPERIMENTS', () => {
+    this.messageBridge.on('GET_EXPERIMENTS', async () => {
+      // Ensure context is ready before accessing data
+      await (this.config.context as any).ready();
       const experiments = this.config.context.data()?.experiments || [];
       this.messageBridge?.sendExperimentData(experiments);
     });
@@ -224,7 +201,6 @@ export class DOMChangesPlugin {
     this.mutationObserver = observer;
   }
 
-
   async applyChanges(experimentName?: string): Promise<void> {
     const startTime = performance.now();
 
@@ -233,14 +209,88 @@ export class DOMChangesPlugin {
       action: 'apply_start',
     });
 
-    const changesMap = experimentName
-      ? new Map([
-          [experimentName, this.variantExtractor.getExperimentChanges(experimentName) || []],
-        ])
-      : this.variantExtractor.extractAllChanges();
+    if (this.config.debug) {
+      console.log('[ABsmartly] === DOM Changes Application Starting ===');
+      console.log('[ABsmartly] Target:', experimentName || 'all experiments');
+      console.log('[ABsmartly] Context ready:', !!(this.config.context as any).ready);
+    }
+
+    // Ensure context is ready before accessing data
+    try {
+      await (this.config.context as any).ready();
+    } catch (error) {
+      console.error('[ABsmartly] Failed to wait for context ready:', error);
+      return;
+    }
+
+    // Clear the variant extractor cache to ensure we get fresh data
+    // This is important when the overrides plugin has added new experiments
+    this.variantExtractor.clearCache();
+
+    // Get changes to apply
+    let changesMap: Map<string, DOMChange[]>;
+
+    if (experimentName) {
+      // Single experiment
+      const changes = this.variantExtractor.getExperimentChanges(experimentName);
+      changesMap = new Map(changes ? [[experimentName, changes]] : []);
+
+      if (this.config.debug) {
+        const variant = this.config.context.peek(experimentName);
+        console.log(`[ABsmartly] Single experiment '${experimentName}':`, {
+          variant,
+          hasChanges: !!changes,
+          changeCount: changes?.length || 0,
+        });
+      }
+    } else {
+      // All experiments - extract all variants then get current ones
+      const allVariants = this.variantExtractor.extractAllChanges();
+      changesMap = new Map();
+
+      if (this.config.debug) {
+        console.log(
+          '[ABsmartly] All available experiments with DOM changes:',
+          Array.from(allVariants.keys())
+        );
+      }
+
+      for (const [expName, variantMap] of allVariants) {
+        // Get the current variant for this experiment
+        const currentVariant = this.config.context.peek(expName);
+
+        if (this.config.debug) {
+          console.log(`[ABsmartly] Experiment '${expName}':`, {
+            assignedVariant: currentVariant,
+            availableVariants: Array.from(variantMap.keys()),
+          });
+        }
+
+        if (currentVariant !== undefined && currentVariant !== null) {
+          const changes = variantMap.get(currentVariant);
+          if (changes && changes.length > 0) {
+            changesMap.set(expName, changes);
+            if (this.config.debug) {
+              console.log(
+                `[ABsmartly]   -> Will apply ${changes.length} changes for variant ${currentVariant}`
+              );
+            }
+          } else if (this.config.debug) {
+            console.log(`[ABsmartly]   -> No changes found for variant ${currentVariant}`);
+          }
+        } else if (this.config.debug) {
+          console.log(`[ABsmartly]   -> No variant assigned (control or not in experiment)`);
+        }
+      }
+    }
 
     let totalApplied = 0;
     const experimentStats = new Map<string, { total: number; success: number; pending: number }>();
+
+    if (this.config.debug) {
+      console.log('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
+      console.log('[ABsmartly] Total experiments with changes:', changesMap.size);
+    }
 
     for (const [expName, changes] of changesMap) {
       const stats = { total: changes.length, success: 0, pending: 0 };
@@ -249,6 +299,17 @@ export class DOMChangesPlugin {
         experimentName: expName,
         totalChanges: changes.length,
       });
+
+      if (this.config.debug) {
+        console.log(
+          `[ABsmartly] Processing experiment '${expName}' with ${changes.length} changes:`,
+          changes.map(c => ({
+            type: c.type,
+            selector: c.selector,
+            trigger: c.trigger_on_view ? 'viewport' : 'immediate',
+          }))
+        );
+      }
 
       // Get the current variant for this experiment
       const currentVariant = this.config.context.peek(expName);
@@ -259,7 +320,7 @@ export class DOMChangesPlugin {
 
       // Get ALL variant changes for exposure tracking
       const allVariantChanges = this.variantExtractor.getAllVariantChanges(expName);
-      
+
       // Track what types of triggers we have
       let hasImmediateTrigger = false;
       let hasViewportTrigger = false;
@@ -272,7 +333,7 @@ export class DOMChangesPlugin {
           if (this.config.spa || change.waitForElement) {
             this.stateManager.addPendingChange(expName, change);
             stats.pending++;
-            
+
             // Still need to track for exposure if trigger_on_view
             if (change.trigger_on_view) {
               hasViewportTrigger = true;
@@ -306,6 +367,8 @@ export class DOMChangesPlugin {
 
       // If there are only immediate triggers (no viewport tracking), trigger exposure now
       if (hasImmediateTrigger && !hasViewportTrigger) {
+        // Ensure context is ready before calling treatment
+        await (this.config.context as any).ready();
         this.config.context.treatment(expName);
         this.exposedExperiments.add(expName);
         logDebug(`Triggered immediate exposure for experiment: ${expName}`);
@@ -320,6 +383,23 @@ export class DOMChangesPlugin {
       totalApplied,
       experiments: experimentStats.size,
     });
+
+    if (this.config.debug) {
+      console.log('[ABsmartly] === DOM Changes Application Complete ===');
+      console.log('[ABsmartly] Summary:', {
+        totalChangesApplied: totalApplied,
+        experimentsProcessed: experimentStats.size,
+        duration: `${duration.toFixed(2)}ms`,
+        experiments: Array.from(experimentStats.entries()).map(([name, stats]) => ({
+          name,
+          total: stats.total,
+          success: stats.success,
+          pending: stats.pending,
+          pendingReason:
+            stats.pending > 0 ? 'Elements not found yet (SPA mode will retry)' : undefined,
+        })),
+      });
+    }
 
     this.emit('changes-applied', { count: totalApplied, experimentName });
     this.messageBridge?.notifyChangesApplied(totalApplied, experimentName);
@@ -361,46 +441,6 @@ export class DOMChangesPlugin {
   refreshChanges(): void {
     this.removeChanges();
     this.applyChanges();
-  }
-
-  getOverridesFromCookie(): Overrides {
-    const name = this.config.overrideCookieName + '=';
-    const decodedCookie = decodeURIComponent(document.cookie);
-    const cookies = decodedCookie.split(';');
-
-    for (let cookie of cookies) {
-      cookie = cookie.trim();
-      if (cookie.indexOf(name) === 0) {
-        const value = cookie.substring(name.length);
-        try {
-          return JSON.parse(value);
-        } catch (error) {
-          console.error('[ABsmartly] Failed to parse overrides cookie:', error);
-        }
-      }
-    }
-
-    return {};
-  }
-
-  private setOverrideCookie(overrides: Overrides): void {
-    const value = JSON.stringify(overrides);
-    const expires = new Date();
-    expires.setDate(expires.getDate() + 30); // 30 days
-
-    document.cookie = `${this.config.overrideCookieName}=${value}; expires=${expires.toUTCString()}; path=/`;
-  }
-
-  applyOverridesToContext(): void {
-    const overrides = this.getOverridesFromCookie();
-
-    for (const [experimentName, variantIndex] of Object.entries(overrides)) {
-      this.config.context.override(experimentName, variantIndex);
-
-      if (this.config.debug) {
-        console.log(`[ABsmartly] Applied override: ${experimentName} -> variant ${variantIndex}`);
-      }
-    }
   }
 
   injectCode(data: InjectionData): void {
@@ -659,6 +699,19 @@ export class DOMChangesPlugin {
     }
   }
 
+  // Public method to force re-processing of experiments
+  // Call this after overrides plugin has added experiments
+  public refreshExperiments(): void {
+    if (this.config.debug) {
+      console.log('[ABsmartly] Refreshing experiments and clearing cache');
+    }
+    this.variantExtractor.clearCache();
+    // Re-apply changes with fresh data
+    if (this.config.autoApply) {
+      this.applyChanges();
+    }
+  }
+
   destroy(): void {
     // Clean up all resources
     this.removeChanges();
@@ -667,7 +720,7 @@ export class DOMChangesPlugin {
 
     // Clean up DOM manipulator (includes pending manager)
     this.domManipulator.destroy();
-    
+
     // Clean up exposure tracker
     this.exposureTracker.destroy();
 

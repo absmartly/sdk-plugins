@@ -5,6 +5,7 @@ export class VariantExtractor {
   private dataSource: 'variable' | 'customField';
   private dataFieldName: string;
   private debug: boolean;
+  private cachedAllChanges: Map<string, Map<number, DOMChange[]>> | null = null;
 
   constructor(
     context: ABsmartlyContext,
@@ -18,92 +19,189 @@ export class VariantExtractor {
     this.debug = debug;
   }
 
-  extractAllChanges(): Map<string, DOMChange[]> {
-    const changesMap = new Map<string, DOMChange[]>();
+  // Clear cache when context changes
+  clearCache(): void {
+    this.cachedAllChanges = null;
+  }
+
+  // Extract ALL variants for ALL experiments (efficient single pass)
+  extractAllChanges(): Map<string, Map<number, DOMChange[]>> {
+    // Return cached version if available
+    if (this.cachedAllChanges) {
+      if (this.debug) {
+        console.log('[ABsmartly VariantExtractor] Returning cached changes');
+      }
+      return this.cachedAllChanges;
+    }
+
+    const allChanges = new Map<string, Map<number, DOMChange[]>>();
 
     try {
       const contextData = this.context.data() as ContextData;
 
-      if (!contextData || !contextData.experiments) {
-        if (this.debug) {
-          console.log('[ABsmartly] No experiments found in context data');
-        }
-        return changesMap;
+      // Always log the raw context data structure for debugging
+      console.log('[VariantExtractor DEBUG] Raw context data structure:', {
+        hasData: !!contextData,
+        contextKeys: contextData ? Object.keys(contextData) : [],
+        experimentCount: contextData?.experiments?.length || 0,
+        firstExperiment: contextData?.experiments?.[0]
+          ? {
+              name: contextData.experiments[0].name,
+              // id: contextData.experiments[0].id, // id field might not exist
+              variantCount: contextData.experiments[0].variants?.length || 0,
+              firstVariantStructure: contextData.experiments[0].variants?.[0]
+                ? Object.keys(contextData.experiments[0].variants[0])
+                : [],
+            }
+          : null,
+        rawContextData: JSON.stringify(contextData).substring(0, 500) + '...',
+      });
+
+      if (this.debug) {
+        console.log('[ABsmartly VariantExtractor] Extracting changes from context:', {
+          hasData: !!contextData,
+          experimentCount: contextData?.experiments?.length || 0,
+        });
       }
 
-      for (const experiment of contextData.experiments) {
-        const changes = this.extractExperimentChanges(experiment);
-        if (changes && changes.length > 0) {
-          changesMap.set(experiment.name, changes);
+      // Extract from SDK context data
+      if (contextData?.experiments) {
+        if (this.debug) {
+          console.log(
+            '[ABsmartly VariantExtractor] Available experiments:',
+            contextData.experiments.map((exp: any) => ({
+              name: exp.name,
+              // id: exp.id, // id field might not exist
+              hasVariants: !!exp.variants,
+              variantCount: exp.variants?.length || 0,
+            }))
+          );
+        }
+
+        for (const experiment of contextData.experiments) {
+          const variantChanges = this.extractAllVariantsForExperiment(experiment);
+          if (variantChanges.size > 0) {
+            allChanges.set(experiment.name, variantChanges);
+            if (this.debug) {
+              console.log(
+                `[ABsmartly VariantExtractor] Experiment '${experiment.name}' has DOM changes:`,
+                {
+                  variantsWithChanges: Array.from(variantChanges.keys()),
+                  changesByVariant: Array.from(variantChanges.entries()).map(([v, changes]) => ({
+                    variant: v,
+                    changeCount: changes.length,
+                    changeTypes: [...new Set(changes.map(c => c.type))],
+                  })),
+                }
+              );
+            }
+          } else if (this.debug) {
+            console.log(
+              `[ABsmartly VariantExtractor] Experiment '${experiment.name}' has no DOM changes`
+            );
+          }
         }
       }
+
+      // No need to check window storage - experiments are now injected into context data
     } catch (error) {
       console.error('[ABsmartly] Error extracting DOM changes:', error);
     }
 
-    return changesMap;
+    // Cache the result
+    this.cachedAllChanges = allChanges;
+    return allChanges;
   }
 
-  private extractExperimentChanges(experiment: ExperimentData): DOMChange[] | null {
-    try {
+  // Extract all variants for a single experiment
+  private extractAllVariantsForExperiment(experiment: ExperimentData): Map<number, DOMChange[]> {
+    const variantChanges = new Map<number, DOMChange[]>();
+
+    console.log(
+      '[DEBUG] Processing experiment:',
+      experiment.name,
+      'with',
+      experiment.variants?.length || 0,
+      'variants'
+    );
+
+    if (!experiment.variants) {
+      console.log('[DEBUG] No variants found for experiment:', experiment.name);
+      return variantChanges;
+    }
+
+    for (let i = 0; i < experiment.variants.length; i++) {
+      const variant = experiment.variants[i];
+      if (!variant) continue;
+
+      let changesData = null;
+
       if (this.dataSource === 'variable') {
-        return this.extractFromVariables(experiment);
+        // ABSmartly SDK provides data in variant.config as a JSON string
+        if (variant.config) {
+          try {
+            const config =
+              typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
+
+            if (config && config[this.dataFieldName]) {
+              changesData = config[this.dataFieldName];
+              console.log(
+                `[VariantExtractor DEBUG] ✓ Found DOM changes in config[${this.dataFieldName}]:`,
+                changesData
+              );
+            } else {
+              console.log(
+                '[VariantExtractor DEBUG] ✗ No', this.dataFieldName, 'field found in parsed config'
+              );
+            }
+          } catch (e) {
+            console.error(
+              '[VariantExtractor DEBUG] ✗ Failed to parse variant.config:',
+              e,
+              'Raw config:',
+              typeof variant.config === 'string' ? variant.config.substring(0, 100) : ''
+            );
+          }
+        }
       } else {
-        return this.extractFromCustomField(experiment.name);
+        // For custom field, we would need to handle it per experiment
+        // This is a limitation of the current approach when extracting all variants
+        continue;
       }
-    } catch (error) {
-      if (this.debug) {
-        console.error(`[ABsmartly] Error extracting changes for ${experiment.name}:`, error);
+
+      if (changesData) {
+        const changes = this.parseChanges(changesData);
+        if (changes && changes.length > 0) {
+          variantChanges.set(i, changes);
+        }
       }
-      return null;
     }
+
+    return variantChanges;
   }
 
-  private extractFromVariables(experiment: ExperimentData): DOMChange[] | null {
+  // Get changes for the current variant of a specific experiment
+  // Note: Requires context to be ready for peek() to work correctly
+  getExperimentChanges(experimentName: string): DOMChange[] | null {
+    const allChanges = this.extractAllChanges();
+    const experimentVariants = allChanges.get(experimentName);
+
+    if (!experimentVariants || experimentVariants.size === 0) {
+      return null;
+    }
+
     // Use peek to get the current variant without triggering exposure
-    const variantIndex = this.context.peek(experiment.name);
+    // Important: peek() returns 0 if context is not ready
+    const currentVariant = this.context.peek(experimentName);
 
-    if (variantIndex === undefined || variantIndex === null) {
+    if (currentVariant === undefined || currentVariant === null) {
       if (this.debug) {
-        console.log(`[ABsmartly] No variant selected for ${experiment.name}`);
+        console.log(`[ABsmartly] No variant selected for ${experimentName}`);
       }
       return null;
     }
 
-    const variant = experiment.variants?.[variantIndex];
-    if (!variant || !variant.variables) {
-      if (this.debug) {
-        console.log(
-          `[ABsmartly] No variables found for variant ${variantIndex} of ${experiment.name}`
-        );
-      }
-      return null;
-    }
-
-    const changesData = variant.variables[this.dataFieldName];
-    if (!changesData) {
-      if (this.debug) {
-        console.log(`[ABsmartly] No ${this.dataFieldName} found in ${experiment.name}`);
-      }
-      return null;
-    }
-
-    return this.parseChanges(changesData);
-  }
-
-  private extractFromCustomField(experimentName: string): DOMChange[] | null {
-    const changesData = this.context.customFieldValue(experimentName, this.dataFieldName);
-
-    if (!changesData) {
-      if (this.debug) {
-        console.log(
-          `[ABsmartly] No custom field ${this.dataFieldName} found for ${experimentName}`
-        );
-      }
-      return null;
-    }
-
-    return this.parseChanges(changesData);
+    return experimentVariants.get(currentVariant) || null;
   }
 
   private parseChanges(changesData: unknown): DOMChange[] | null {
@@ -207,71 +305,47 @@ export class VariantExtractor {
     return true;
   }
 
-  getExperimentChanges(experimentName: string): DOMChange[] | null {
-    const contextData = this.context.data() as ContextData;
-
-    if (!contextData || !contextData.experiments) {
-      return null;
-    }
-
-    const experiment = contextData.experiments.find(exp => exp.name === experimentName);
-    if (!experiment) {
-      return null;
-    }
-
-    return this.extractExperimentChanges(experiment);
-  }
-
   /**
    * Get all variant changes for an experiment (not just the current variant)
    * This is needed for proper exposure tracking across variants
    */
   getAllVariantChanges(experimentName: string): DOMChange[][] {
-    const contextData = this.context.data() as ContextData;
+    const allChanges = this.extractAllChanges();
+    const experimentVariants = allChanges.get(experimentName);
 
-    if (!contextData || !contextData.experiments) {
+    if (!experimentVariants) {
       return [];
     }
 
-    const experiment = contextData.experiments.find(exp => exp.name === experimentName);
-    if (!experiment || !experiment.variants) {
-      return [];
+    // Convert Map to array indexed by variant number
+    const maxVariant = Math.max(...experimentVariants.keys());
+    const variantArray: DOMChange[][] = [];
+
+    for (let i = 0; i <= maxVariant; i++) {
+      variantArray.push(experimentVariants.get(i) || []);
     }
 
-    const allChanges: DOMChange[][] = [];
-
-    // Extract changes for each variant
-    for (let i = 0; i < experiment.variants.length; i++) {
-      const variant = experiment.variants[i];
-      
-      if (!variant || !variant.variables) {
-        allChanges.push([]);
-        continue;
-      }
-
-      const changesData = variant.variables[this.dataFieldName];
-      if (!changesData) {
-        allChanges.push([]);
-        continue;
-      }
-
-      const changes = this.parseChanges(changesData);
-      allChanges.push(changes || []);
-    }
-
-    return allChanges;
+    return variantArray;
   }
 
   /**
    * Get the experiment data by name
+   * Note: This requires the context to be ready, otherwise it will throw
    */
   getExperiment(experimentName: string): ExperimentData | null {
-    const contextData = this.context.data() as ContextData;
+    try {
+      const contextData = this.context.data() as ContextData;
 
-    if (!contextData || !contextData.experiments) {
+      if (!contextData || !contextData.experiments) {
+        return null;
+      }
+
+      return contextData.experiments.find(exp => exp.name === experimentName) || null;
+    } catch (error) {
+      if (this.debug) {
+        console.warn(`[ABsmartly VariantExtractor] Failed to get experiment '${experimentName}' - context may not be ready:`, error);
+      }
       return null;
     }
-
-    return contextData.experiments.find(exp => exp.name === experimentName) || null;
   }
 }
