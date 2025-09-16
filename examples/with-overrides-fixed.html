@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABsmartly DOM Changes Plugin with Overrides - Fixed</title>
+</head>
+<body>
+  <h1>ABsmartly DOM Changes Plugin with Overrides - Fixed</h1>
+
+  <p>This example demonstrates the fixed integration between OverridesPlugin and DOMChangesPlugin.</p>
+
+  <div class="test-element">Original content</div>
+  <div id="red-button">Red Button - Original</div>
+  <div id="new-homepage-title">Homepage Title - Original</div>
+  <div id="yellow-buttons">Yellow Buttons - Original</div>
+
+  <script src="https://unpkg.com/@absmartly/javascript-sdk"></script>
+  <script src="../dist/absmartly-dom-changes.dev.js"></script>
+
+  <script>
+    // Initialize ABsmartly SDK
+    const sdk = new ABsmartly.SDK({
+      endpoint: 'https://demo.absmartly.io/v1',
+      apiKey: 'YOUR_API_KEY',
+      environment: 'production',
+      application: 'demo-app'
+    });
+
+    // Create context
+    const context = sdk.createContext({
+      units: {
+        user_id: '123456'
+      }
+    });
+
+    // Initialize OverridesPlugin first (to handle cookie overrides)
+    const overridesPlugin = new ABsmartlySDKPlugins.OverridesPlugin({
+      context: context,
+      cookieName: 'absmartly_overrides',
+      sdkEndpoint: 'https://demo.absmartly.io',
+      absmartlyEndpoint: 'https://demo.absmartly.com', // Explicitly set to avoid /v1/v1 issue
+      debug: true
+    });
+
+    // Initialize DOMChangesPlugin
+    const domPlugin = new ABsmartlySDKPlugins.DOMChangesPlugin({
+      context: context,
+      dataSource: 'variable',
+      dataFieldName: '__dom_changes',
+      debug: true
+    });
+
+    // Register callback to refresh DOM changes when overrides adds experiments
+    // This ensures DOM changes from API-fetched experiments are applied
+    overridesPlugin.onExperimentsAdded(() => {
+      console.log('[Integration] Overrides plugin added experiments, refreshing DOM changes...');
+      domPlugin.refreshExperiments();
+    });
+
+    // Initialize both plugins
+    (async () => {
+      try {
+        console.log('=== Starting Plugin Initialization ===');
+
+        // First apply overrides from cookies
+        // This may fetch experiments from API or development SDK
+        await overridesPlugin.initialize();
+        console.log('[Integration] Overrides plugin initialized');
+
+        // Then initialize DOM changes
+        // This will apply changes from running experiments
+        await domPlugin.initialize();
+        console.log('[Integration] DOM changes plugin initialized');
+
+        console.log('=== Plugins Initialized Successfully ===');
+
+        // The DOM changes will be applied automatically based on:
+        // 1. Running experiments in the context
+        // 2. Overridden experiments from cookies
+        // 3. Non-running experiments fetched by OverridesPlugin
+        // 4. The callback ensures DOM changes from API experiments are applied
+
+        // Debug: Check what experiments are active
+        const contextData = context.data();
+        console.log('[Integration] Active experiments:',
+          contextData.experiments?.map(exp => ({
+            name: exp.name,
+            hasVariants: !!exp.variants,
+            variantCount: exp.variants?.length || 0
+          }))
+        );
+
+      } catch (error) {
+        console.error('Failed to initialize plugins:', error);
+      }
+    })();
+
+    // For testing: Example cookie that includes both dev and draft experiments
+    // document.cookie = 'absmartly_overrides=devEnv=staging|yellow_buttons:1.0,red_button:1.2.123,new_homepage_title:2.2.456';
+
+    // Cookie format explained:
+    // - devEnv=staging: Sets development environment for env=1 experiments
+    // - yellow_buttons:1.0: Running experiment (env=0), variant 1
+    // - red_button:1.2.123: Draft experiment (env=2), variant 1, experiment ID 123
+    // - new_homepage_title:2.2.456: Draft experiment (env=2), variant 2, experiment ID 456
+  </script>
+
+  <h2>How the Fix Works:</h2>
+  <ol>
+    <li><strong>Prevents Multiple Initializations:</strong> Both plugins now check if they're already initialized and skip re-initialization.</li>
+    <li><strong>Fixed Double /v1/v1 Issue:</strong> API endpoint construction now removes trailing /v1 to avoid duplication.</li>
+    <li><strong>Coordination Between Plugins:</strong> OverridesPlugin notifies when experiments are added, triggering DOM changes refresh.</li>
+    <li><strong>Cache Clearing:</strong> DOM changes plugin clears its cache when refreshing to ensure fresh data.</li>
+    <li><strong>Proper Config Parsing:</strong> API experiments with config fields containing DOM changes are properly detected and logged.</li>
+  </ol>
+
+  <h2>Testing Instructions:</h2>
+  <ol>
+    <li>Set a cookie with override experiments (see example in code comments)</li>
+    <li>Open browser console to see debug logs</li>
+    <li>Verify that:
+      <ul>
+        <li>Plugins initialize only once</li>
+        <li>API URLs are correct (no double /v1/v1)</li>
+        <li>DOM changes are applied for all experiment types</li>
+        <li>The callback mechanism triggers properly</li>
+      </ul>
+    </li>
+  </ol>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABsmartly DOM Changes Plugin with Overrides</title>
+</head>
+<body>
+  <h1>ABsmartly DOM Changes Plugin with Overrides</h1>
+
+  <div class="test-element">Original content</div>
+
+  <script src="https://unpkg.com/@absmartly/javascript-sdk"></script>
+  <script src="../dist/absmartly-dom-changes.dev.js"></script>
+
+  <script>
+    // Initialize ABsmartly SDK
+    const sdk = new ABsmartly.SDK({
+      endpoint: 'https://demo.absmartly.io/v1',
+      apiKey: 'YOUR_API_KEY',
+      environment: 'production',
+      application: 'demo-app'
+    });
+
+    // Create context
+    const context = sdk.createContext({
+      units: {
+        user_id: '123456'
+      }
+    });
+
+    // Initialize OverridesPlugin first (to handle cookie overrides)
+    const overridesPlugin = new ABsmartlySDKPlugins.OverridesPlugin({
+      context: context,
+      cookieName: 'absmartly_overrides',
+      sdkEndpoint: 'https://demo.absmartly.io',
+      debug: true
+    });
+
+    // Initialize DOMChangesPlugin
+    const domPlugin = new ABsmartlySDKPlugins.DOMChangesPlugin({
+      context: context,
+      dataSource: 'variable',
+      dataFieldName: '__dom_changes',
+      debug: true
+    });
+
+    // Register callback to refresh DOM changes when overrides adds experiments
+    overridesPlugin.onExperimentsAdded(() => {
+      console.log('Overrides plugin added experiments, refreshing DOM changes...');
+      domPlugin.refreshExperiments();
+    });
+
+    // Initialize both plugins
+    (async () => {
+      try {
+        // First apply overrides from cookies
+        await overridesPlugin.initialize();
+
+        // Then initialize DOM changes
+        await domPlugin.initialize();
+
+        console.log('Plugins initialized successfully');
+
+        // The DOM changes will be applied automatically based on:
+        // 1. Running experiments in the context
+        // 2. Overridden experiments from cookies
+        // 3. Non-running experiments fetched by OverridesPlugin
+
+      } catch (error) {
+        console.error('Failed to initialize plugins:', error);
+      }
+    })();
+
+    // For testing: Set a cookie override
+    // document.cookie = 'absmartly_overrides=test_experiment:1';
+  </script>
+</body>
+</html>
