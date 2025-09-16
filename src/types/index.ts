@@ -68,10 +68,6 @@ export interface ElementState {
   };
 }
 
-export interface Overrides {
-  [experimentName: string]: number; // variant index
-}
-
 // ABsmartly Context type
 export interface ABsmartlyContext {
   data(): ContextData | null;
@@ -99,7 +95,6 @@ export interface PluginConfig {
   extensionBridge?: boolean;
   dataSource?: 'variable' | 'customField';
   dataFieldName?: string;
-  overrideCookieName?: string;
   debug?: boolean;
 }
 
@@ -123,7 +118,7 @@ export type MessagePayloadData = {
   version?: string;
   capabilities?: string[];
   experiments?: ExperimentData[];
-  overrides?: Overrides;
+  overrides?: any;
   locations?: string[];
   error?: string;
   variant?: number;
@@ -143,6 +138,7 @@ export interface MessagePayload {
 
 export interface ExperimentVariant {
   variables?: Record<string, unknown>;
+  config?: string | Record<string, unknown>; // ABSmartly SDK provides this as a JSON string
 }
 
 export interface ExperimentData {
