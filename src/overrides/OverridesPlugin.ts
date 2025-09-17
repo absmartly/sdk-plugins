@@ -540,8 +540,13 @@ export class OverridesPlugin extends OverridesPluginLite {
       sdkEndpoint = `https://${sdkEndpoint}`;
     }
 
-    // Construct dev environment SDK URL
-    let devSdkUrl = `${sdkEndpoint}/context?environment=${encodeURIComponent(devEnv)}`;
+    // Normalize: strip trailing /v1 if present to avoid /v1/v1
+    if (sdkEndpoint.endsWith('/v1')) {
+      sdkEndpoint = sdkEndpoint.slice(0, -3);
+    }
+
+    // Construct dev environment SDK URL (sdkEndpoint intentionally without /v1)
+    let devSdkUrl = `${sdkEndpoint}/v1/context?environment=${encodeURIComponent(devEnv)}`;
     if (this.fullConfig.application) {
       devSdkUrl += `&application=${encodeURIComponent(this.fullConfig.application)}`;
     }
