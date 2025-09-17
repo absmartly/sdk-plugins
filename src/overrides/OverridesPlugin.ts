@@ -84,6 +84,9 @@ export class OverridesPlugin extends OverridesPluginLite {
       absmartlyEndpoint: config.absmartlyEndpoint ?? '',
       sdkEndpoint: sdkEndpoint || '',
       domChangesFieldName: config.domChangesFieldName ?? '__dom_changes',
+      sdkApiKey: config.sdkApiKey ?? '',
+      application: config.application ?? '',
+      environment: config.environment ?? '',
       debug: config.debug ?? false,
     };
 
@@ -432,11 +435,12 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     // Fetch dev experiments if needed
-    if (devExperiments.length > 0 && devEnv) {
+    const effectiveDevEnv = devEnv || this.fullConfig.environment || null;
+    if (devExperiments.length > 0 && effectiveDevEnv) {
       console.log(
-        `[OverridesPlugin] Will fetch ${devExperiments.length} DEV experiments for environment: ${devEnv}`
+        `[OverridesPlugin] Will fetch ${devExperiments.length} DEV experiments for environment: ${effectiveDevEnv}`
       );
-      await this.fetchFromDevSDK(devExperiments, devEnv);
+      await this.fetchFromDevSDK(devExperiments, effectiveDevEnv);
     } else if (devExperiments.length > 0) {
       console.log(
         `[OverridesPlugin] Have ${devExperiments.length} DEV experiments but NO devEnv specified - NOT fetching`
@@ -486,12 +490,17 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.fullConfig.sdkApiKey) {
+        headers['Authorization'] = `ApiKey ${this.fullConfig.sdkApiKey}`;
+      }
+
       const response = await fetch(apiUrl, {
         method: 'GET',
-        credentials: 'include', // Include cookies for authentication
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers,
         mode: 'cors',
       });
 
@@ -532,16 +541,24 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     // Construct dev environment SDK URL
-    const devSdkUrl = `${sdkEndpoint}/context?environment=${encodeURIComponent(devEnv)}`;
+    let devSdkUrl = `${sdkEndpoint}/context?environment=${encodeURIComponent(devEnv)}`;
+    if (this.fullConfig.application) {
+      devSdkUrl += `&application=${encodeURIComponent(this.fullConfig.application)}`;
+    }
 
     if (this.fullConfig.debug) {
       console.log('[OverridesPlugin] Fetching development experiments from SDK:', devSdkUrl);
     }
 
     try {
+      const headers: Record<string, string> = {};
+      if (this.fullConfig.sdkApiKey) {
+        headers['Authorization'] = `ApiKey ${this.fullConfig.sdkApiKey}`;
+      }
+
       const response = await fetch(devSdkUrl, {
         method: 'GET',
-        credentials: 'include', // Include cookies for consistency
+        headers,
       });
 
       console.log(

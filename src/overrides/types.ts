@@ -50,5 +50,10 @@ export interface OverridesPluginConfig {
   sdkEndpoint?: string; // SDK endpoint (required if not available from context)
   domChangesFieldName?: string; // Field name for DOM changes in variant config (default: '__dom_changes')
 
+  // Base SDK-aligned options
+  sdkApiKey?: string; // SDK API key to authorize requests (Authorization: ApiKey <key>)
+  application?: string; // Application name
+  environment?: string; // Environment name
+
   debug?: boolean;
 }
