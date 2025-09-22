@@ -66,4 +66,52 @@ describe('OverridesPluginFull', () => {
     // Both should have called context methods the same way
     expect(mockContext.override).toHaveBeenCalledTimes(0); // No overrides to apply
   });
+
+  it('should register with context on initialization', async () => {
+    const mockContext = {
+      override: jest.fn(),
+      data: jest.fn().mockReturnValue({ experiments: [] }),
+      peek: jest.fn(),
+      ready: jest.fn().mockResolvedValue(undefined),
+      __plugins: undefined as any,
+    };
+
+    const plugin = new OverridesPluginFull({
+      context: mockContext as any,
+      sdkEndpoint: 'https://test.absmartly.io',
+    });
+
+    await plugin.initialize();
+
+    // Check registration
+    expect(mockContext.__plugins).toBeDefined();
+    expect(mockContext.__plugins?.overridesPlugin).toBeDefined();
+    expect(mockContext.__plugins?.overridesPlugin?.name).toBe('OverridesPlugin');
+    expect(mockContext.__plugins?.overridesPlugin?.version).toBe('1.0.0');
+    expect(mockContext.__plugins?.overridesPlugin?.initialized).toBe(true);
+    expect(mockContext.__plugins?.overridesPlugin?.capabilities).toContain('cookie-overrides');
+    expect(mockContext.__plugins?.overridesPlugin?.capabilities).toContain('api-fetch');
+    expect(mockContext.__plugins?.overridesPlugin?.instance).toBe(plugin);
+  });
+
+  it('should unregister from context on destroy', async () => {
+    const mockContext = {
+      override: jest.fn(),
+      data: jest.fn().mockReturnValue({ experiments: [] }),
+      peek: jest.fn(),
+      ready: jest.fn().mockResolvedValue(undefined),
+      __plugins: undefined as any,
+    };
+
+    const plugin = new OverridesPluginFull({
+      context: mockContext as any,
+      sdkEndpoint: 'https://test.absmartly.io',
+    });
+
+    await plugin.initialize();
+    expect(mockContext.__plugins?.overridesPlugin).toBeDefined();
+
+    plugin.destroy();
+    expect(mockContext.__plugins?.overridesPlugin).toBeUndefined();
+  });
 });

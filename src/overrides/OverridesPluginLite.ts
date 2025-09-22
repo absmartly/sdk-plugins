@@ -56,6 +56,9 @@ export class OverridesPluginLite {
 
     this.initialized = true;
 
+    // Register with context
+    this.registerWithContext();
+
     let overrides: Record<string, number | SimpleOverride> = {};
 
     // Try query string first if enabled
@@ -226,7 +229,41 @@ export class OverridesPluginLite {
     }
   }
 
+  protected registerWithContext(): void {
+    if (this.config.context) {
+      // Ensure __plugins object exists
+      if (!this.config.context.__plugins) {
+        this.config.context.__plugins = {};
+      }
+
+      // Register under standardized __plugins structure
+      this.config.context.__plugins.overridesPlugin = {
+        name: 'OverridesPluginLite',
+        version: '1.0.0',
+        initialized: true,
+        capabilities: ['cookie-overrides', 'query-overrides'],
+        instance: this,
+        timestamp: Date.now(),
+      };
+
+      if (this.config.debug) {
+        console.log('[OverridesPluginLite] Registered with context at __plugins.overridesPlugin');
+      }
+    }
+  }
+
+  protected unregisterFromContext(): void {
+    if (this.config.context?.__plugins?.overridesPlugin) {
+      delete this.config.context.__plugins.overridesPlugin;
+
+      if (this.config.debug) {
+        console.log('[OverridesPluginLite] Unregistered from context');
+      }
+    }
+  }
+
   destroy(): void {
     this.initialized = false;
+    this.unregisterFromContext();
   }
 }

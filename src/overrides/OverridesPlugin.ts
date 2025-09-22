@@ -120,6 +120,9 @@ export class OverridesPlugin extends OverridesPluginLite {
     // Mark as initialized immediately to prevent concurrent calls
     this.initialized = true;
 
+    // Register with context
+    this.registerWithContext();
+
     // Get overrides using enhanced parsing
     const overridesData = this.getOverrides();
 
@@ -725,8 +728,42 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
   }
 
+  protected registerWithContext(): void {
+    if (this.fullConfig.context) {
+      // Ensure __plugins object exists
+      if (!this.fullConfig.context.__plugins) {
+        this.fullConfig.context.__plugins = {};
+      }
+
+      // Register under standardized __plugins structure
+      this.fullConfig.context.__plugins.overridesPlugin = {
+        name: 'OverridesPlugin',
+        version: '1.0.0',
+        initialized: true,
+        capabilities: ['cookie-overrides', 'query-overrides', 'api-fetch', 'dev-environments'],
+        instance: this,
+        timestamp: Date.now(),
+      };
+
+      if (this.fullConfig.debug) {
+        console.log('[OverridesPlugin] Registered with context at __plugins.overridesPlugin');
+      }
+    }
+  }
+
+  protected unregisterFromContext(): void {
+    if (this.fullConfig.context?.__plugins?.overridesPlugin) {
+      delete this.fullConfig.context.__plugins.overridesPlugin;
+
+      if (this.fullConfig.debug) {
+        console.log('[OverridesPlugin] Unregistered from context');
+      }
+    }
+  }
+
   destroy(): void {
     super.destroy();
+    this.unregisterFromContext();
     this.onExperimentsAddedCallbacks = [];
   }
 }

@@ -805,8 +805,14 @@ export class DOMChangesPlugin {
 
   private registerWithContext(): void {
     if (this.config.context) {
-      // Register plugin with context for discovery
-      this.config.context.__domPlugin = {
+      // Ensure __plugins object exists
+      if (!this.config.context.__plugins) {
+        this.config.context.__plugins = {};
+      }
+
+      // Register under standardized __plugins structure
+      this.config.context.__plugins.domPlugin = {
+        name: 'DOMChangesPlugin',
         version: DOMChangesPlugin.VERSION,
         initialized: true,
         capabilities: ['overrides', 'injection', 'spa', 'visibility'],
@@ -814,18 +820,29 @@ export class DOMChangesPlugin {
         timestamp: Date.now(),
       };
 
+      // Also register at legacy location for backwards compatibility
+      this.config.context.__domPlugin = this.config.context.__plugins.domPlugin;
+
       if (this.config.debug) {
-        console.log('[ABsmartly] Plugin registered with context');
+        console.log('[ABsmartly] DOMChangesPlugin registered with context at __plugins.domPlugin');
       }
     }
   }
 
   private unregisterFromContext(): void {
-    if (this.config.context && this.config.context.__domPlugin) {
-      delete this.config.context.__domPlugin;
+    if (this.config.context) {
+      // Remove from standardized location
+      if (this.config.context.__plugins?.domPlugin) {
+        delete this.config.context.__plugins.domPlugin;
+      }
+
+      // Remove from legacy location
+      if (this.config.context.__domPlugin) {
+        delete this.config.context.__domPlugin;
+      }
 
       if (this.config.debug) {
-        console.log('[ABsmartly] Plugin unregistered from context');
+        console.log('[ABsmartly] DOMChangesPlugin unregistered from context');
       }
     }
   }

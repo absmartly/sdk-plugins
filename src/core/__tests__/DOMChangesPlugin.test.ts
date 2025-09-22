@@ -43,21 +43,32 @@ describe('DOMChangesPlugin', () => {
       );
     });
 
-    it('should initialize successfully', async () => {
+    it('should initialize and register with context successfully', async () => {
       plugin = new DOMChangesPlugin(config);
       await plugin.initialize();
 
+      // Check new standardized registration
+      expect(mockContext.__plugins).toBeDefined();
+      expect(mockContext.__plugins?.domPlugin).toBeDefined();
+      expect(mockContext.__plugins?.domPlugin?.name).toBe('DOMChangesPlugin');
+      expect(mockContext.__plugins?.domPlugin?.version).toBe('1.0.0');
+      expect(mockContext.__plugins?.domPlugin?.initialized).toBe(true);
+      expect(mockContext.__plugins?.domPlugin?.capabilities).toContain('overrides');
+      expect(mockContext.__plugins?.domPlugin?.capabilities).toContain('spa');
+      expect(mockContext.__plugins?.domPlugin?.instance).toBe(plugin);
+
+      // Check legacy registration for backwards compatibility
       expect(mockContext.__domPlugin).toBeDefined();
-      expect(mockContext.__domPlugin?.version).toBe('1.0.0');
-      expect(mockContext.__domPlugin?.initialized).toBe(true);
+      expect(mockContext.__domPlugin).toBe(mockContext.__plugins?.domPlugin);
     });
 
     it('should not initialize twice', async () => {
       plugin = new DOMChangesPlugin(config);
       await plugin.initialize();
-      const firstPlugin = mockContext.__domPlugin;
+      const firstPlugin = mockContext.__plugins?.domPlugin;
 
       await plugin.initialize();
+      expect(mockContext.__plugins?.domPlugin).toBe(firstPlugin);
       expect(mockContext.__domPlugin).toBe(firstPlugin);
     });
 
@@ -593,6 +604,8 @@ describe('DOMChangesPlugin', () => {
 
       plugin.destroy();
 
+      // Check that both standardized and legacy registrations are removed
+      expect(mockContext.__plugins?.domPlugin).toBeUndefined();
       expect(mockContext.__domPlugin).toBeUndefined();
       expect(document.querySelector('.test')?.textContent).toBe('Original');
       expect(plugin.getAppliedChanges()).toHaveLength(0);

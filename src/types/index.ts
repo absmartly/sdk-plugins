@@ -75,11 +75,16 @@ export interface ABsmartlyContext {
   treatment(experimentName: string): number;
   override(experimentName: string, variant: number): void;
   customFieldValue(experimentName: string, fieldName: string): unknown;
-  // Plugin registration
+  // Plugin registration - standardized under __plugins
+  __plugins?: {
+    [key: string]: PluginRegistration | undefined;
+  };
+  // Legacy registration - kept for backwards compatibility
   __domPlugin?: PluginRegistration;
 }
 
 export interface PluginRegistration {
+  name: string; // Added plugin name
   version: string;
   initialized: boolean;
   capabilities: string[];
