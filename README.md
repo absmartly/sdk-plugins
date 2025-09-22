@@ -88,15 +88,12 @@ await vitalsPlugin.initialize();
 
 ### With Experiment Overrides (Browser Extension Support)
 
-The OverridesPlugin enables experiment overrides for internal testing and the ABsmartly Browser Extension. For optimal performance in production, only load it when overrides are present:
-
-#### Production-Optimized Conditional Loading (Recommended)
+The OverridesPlugin enables experiment overrides for internal testing and the ABsmartly Browser Extension. Simply load it before SDK initialization and it will automatically check for and apply any overrides:
 
 ```javascript
 import {
   DOMChangesPlugin,
-  OverridesPlugin,
-  detectOverrides
+  OverridesPlugin
 } from '@absmartly/dom-changes-plugin';
 import absmartly from '@absmartly/javascript-sdk';
 
@@ -104,31 +101,21 @@ import absmartly from '@absmartly/javascript-sdk';
 const sdk = new absmartly.SDK({ /* ... */ });
 const context = sdk.createContext({ /* ... */ });
 
-// Configuration for override detection
-const overrideConfig = {
+// Initialize OverridesPlugin - it will automatically check for overrides
+const overridesPlugin = new OverridesPlugin({
+  context: context,
   cookieName: 'absmartly_overrides',
-  queryPrefix: '_exp_',      // Prefix for query parameters
-  envParam: 'env'           // Environment parameter name
-};
+  useQueryString: true,
+  queryPrefix: '_exp_',
+  envParam: 'env',
+  persistQueryToCookie: true,  // Save query overrides to cookie
+  sdkEndpoint: 'https://your-endpoint.absmartly.io',
+  debug: true
+});
 
-// Only load OverridesPlugin if overrides are detected
-if (detectOverrides(overrideConfig)) {
-  const overridesPlugin = new OverridesPlugin({
-    context: context,
-    cookieName: overrideConfig.cookieName,
-    useQueryString: true,
-    queryPrefix: overrideConfig.queryPrefix,
-    envParam: overrideConfig.envParam,
-    persistQueryToCookie: true,  // Save query overrides to cookie
-    sdkEndpoint: 'https://your-endpoint.absmartly.io',
-    debug: true
-  });
+await overridesPlugin.initialize();
 
-  await overridesPlugin.initialize();
-  console.log('Overrides applied');
-}
-
-// Always initialize DOMChangesPlugin for regular experiments
+// Initialize DOMChangesPlugin for all experiments
 const domPlugin = new DOMChangesPlugin({
   context: context,
   autoApply: true,
@@ -138,7 +125,6 @@ const domPlugin = new DOMChangesPlugin({
 });
 
 await domPlugin.initialize();
-
 ```
 
 #### Override Configuration Options
