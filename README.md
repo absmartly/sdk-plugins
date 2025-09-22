@@ -66,8 +66,10 @@ const domPlugin = new DOMChangesPlugin({
   debug: true                    // Enable debug logging
 });
 
-// Initialize the plugin
-await domPlugin.initialize();
+// Initialize without blocking
+domPlugin.initialize().then(() => {
+  console.log('DOMChangesPlugin initialized');
+});
 
 // Initialize cookie management
 const cookiePlugin = new CookiePlugin({
@@ -75,7 +77,9 @@ const cookiePlugin = new CookiePlugin({
   cookieDomain: '.yourdomain.com',
   autoUpdateExpiry: true
 });
-await cookiePlugin.initialize();
+cookiePlugin.initialize().then(() => {
+  console.log('CookiePlugin initialized');
+});
 
 // Initialize web vitals tracking
 const vitalsPlugin = new WebVitalsPlugin({
@@ -83,7 +87,9 @@ const vitalsPlugin = new WebVitalsPlugin({
   trackWebVitals: true,
   trackPageMetrics: true
 });
-await vitalsPlugin.initialize();
+vitalsPlugin.initialize().then(() => {
+  console.log('WebVitalsPlugin initialized');
+});
 ```
 
 ### With Experiment Overrides (Browser Extension Support)
@@ -113,7 +119,9 @@ const overridesPlugin = new OverridesPlugin({
   debug: true
 });
 
-await overridesPlugin.initialize();
+overridesPlugin.initialize().then(() => {
+  console.log('OverridesPlugin initialized - overrides applied if present');
+});
 
 // Initialize DOMChangesPlugin for all experiments
 const domPlugin = new DOMChangesPlugin({
@@ -124,7 +132,9 @@ const domPlugin = new DOMChangesPlugin({
   debug: true
 });
 
-await domPlugin.initialize();
+domPlugin.initialize().then(() => {
+  console.log('DOMChangesPlugin initialized');
+});
 ```
 
 #### Override Configuration Options
