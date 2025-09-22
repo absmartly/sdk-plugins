@@ -34,6 +34,8 @@ export class DOMChangesPlugin {
   private eventListeners: Map<string, EventCallback[]> = new Map();
   private styleManagers: Map<string, StyleSheetManager> = new Map();
   private watchedElements: WeakMap<Element, Set<string>> = new WeakMap();
+  private reapplyingElements = new WeakSet<Element>();
+  private reapplyLogThrottle = new Map<string, number>();
   private initialized = false;
 
   constructor(config: PluginConfig) {
@@ -65,7 +67,7 @@ export class DOMChangesPlugin {
     this.exposureTracker = new ExposureTracker(this.config.context, this.config.debug);
   }
 
-  async initialize(): Promise<void> {
+  async ready(): Promise<void> {
     if (this.initialized) {
       logDebug('Plugin already initialized');
       return;
@@ -125,6 +127,11 @@ export class DOMChangesPlugin {
       console.error('[ABsmartly] Failed to initialize plugin:', error);
       throw error;
     }
+  }
+
+  // Alias for backwards compatibility
+  async initialize(): Promise<void> {
+    return this.ready();
   }
 
   private setupMessageBridge(): void {
@@ -619,6 +626,12 @@ export class DOMChangesPlugin {
     this.persistenceObserver = new MutationObserver(mutations => {
       mutations.forEach(mutation => {
         const element = mutation.target as Element;
+
+        // Skip if we're currently reapplying styles to this element (prevents infinite loop)
+        if (this.reapplyingElements.has(element)) {
+          return;
+        }
+
         const experiments = this.watchedElements.get(element);
 
         if (experiments) {
@@ -635,11 +648,39 @@ export class DOMChangesPlugin {
                 );
 
                 if (needsReapply) {
+                  // Mark element as being reapplied to prevent infinite loops
+                  this.reapplyingElements.add(element);
+
                   // Reapply the change
                   this.domManipulator.applyChange(change, experimentName);
-                  logDebug('Reapplied style after mutation', {
-                    experimentName,
-                    selector: change.selector,
+
+                  // Throttle logging to once every 5 seconds per selector
+                  const logKey = `${experimentName}-${change.selector}`;
+                  const now = Date.now();
+                  const lastLogged = this.reapplyLogThrottle.get(logKey) || 0;
+
+                  if (this.config.debug && (now - lastLogged > 5000)) {
+                    logDebug('Reapplied style after mutation (React/framework conflict detected)', {
+                      experimentName,
+                      selector: change.selector,
+                      note: 'This happens when the page framework (React/Vue/etc) fights with DOM changes'
+                    });
+                    this.reapplyLogThrottle.set(logKey, now);
+
+                    // Clean up old entries to prevent memory leak
+                    if (this.reapplyLogThrottle.size > 100) {
+                      const oldestAllowed = now - 60000; // 1 minute
+                      for (const [key, time] of this.reapplyLogThrottle.entries()) {
+                        if (time < oldestAllowed) {
+                          this.reapplyLogThrottle.delete(key);
+                        }
+                      }
+                    }
+                  }
+
+                  // Clear the flag after a micro-task to allow future mutations
+                  Promise.resolve().then(() => {
+                    this.reapplyingElements.delete(element);
                   });
                 }
               }

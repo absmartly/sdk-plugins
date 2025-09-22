@@ -67,8 +67,8 @@ const domPlugin = new DOMChangesPlugin({
 });
 
 // Initialize without blocking
-domPlugin.initialize().then(() => {
-  console.log('DOMChangesPlugin initialized');
+domPlugin.ready().then(() => {
+  console.log('DOMChangesPlugin ready');
 });
 
 // Initialize cookie management
@@ -77,8 +77,8 @@ const cookiePlugin = new CookiePlugin({
   cookieDomain: '.yourdomain.com',
   autoUpdateExpiry: true
 });
-cookiePlugin.initialize().then(() => {
-  console.log('CookiePlugin initialized');
+cookiePlugin.ready().then(() => {
+  console.log('CookiePlugin ready');
 });
 
 // Initialize web vitals tracking
@@ -87,8 +87,8 @@ const vitalsPlugin = new WebVitalsPlugin({
   trackWebVitals: true,
   trackPageMetrics: true
 });
-vitalsPlugin.initialize().then(() => {
-  console.log('WebVitalsPlugin initialized');
+vitalsPlugin.ready().then(() => {
+  console.log('WebVitalsPlugin ready');
 });
 ```
 
@@ -119,8 +119,8 @@ const overridesPlugin = new OverridesPlugin({
   debug: true
 });
 
-overridesPlugin.initialize().then(() => {
-  console.log('OverridesPlugin initialized - overrides applied if present');
+overridesPlugin.ready().then(() => {
+  console.log('OverridesPlugin ready - overrides applied if present');
 });
 
 // Initialize DOMChangesPlugin for all experiments
@@ -132,8 +132,8 @@ const domPlugin = new DOMChangesPlugin({
   debug: true
 });
 
-domPlugin.initialize().then(() => {
-  console.log('DOMChangesPlugin initialized');
+domPlugin.ready().then(() => {
+  console.log('DOMChangesPlugin ready');
 });
 ```
 

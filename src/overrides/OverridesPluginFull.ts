@@ -11,4 +11,3 @@ import { OverridesPlugin } from './OverridesPlugin';
 export class OverridesPluginFull extends OverridesPlugin {
   // No additional functionality needed - OverridesPlugin already has everything
 }
-

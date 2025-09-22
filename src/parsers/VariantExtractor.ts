@@ -151,7 +151,9 @@ export class VariantExtractor {
               );
             } else {
               console.log(
-                '[VariantExtractor DEBUG] ✗ No', this.dataFieldName, 'field found in parsed config'
+                '[VariantExtractor DEBUG] ✗ No',
+                this.dataFieldName,
+                'field found in parsed config'
               );
             }
           } catch (e) {
@@ -343,7 +345,10 @@ export class VariantExtractor {
       return contextData.experiments.find(exp => exp.name === experimentName) || null;
     } catch (error) {
       if (this.debug) {
-        console.warn(`[ABsmartly VariantExtractor] Failed to get experiment '${experimentName}' - context may not be ready:`, error);
+        console.warn(
+          `[ABsmartly VariantExtractor] Failed to get experiment '${experimentName}' - context may not be ready:`,
+          error
+        );
       }
       return null;
     }

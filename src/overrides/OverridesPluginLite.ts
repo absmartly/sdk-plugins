@@ -46,7 +46,7 @@ export class OverridesPluginLite {
     }
   }
 
-  async initialize(): Promise<void> {
+  async ready(): Promise<void> {
     if (this.initialized) {
       if (this.config.debug) {
         console.log('[OverridesPluginLite] Already initialized');
@@ -93,6 +93,11 @@ export class OverridesPluginLite {
         console.log(`[OverridesPluginLite] Override: ${experimentName} -> variant ${variant}`);
       }
     }
+  }
+
+  // Alias for backwards compatibility
+  async initialize(): Promise<void> {
+    return this.ready();
   }
 
   private getQueryStringOverrides(): Record<string, number | SimpleOverride> {

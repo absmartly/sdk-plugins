@@ -15,7 +15,9 @@ import {
 } from './types';
 
 export class OverridesPlugin extends OverridesPluginLite {
-  protected fullConfig: Required<Omit<OverridesPluginConfig, 'cookieName' | 'url' | 'cookieAdapter'>> & {
+  protected fullConfig: Required<
+    Omit<OverridesPluginConfig, 'cookieName' | 'url' | 'cookieAdapter'>
+  > & {
     cookieName?: string;
     url?: string | URL;
     cookieAdapter?: CookieAdapter;
@@ -28,7 +30,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     super({
       context: config.context,
       cookieName: config.cookieName,
-      useQueryString: config.useQueryString ?? (typeof window !== 'undefined'),
+      useQueryString: config.useQueryString ?? typeof window !== 'undefined',
       queryPrefix: config.queryPrefix ?? '_exp_',
       persistQueryToCookie: config.persistQueryToCookie ?? false,
       debug: config.debug ?? false,
@@ -60,10 +62,12 @@ export class OverridesPlugin extends OverridesPluginLite {
     if (!sdkEndpoint && !config.absmartlyEndpoint) {
       // Try one more time to get from context
       const contextInternal = config.context as any;
-      if (!contextInternal._endpoint &&
-          !contextInternal._config?.endpoint &&
-          !contextInternal._dataProvider?._endpoint &&
-          !contextInternal._options?.endpoint) {
+      if (
+        !contextInternal._endpoint &&
+        !contextInternal._config?.endpoint &&
+        !contextInternal._dataProvider?._endpoint &&
+        !contextInternal._options?.endpoint
+      ) {
         throw new Error(
           '[OverridesPlugin] SDK endpoint must be provided if not available from context'
         );
@@ -104,7 +108,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
   }
 
-  async initialize(): Promise<void> {
+  async ready(): Promise<void> {
     // Check if already initialized (use base class property)
     if (this.initialized) {
       if (this.fullConfig.debug) {
@@ -130,8 +134,13 @@ export class OverridesPlugin extends OverridesPluginLite {
     await this.applyOverridesWithFetching(overridesData.overrides, overridesData.devEnv);
   }
 
+  // Alias for backwards compatibility
+  async initialize(): Promise<void> {
+    return this.ready();
+  }
+
   private getOverrides(): ParsedCookie {
-    let overridesData: ParsedCookie = { overrides: {}, devEnv: null };
+    const overridesData: ParsedCookie = { overrides: {}, devEnv: null };
 
     // First get cookie overrides if enabled
     if (this.fullConfig.cookieName) {
@@ -566,11 +575,7 @@ export class OverridesPlugin extends OverridesPluginLite {
         headers,
       });
 
-      console.log(
-        '[OverridesPlugin] DEV Response status:',
-        response.status,
-        response.statusText
-      );
+      console.log('[OverridesPlugin] DEV Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         console.error(`[OverridesPlugin] DEV SDK request failed with status ${response.status}`);
