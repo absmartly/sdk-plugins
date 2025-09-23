@@ -4,14 +4,24 @@ import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
 import { DOMChange, ContextData, ExperimentData } from '../types';
 
 // Mock ABsmartly Context
-const createMockContext = (experiments: ExperimentData[] = []) => ({
-  ready: jest.fn().mockResolvedValue(undefined),
-  data: jest.fn().mockReturnValue({ experiments } as ContextData),
-  peek: jest.fn(),
-  treatment: jest.fn(),
-  override: jest.fn(),
-  customFieldValue: jest.fn(),
-});
+const createMockContext = (experiments: ExperimentData[] = []) => {
+  const context = {
+    ready: jest.fn().mockResolvedValue(undefined),
+    data: jest.fn().mockReturnValue({ experiments } as ContextData),
+    peek: jest.fn(),
+    treatment: jest.fn(),
+    override: jest.fn(),
+    customFieldValue: jest.fn(),
+  };
+
+  // Setup peek to return variant 0 for any experiments in the data
+  context.peek.mockImplementation((expName: string) => {
+    const hasExperiment = experiments.some(exp => exp.name === expName);
+    return hasExperiment ? 0 : undefined;
+  });
+
+  return context;
+};
 
 describe('Integration Tests - End-to-End Plugin Workflows', () => {
   let plugin: DOMChangesPlugin;
@@ -69,7 +79,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       // Initialize and apply changes
       await plugin.initialize();
@@ -140,7 +149,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -200,7 +208,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -284,7 +291,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       ];
 
       mockContext.data.mockReturnValue({ experiments });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -355,7 +361,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       ];
 
       mockContext.data.mockReturnValue({ experiments });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -406,7 +411,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -449,7 +453,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       const startTime = performance.now();
 
@@ -501,7 +504,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       // Initialize and apply
       plugin.initialize();
@@ -541,7 +543,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [badExperiment] });
-      mockContext.peek.mockReturnValue(0);
 
       // Should not throw
       await expect(plugin.initialize()).resolves.not.toThrow();
@@ -576,7 +577,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
 
@@ -611,7 +611,6 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
       };
 
       mockContext.data.mockReturnValue({ experiments: [experiment] });
-      mockContext.peek.mockReturnValue(0);
 
       await plugin.initialize();
       await plugin.applyChanges();

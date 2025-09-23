@@ -12,6 +12,7 @@ describe('ExposureTracker', () => {
     treatmentMock = jest.fn();
 
     mockContext = {
+      ready: jest.fn().mockResolvedValue(undefined),
       treatment: treatmentMock,
       peek: jest.fn().mockReturnValue(1),
       data: jest.fn().mockReturnValue({}),
@@ -28,7 +29,7 @@ describe('ExposureTracker', () => {
   });
 
   describe('registerExperiment', () => {
-    it('should trigger exposure immediately for changes without trigger_on_view', () => {
+    it('should trigger exposure immediately for changes without trigger_on_view', async () => {
       const changes: DOMChange[] = [
         {
           selector: '.button',
@@ -41,6 +42,9 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [changes, changes]; // Same for both variants
 
       tracker.registerExperiment('exp1', 0, changes, allVariantChanges);
+
+      // Wait for async trigger
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Should trigger immediately
       expect(treatmentMock).toHaveBeenCalledWith('exp1');
@@ -193,7 +197,7 @@ describe('ExposureTracker', () => {
   });
 
   describe('mixed trigger types', () => {
-    it('should handle mix of immediate and viewport triggers correctly', () => {
+    it('should handle mix of immediate and viewport triggers correctly', async () => {
       const changes: DOMChange[] = [
         {
           selector: '.immediate',
@@ -213,13 +217,16 @@ describe('ExposureTracker', () => {
 
       tracker.registerExperiment('exp1', 0, changes, allVariantChanges);
 
+      // Wait for async trigger
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       // Should trigger immediately because at least one change is immediate
       expect(treatmentMock).toHaveBeenCalledWith('exp1');
     });
   });
 
   describe('multiple experiments', () => {
-    it('should track multiple experiments independently', () => {
+    it('should track multiple experiments independently', async () => {
       const exp1Changes: DOMChange[] = [
         {
           selector: '.exp1-element',
@@ -241,6 +248,9 @@ describe('ExposureTracker', () => {
       tracker.registerExperiment('exp1', 0, exp1Changes, [exp1Changes]);
       tracker.registerExperiment('exp2', 0, exp2Changes, [exp2Changes]);
 
+      // Wait for async trigger
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       // exp2 should trigger immediately, exp1 should not
       expect(treatmentMock).toHaveBeenCalledTimes(1);
       expect(treatmentMock).toHaveBeenCalledWith('exp2');
@@ -249,7 +259,7 @@ describe('ExposureTracker', () => {
   });
 
   describe('cleanup', () => {
-    it('should clean up resources when experiment is triggered', () => {
+    it('should clean up resources when experiment is triggered', async () => {
       const changes: DOMChange[] = [
         {
           selector: '.element',
@@ -261,6 +271,9 @@ describe('ExposureTracker', () => {
 
       const allVariantChanges = [changes, changes]; // Same format as successful test
       tracker.registerExperiment('exp1', 0, changes, allVariantChanges);
+
+      // Wait for async trigger
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Check if treatment was called (should be immediate trigger)
       expect(treatmentMock).toHaveBeenCalledWith('exp1');
@@ -316,7 +329,7 @@ describe('ExposureTracker', () => {
       }).not.toThrow();
     });
 
-    it('should handle experiments with no trigger_on_view changes', () => {
+    it('should handle experiments with no trigger_on_view changes', async () => {
       const changes: DOMChange[] = [
         {
           selector: '.element',
@@ -327,6 +340,9 @@ describe('ExposureTracker', () => {
       ];
 
       tracker.registerExperiment('exp1', 0, changes, [changes]);
+
+      // Wait for async trigger
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Should trigger immediately by default
       expect(treatmentMock).toHaveBeenCalledWith('exp1');

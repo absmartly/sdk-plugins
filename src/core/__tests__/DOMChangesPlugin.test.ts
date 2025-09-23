@@ -91,7 +91,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -129,7 +131,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -165,7 +169,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML =
         '<div class="test1">Original1</div><div class="test2">Original2</div>';
@@ -199,7 +205,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       await plugin.applyChanges();
 
@@ -232,7 +240,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -273,7 +283,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML =
         '<div class="test1">Original1</div><div class="test2">Original2</div>';
@@ -338,7 +350,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -404,7 +418,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       // Element doesn't exist yet
       await plugin.applyChanges();
@@ -457,7 +473,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -507,7 +525,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -534,7 +554,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -562,7 +584,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 
@@ -599,7 +623,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
       await plugin.applyChanges();
@@ -637,7 +663,9 @@ describe('DOMChangesPlugin', () => {
       };
 
       (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      (mockContext.peek as jest.Mock).mockImplementation((expName: string) => {
+        return expName === 'exp1' ? 0 : undefined;
+      });
 
       document.body.innerHTML = '<div class="test">Original</div>';
 

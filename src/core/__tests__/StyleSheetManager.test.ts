@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { StyleSheetManager } from '../StyleSheetManager';
+import * as debugModule from '../../utils/debug';
 
 describe('StyleSheetManager', () => {
   let manager: StyleSheetManager;
@@ -70,12 +71,12 @@ describe('StyleSheetManager', () => {
 
     it('should log debug message when creating new stylesheet', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.ensure();
 
-      expect(consoleSpy).toHaveBeenCalledWith('[ABsmartly] Created stylesheet: debug-test');
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).toHaveBeenCalledWith('[ABsmartly] Created stylesheet: debug-test');
+      logDebugSpy.mockRestore();
       debugManager.destroy();
     });
   });
@@ -121,12 +122,12 @@ describe('StyleSheetManager', () => {
 
     it('should log debug message when setting rule', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.setRule('test-rule', '.test { color: red; }');
 
-      expect(consoleSpy).toHaveBeenCalledWith('[ABsmartly] Set CSS rule for test-rule');
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).toHaveBeenCalledWith('[ABsmartly] Set CSS rule for test-rule');
+      logDebugSpy.mockRestore();
       debugManager.destroy();
     });
 
@@ -182,26 +183,26 @@ describe('StyleSheetManager', () => {
 
     it('should log debug message when deleting existing rule', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.setRule('test-rule', '.test { color: red; }');
-      consoleSpy.mockClear(); // Clear previous logs
+      logDebugSpy.mockClear(); // Clear previous logs
 
       debugManager.deleteRule('test-rule');
 
-      expect(consoleSpy).toHaveBeenCalledWith('[ABsmartly] Deleted CSS rule for test-rule');
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).toHaveBeenCalledWith('[ABsmartly] Deleted CSS rule for test-rule');
+      logDebugSpy.mockRestore();
       debugManager.destroy();
     });
 
     it('should not log when deleting non-existent rule', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.deleteRule('non-existent-rule');
 
-      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Deleted CSS rule'));
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).not.toHaveBeenCalledWith(expect.stringContaining('Deleted CSS rule'));
+      logDebugSpy.mockRestore();
       debugManager.destroy();
     });
   });
@@ -249,26 +250,26 @@ describe('StyleSheetManager', () => {
 
     it('should log debug message when clearing rules', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.setRule('test-rule', '.test { color: red; }');
-      consoleSpy.mockClear();
+      logDebugSpy.mockClear();
 
       debugManager.clear();
 
-      expect(consoleSpy).toHaveBeenCalledWith('[ABsmartly] Cleared all CSS rules from debug-test');
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).toHaveBeenCalledWith('[ABsmartly] Cleared all CSS rules from debug-test');
+      logDebugSpy.mockRestore();
       debugManager.destroy();
     });
 
     it('should not log when clearing empty rules', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.clear(); // No rules to clear
 
-      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Cleared all CSS rules'));
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).not.toHaveBeenCalledWith(expect.stringContaining('Cleared all CSS rules'));
+      logDebugSpy.mockRestore();
       debugManager.destroy();
     });
   });
@@ -294,15 +295,15 @@ describe('StyleSheetManager', () => {
 
     it('should log debug message when destroying', () => {
       const debugManager = new StyleSheetManager('debug-test', true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       debugManager.ensure(); // Create element
-      consoleSpy.mockClear();
+      logDebugSpy.mockClear();
 
       debugManager.destroy();
 
-      expect(consoleSpy).toHaveBeenCalledWith('[ABsmartly] Destroyed stylesheet: debug-test');
-      consoleSpy.mockRestore();
+      expect(logDebugSpy).toHaveBeenCalledWith('[ABsmartly] Destroyed stylesheet: debug-test');
+      logDebugSpy.mockRestore();
     });
 
     it('should be safe to call multiple times', () => {
