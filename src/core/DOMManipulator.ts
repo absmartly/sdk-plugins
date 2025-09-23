@@ -88,13 +88,25 @@ export class DOMManipulator {
             }
           }
         } else if (change.type === 'move') {
-          if (change.targetSelector) {
-            const target = document.querySelector(change.targetSelector);
+          // Move changes can have targetSelector at root or inside value object
+          const targetSelector =
+            (change as any).targetSelector ||
+            (change.value && typeof change.value === 'object'
+              ? (change.value as any).targetSelector
+              : null);
+          const position =
+            (change as any).position ||
+            (change.value && typeof change.value === 'object'
+              ? (change.value as any).position
+              : null);
+
+          if (targetSelector) {
+            const target = document.querySelector(targetSelector);
             if (target) {
-              this.moveElement(element, target, change.position);
+              this.moveElement(element, target, position);
               appliedElements.push(element);
             } else if (this.debug) {
-              console.warn(`[ABsmartly] Move target not found: ${change.targetSelector}`);
+              console.warn(`[ABsmartly] Move target not found: ${targetSelector}`);
             }
           }
         } else {
@@ -421,6 +433,31 @@ export class DOMManipulator {
           });
         }
         break;
+      case 'move':
+        // Handle move changes - value contains targetSelector and position
+        if (change.value && typeof change.value === 'object') {
+          const moveValue = change.value as {
+            targetSelector: string;
+            position: string;
+            originalTargetSelector?: string;
+            originalPosition?: string;
+          };
+          const target = document.querySelector(moveValue.targetSelector);
+          if (target) {
+            // Store original position if provided (for reverting)
+            if (moveValue.originalTargetSelector && moveValue.originalPosition) {
+              element.setAttribute(
+                'data-absmartly-original-target',
+                moveValue.originalTargetSelector
+              );
+              element.setAttribute('data-absmartly-original-position', moveValue.originalPosition);
+            }
+            this.moveElement(element, target, moveValue.position);
+          } else if (this.debug) {
+            console.warn(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
+          }
+        }
+        break;
     }
   }
 
@@ -483,8 +520,23 @@ export class DOMManipulator {
         }
         break;
 
-      case 'move':
-        if (original.parent) {
+      case 'move': {
+        // First try to use the stored original position from the move change
+        const originalTarget = element.getAttribute('data-absmartly-original-target');
+        const originalPosition = element.getAttribute('data-absmartly-original-position');
+
+        if (originalTarget && originalPosition) {
+          const target = document.querySelector(originalTarget);
+          if (target) {
+            this.moveElement(element, target, originalPosition);
+            // Clean up move-related attributes
+            element.removeAttribute('data-absmartly-original-target');
+            element.removeAttribute('data-absmartly-original-position');
+          } else if (this.debug) {
+            console.warn(`[ABsmartly] Original move target not found: ${originalTarget}`);
+          }
+        } else if (original.parent) {
+          // Fallback to the old method if no original position data
           if (original.nextSibling) {
             original.parent.insertBefore(element, original.nextSibling);
           } else {
@@ -492,6 +544,7 @@ export class DOMManipulator {
           }
         }
         break;
+      }
     }
   }
 
@@ -536,12 +589,26 @@ export class DOMManipulator {
           console.error('[ABsmartly] JavaScript execution error:', error);
           return false;
         }
-      } else if (change.type === 'move' && change.targetSelector) {
-        const target = document.querySelector(change.targetSelector);
-        if (target) {
-          this.moveElement(element, target, change.position);
-        } else {
-          return false;
+      } else if (change.type === 'move') {
+        // Move changes can have targetSelector at root or inside value object
+        const targetSelector =
+          (change as any).targetSelector ||
+          (change.value && typeof change.value === 'object'
+            ? (change.value as any).targetSelector
+            : null);
+        const position =
+          (change as any).position ||
+          (change.value && typeof change.value === 'object'
+            ? (change.value as any).position
+            : null);
+
+        if (targetSelector) {
+          const target = document.querySelector(targetSelector);
+          if (target) {
+            this.moveElement(element, target, position);
+          } else {
+            return false;
+          }
         }
       }
 

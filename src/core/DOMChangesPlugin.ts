@@ -659,11 +659,11 @@ export class DOMChangesPlugin {
                   const now = Date.now();
                   const lastLogged = this.reapplyLogThrottle.get(logKey) || 0;
 
-                  if (this.config.debug && (now - lastLogged > 5000)) {
+                  if (this.config.debug && now - lastLogged > 5000) {
                     logDebug('Reapplied style after mutation (React/framework conflict detected)', {
                       experimentName,
                       selector: change.selector,
-                      note: 'This happens when the page framework (React/Vue/etc) fights with DOM changes'
+                      note: 'This happens when the page framework (React/Vue/etc) fights with DOM changes',
                     });
                     this.reapplyLogThrottle.set(logKey, now);
 
