@@ -23,5 +23,16 @@
     "downlevelIteration": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "lib", "es", "types", "tests"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "lib",
+    "es",
+    "types",
+    "tests",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/__tests__/**/*",
+    "src/__tests__/**/*"
+  ]
 }
