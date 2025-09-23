@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface OverrideValue {
   variant: number;
   env?: number; // 0 = running, 1 = development (SDK dev env), 2 = non-running (API fetch)

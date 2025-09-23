@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { OverridesPluginFull } from '../OverridesPluginFull';
 import { OverridesPlugin } from '../OverridesPlugin';
 

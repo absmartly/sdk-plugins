@@ -70,6 +70,7 @@ export interface ElementState {
 
 // ABsmartly Context type
 export interface ABsmartlyContext {
+  ready(): Promise<void>;
   data(): ContextData | null;
   peek(experimentName: string): number | undefined;
   treatment(experimentName: string): number;
@@ -123,7 +124,7 @@ export type MessagePayloadData = {
   version?: string;
   capabilities?: string[];
   experiments?: ExperimentData[];
-  overrides?: any;
+  overrides?: Record<string, unknown>;
   locations?: string[];
   error?: string;
   variant?: number;

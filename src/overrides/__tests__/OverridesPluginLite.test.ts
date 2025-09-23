@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { OverridesPluginLite } from '../OverridesPluginLite';
 
 describe('OverridesPluginLite', () => {

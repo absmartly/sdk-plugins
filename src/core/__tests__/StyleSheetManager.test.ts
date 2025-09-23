@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StyleSheetManager } from '../StyleSheetManager';
 
 describe('StyleSheetManager', () => {

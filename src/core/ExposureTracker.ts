@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ABsmartlyContext, DOMChange, ExperimentTracking } from '../types';
 import { logDebug } from '../utils/debug';
 

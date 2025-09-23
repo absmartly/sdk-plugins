@@ -136,6 +136,7 @@ export class TestDataFactory {
 export class MockContextFactory {
   static create(experiments: ExperimentData[] = []): ABsmartlyContext {
     return {
+      ready: jest.fn().mockResolvedValue(undefined),
       data: jest.fn().mockReturnValue({ experiments } as ContextData),
       peek: jest.fn().mockReturnValue(0),
       treatment: jest.fn().mockReturnValue(0),
@@ -458,11 +459,11 @@ export class TestAssertions {
   static expectPerformantOperation(
     duration: number,
     maxMs: number,
-    operation: string = 'Operation'
+    _operation: string = 'Operation'
   ): void {
     expect(duration).toBeLessThan(maxMs);
     if (duration > maxMs * 0.8) {
-      logDebug(`${operation} took ${duration}ms, approaching limit of ${maxMs}ms`);
+      // console.log(`${operation} took ${duration}ms, approaching limit of ${maxMs}ms`);
     }
   }
 

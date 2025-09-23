@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { VariantExtractor } from '../VariantExtractor';
 import { ABsmartlyContext, ContextData } from '../../types';
 
@@ -7,6 +8,7 @@ describe('VariantExtractor', () => {
 
   beforeEach(() => {
     mockContext = {
+      ready: jest.fn().mockResolvedValue(undefined),
       data: jest.fn(),
       peek: jest.fn(),
       treatment: jest.fn(),

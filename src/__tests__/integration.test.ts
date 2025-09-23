@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
 import { DOMChange, ContextData, ExperimentData } from '../types';
 
 // Mock ABsmartly Context
 const createMockContext = (experiments: ExperimentData[] = []) => ({
+  ready: jest.fn().mockResolvedValue(undefined),
   data: jest.fn().mockReturnValue({ experiments } as ContextData),
   peek: jest.fn(),
   treatment: jest.fn(),

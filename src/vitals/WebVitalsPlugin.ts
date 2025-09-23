@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Context } from '@absmartly/javascript-sdk';
 import { logDebug } from '../utils/debug';
 
@@ -16,7 +17,7 @@ export interface Metric {
   id?: string;
   name?: string;
   rating?: 'good' | 'needs-improvement' | 'poor';
-  entries?: any[];
+  entries?: unknown[];
 }
 
 export class WebVitalsPlugin {
@@ -41,7 +42,7 @@ export class WebVitalsPlugin {
 
   private debugLog(...args: unknown[]): void {
     if (this.debug) {
-      console.debug('[WebVitalsPlugin]', ...args);
+      logDebug('[WebVitalsPlugin]', ...args);
     }
   }
 

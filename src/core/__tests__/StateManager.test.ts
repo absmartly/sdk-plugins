@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StateManager } from '../StateManager';
 import { DOMChange } from '../../types';
 

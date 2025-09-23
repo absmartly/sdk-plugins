@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPlugin } from '../DOMChangesPlugin';
 import { DOMChange } from '../../types';
 
@@ -6,6 +7,7 @@ describe('DOMChangesPlugin - Style Rules', () => {
   const mockContext = {
     experimentName: jest.fn().mockReturnValue('test-experiment'),
     treatment: jest.fn().mockReturnValue(1),
+    ready: jest.fn().mockResolvedValue(undefined),
     data: jest.fn().mockReturnValue({}),
     variableValue: jest.fn().mockReturnValue(null),
     peekVariableValue: jest.fn().mockReturnValue(null),

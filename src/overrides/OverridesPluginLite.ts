@@ -11,8 +11,13 @@ interface SimpleOverride {
   id?: number;
 }
 
+interface ABSmartlyContextLite {
+  override?: (experimentName: string, variant: number) => void;
+  __plugins?: Record<string, unknown>;
+}
+
 interface LiteConfig {
-  context: any;
+  context: ABSmartlyContextLite;
   cookieName?: string;
   useQueryString?: boolean;
   queryPrefix?: string;
@@ -91,7 +96,7 @@ export class OverridesPluginLite {
     // Apply overrides to context
     for (const [experimentName, value] of Object.entries(overrides)) {
       const variant = typeof value === 'number' ? value : value.variant;
-      this.config.context.override(experimentName, variant);
+      this.config.context.override?.(experimentName, variant);
 
       if (this.config.debug) {
         logDebug(`[OverridesPluginLite] Override: ${experimentName} -> variant ${variant}`);

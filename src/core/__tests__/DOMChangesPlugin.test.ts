@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPlugin } from '../DOMChangesPlugin';
 import { PluginConfig, ABsmartlyContext, ContextData, InjectionData } from '../../types';
 
@@ -8,6 +9,7 @@ describe('DOMChangesPlugin', () => {
 
   beforeEach(() => {
     mockContext = {
+      ready: jest.fn().mockResolvedValue(undefined),
       data: jest.fn(),
       peek: jest.fn(),
       treatment: jest.fn(),

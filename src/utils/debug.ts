@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
 // This will be replaced by webpack DefinePlugin
 declare const __DEBUG__: boolean;
@@ -17,21 +18,34 @@ export interface LogContext {
  * Logs debug messages only when DEBUG flag is true
  * This function will be completely removed in production builds
  */
-export function logDebug(message: string, context?: LogContext): void {
+export function logDebug(...args: unknown[]): void {
   if (DEBUG) {
-    // Skip repetitive messages
-    if (message.includes('Original state already stored')) return;
-    if (message.includes('State store operation')) return;
-    if (message.includes('Performance:') && context?.duration && context.duration < 5) return;
-    if (message.includes('Message sent:') || message.includes('Message received:')) return;
+    // Handle old format with message and context
+    if (args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'object') {
+      const [message, context] = args as [string, LogContext];
+      // Skip repetitive messages
+      if (message.includes('Original state already stored')) return;
+      if (message.includes('State store operation')) return;
+      if (message.includes('Performance:') && context?.duration && context.duration < 5) return;
+      if (message.includes('Message sent:') || message.includes('Message received:')) return;
 
-    const timestamp = new Date().toISOString();
-    const prefix = '[ABsmartly Debug]';
-
-    if (context) {
+      const timestamp = new Date().toISOString();
+      const prefix = '[ABsmartly Debug]';
       console.log(`${prefix} [${timestamp}] ${message}`, context);
-    } else {
+    } else if (args.length === 1 && typeof args[0] === 'string') {
+      // Single string message
+      const message = args[0] as string;
+      // Skip repetitive messages
+      if (message.includes('Original state already stored')) return;
+      if (message.includes('State store operation')) return;
+      if (message.includes('Message sent:') || message.includes('Message received:')) return;
+
+      const timestamp = new Date().toISOString();
+      const prefix = '[ABsmartly Debug]';
       console.log(`${prefix} [${timestamp}] ${message}`);
+    } else {
+      // Direct console.log replacement - just pass through all arguments
+      console.log(...args);
     }
   }
 }

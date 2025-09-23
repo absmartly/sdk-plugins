@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChange, ElementState, AppliedChange } from '../types';
 import { StateManager } from './StateManager';
 import { logDebug, logChangeApplication, logChangeRemoval } from '../utils/debug';

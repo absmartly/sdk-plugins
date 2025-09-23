@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   PluginConfig,
   AppliedChange,
@@ -162,7 +163,7 @@ export class DOMChangesPlugin {
 
     this.messageBridge.on('GET_EXPERIMENTS', async () => {
       // Ensure context is ready before accessing data
-      await (this.config.context as any).ready();
+      await this.config.context.ready();
       const experiments = this.config.context.data()?.experiments || [];
       this.messageBridge?.sendExperimentData(experiments);
     });
@@ -219,12 +220,12 @@ export class DOMChangesPlugin {
     if (this.config.debug) {
       logDebug('[ABsmartly] === DOM Changes Application Starting ===');
       logDebug('[ABsmartly] Target:', experimentName || 'all experiments');
-      logDebug('[ABsmartly] Context ready:', !!(this.config.context as any).ready);
+      logDebug('[ABsmartly] Context ready:', true);
     }
 
     // Ensure context is ready before accessing data
     try {
-      await (this.config.context as any).ready();
+      await this.config.context.ready();
     } catch (error) {
       logDebug('[ABsmartly] Failed to wait for context ready:', error);
       return;
@@ -375,7 +376,7 @@ export class DOMChangesPlugin {
       // If there are only immediate triggers (no viewport tracking), trigger exposure now
       if (hasImmediateTrigger && !hasViewportTrigger) {
         // Ensure context is ready before calling treatment
-        await (this.config.context as any).ready();
+        await this.config.context.ready();
         this.config.context.treatment(expName);
         this.exposedExperiments.add(expName);
         logDebug(`Triggered immediate exposure for experiment: ${expName}`);

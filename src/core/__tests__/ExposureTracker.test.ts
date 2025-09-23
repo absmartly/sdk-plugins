@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ExposureTracker } from '../ExposureTracker';
 import { ABsmartlyContext, DOMChange } from '../../types';
 

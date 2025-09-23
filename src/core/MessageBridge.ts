@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { MessagePayload, MessagePayloadData, MessageHandler, ExperimentData } from '../types';
 import { logMessage, logDebug } from '../utils/debug';
 

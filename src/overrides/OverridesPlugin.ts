@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Full-featured version of OverridesPlugin
  * Extends OverridesPluginLite with API fetching for non-running experiments
@@ -14,6 +15,55 @@ import {
   CookieOverrides,
   OverrideValue,
 } from './types';
+
+// Internal context structure for endpoint extraction
+interface ContextInternal {
+  _endpoint?: string;
+  _config?: { endpoint?: string };
+  _dataProvider?: { _endpoint?: string };
+  _options?: { endpoint?: string };
+  data?: () => unknown;
+}
+
+// Type for experiment data from API
+interface ApiExperiment {
+  id?: number;
+  name: string;
+  unit_type?: { name?: string };
+  iteration?: number;
+  split?: number[];
+  applications?: Array<{ application?: { name?: string }; name?: string }>;
+  variants?: Array<{
+    name?: string;
+    config?: string | Record<string, unknown>;
+    variables?: Record<string, unknown>;
+  }>;
+  audience?: string;
+  audience_strict?: boolean;
+}
+
+// Type for context experiment
+interface ContextExperiment {
+  id?: number;
+  name: string;
+  unitType: string;
+  iteration: number;
+  seedHi: number;
+  seedLo: number;
+  split: number[];
+  trafficSeedHi: number;
+  trafficSeedLo: number;
+  trafficSplit: number[];
+  fullOnVariant: number;
+  applications: Array<{ name?: string }>;
+  variants: Array<{
+    name: string;
+    config: string;
+    variables?: Record<string, unknown>;
+  }>;
+  audience: string;
+  audienceStrict: boolean;
+}
 
 export class OverridesPlugin extends OverridesPluginLite {
   protected fullConfig: Required<
@@ -47,7 +97,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     // Get SDK endpoint from context if not provided
     let sdkEndpoint = config.sdkEndpoint;
     if (!sdkEndpoint) {
-      const contextInternal = config.context as any;
+      const contextInternal = config.context as ContextInternal;
       if (contextInternal._endpoint) {
         sdkEndpoint = contextInternal._endpoint;
       } else if (contextInternal._config?.endpoint) {
@@ -62,7 +112,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     // For the full plugin, we should have an endpoint available
     if (!sdkEndpoint && !config.absmartlyEndpoint) {
       // Try one more time to get from context
-      const contextInternal = config.context as any;
+      const contextInternal = config.context as ContextInternal;
       if (
         !contextInternal._endpoint &&
         !contextInternal._config?.endpoint &&
@@ -376,11 +426,12 @@ export class OverridesPlugin extends OverridesPluginLite {
 
       if (options.path) cookieString += `;path=${options.path}`;
       if (options.maxAge) cookieString += `;max-age=${options.maxAge}`;
-      if ((options as any).expires) {
+      const optionsWithExpires = options as CookieOptions & { expires?: Date | string };
+      if (optionsWithExpires.expires) {
         const expiresDate =
-          (options as any).expires instanceof Date
-            ? (options as any).expires.toUTCString()
-            : (options as any).expires;
+          optionsWithExpires.expires instanceof Date
+            ? optionsWithExpires.expires.toUTCString()
+            : optionsWithExpires.expires;
         cookieString += `;expires=${expiresDate}`;
       }
       if (options.domain) cookieString += `;domain=${options.domain}`;
@@ -601,7 +652,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
   }
 
-  private injectExperimentsIntoContext(experiments: any[]): void {
+  private injectExperimentsIntoContext(experiments: ApiExperiment[]): void {
     // Get original context data
     const originalData = this.fullConfig.context.data.bind(this.fullConfig.context);
 
@@ -610,7 +661,7 @@ export class OverridesPlugin extends OverridesPluginLite {
 
     for (const experiment of experiments) {
       // Transform API experiment format to context format
-      const contextExperiment: any = {
+      const contextExperiment: ContextExperiment = {
         id: experiment.id,
         name: experiment.name,
         unitType: experiment.unit_type?.name || 'user_id',
@@ -623,7 +674,7 @@ export class OverridesPlugin extends OverridesPluginLite {
         trafficSplit: [0, 1],
         fullOnVariant: 0,
         applications:
-          experiment.applications?.map((app: any) => ({
+          experiment.applications?.map(app => ({
             name: app.application?.name || app.name,
           })) || [],
         variants: [],
@@ -635,9 +686,16 @@ export class OverridesPlugin extends OverridesPluginLite {
       if (experiment.variants && Array.isArray(experiment.variants)) {
         for (let i = 0; i < experiment.variants.length; i++) {
           const variant = experiment.variants[i];
-          const variantData: any = {
+          const variantData: {
+            name: string;
+            config: string;
+            variables?: Record<string, unknown>;
+          } = {
             name: variant.name || `Variant ${i}`,
-            config: variant.config || '{}',
+            config:
+              typeof variant.config === 'string'
+                ? variant.config
+                : JSON.stringify(variant.config || {}),
           };
 
           // Check if variant already has variables (from dev SDK)
@@ -673,13 +731,13 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     // Override the context.data() method to include our experiments
-    (this.fullConfig.context as any).data = () => {
+    (this.fullConfig.context as ContextInternal).data = () => {
       const data = originalData();
       if (!data) return data;
 
       // Merge experiments
       const existingExperiments = data.experiments || [];
-      const existingNames = new Set(existingExperiments.map((exp: any) => exp.name));
+      const existingNames = new Set(existingExperiments.map((exp: ContextExperiment) => exp.name));
 
       // Add new experiments that don't exist
       for (const [name, experiment] of newExperimentsMap) {
@@ -687,7 +745,9 @@ export class OverridesPlugin extends OverridesPluginLite {
           existingExperiments.push(experiment);
         } else {
           // Replace existing experiment with fetched one
-          const index = existingExperiments.findIndex((exp: any) => exp.name === name);
+          const index = existingExperiments.findIndex(
+            (exp: ContextExperiment) => exp.name === name
+          );
           if (index >= 0) {
             existingExperiments[index] = experiment;
           }
