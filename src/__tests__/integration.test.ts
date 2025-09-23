@@ -3,6 +3,15 @@
 import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
 import { DOMChange, ContextData, ExperimentData } from '../types';
 
+// Helper to configure mock context with experiments
+const configureContext = (mockContext: any, experiments: ExperimentData[]) => {
+  mockContext.data.mockReturnValue({ experiments });
+  mockContext.peek.mockImplementation((expName: string) => {
+    const hasExperiment = experiments.some(exp => exp.name === expName);
+    return hasExperiment ? 0 : undefined;
+  });
+};
+
 // Mock ABsmartly Context
 const createMockContext = (experiments: ExperimentData[] = []) => {
   const context = {
@@ -78,7 +87,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       // Initialize and apply changes
       await plugin.initialize();
@@ -148,7 +157,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -207,7 +216,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -290,7 +299,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         },
       ];
 
-      mockContext.data.mockReturnValue({ experiments });
+      configureContext(mockContext, experiments);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -360,7 +369,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         },
       ];
 
-      mockContext.data.mockReturnValue({ experiments });
+      configureContext(mockContext, experiments);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -410,7 +419,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -452,7 +461,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         variants: [{ variables: { __dom_changes: changes } }],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       const startTime = performance.now();
 
@@ -503,7 +512,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       // Initialize and apply
       plugin.initialize();
@@ -542,7 +551,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [badExperiment] });
+      configureContext(mockContext, [badExperiment]);
 
       // Should not throw
       await expect(plugin.initialize()).resolves.not.toThrow();
@@ -550,7 +559,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
     });
 
     it('should handle missing context data', async () => {
-      mockContext.data.mockReturnValue(null);
+      mockContext.data.mockReturnValue(null); // Keep null test as is
 
       await expect(plugin.initialize()).resolves.not.toThrow();
       await expect(plugin.applyChanges()).resolves.not.toThrow();
@@ -576,7 +585,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       await plugin.initialize();
 
@@ -610,7 +619,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment] });
+      configureContext(mockContext, [experiment]);
 
       await plugin.initialize();
       await plugin.applyChanges();
@@ -643,7 +652,12 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
         ],
       };
 
-      mockContext.data.mockReturnValue({ experiments: [experiment, experiment2] });
+      configureContext(mockContext, [experiment, experiment2]);
+      mockContext.peek.mockImplementation((expName: string) => {
+        if (expName === 'state_test') return 0;
+        if (expName === 'state_test2') return 0;
+        return undefined;
+      });
       await plugin.applyChanges();
 
       expect(document.querySelector('.state-test')?.textContent).toBe('Double Modified');

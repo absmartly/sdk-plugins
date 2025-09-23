@@ -86,6 +86,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
     // Create mock context
     mockContext = {
+      ready: jest.fn().mockResolvedValue(undefined),
       data: jest.fn(() => originalData),
       override: jest.fn(),
       peek: jest.fn(),
