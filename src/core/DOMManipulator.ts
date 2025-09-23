@@ -292,6 +292,12 @@ export class DOMManipulator {
             if (originalState) {
               this.restoreElement(element, originalState, change.type);
               logChangeRemoval(experimentName, change.selector, change.type, 1);
+            } else if (this.debug) {
+              logDebug(`[ABsmartly] No original state found for restoration`, {
+                selector: change.selector,
+                type: change.type,
+                experimentName
+              });
             }
 
             // Clean up tracking attributes
@@ -490,9 +496,28 @@ export class DOMManipulator {
         break;
 
       case 'class':
+        if (this.debug) {
+          logDebug(`[ABsmartly] Restoring classes`, {
+            originalClasses: original.classList,
+            currentClasses: Array.from(element.classList),
+            selector: element.className
+          });
+        }
         if (original.classList) {
+          // Clear all classes first
           element.className = '';
-          element.classList.add(...original.classList);
+          // Then add back the original classes
+          if (original.classList.length > 0) {
+            element.classList.add(...original.classList);
+          }
+        } else {
+          // If there were no original classes, clear all classes
+          element.className = '';
+        }
+        if (this.debug) {
+          logDebug(`[ABsmartly] Classes after restoration`, {
+            classes: Array.from(element.classList)
+          });
         }
         break;
 

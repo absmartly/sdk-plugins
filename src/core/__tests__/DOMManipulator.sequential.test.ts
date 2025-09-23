@@ -299,11 +299,34 @@ describe('DOMManipulator - Sequential Changes', () => {
       const applied = stateManager.getAppliedChanges('exp1');
       expect(applied).toHaveLength(4);
 
+      // Verify the class change is tracked with the correct element
+      const classChangeApplied = applied.find(a => a.change.type === 'class');
+      expect(classChangeApplied).toBeDefined();
+      expect(classChangeApplied?.elements).toContain(element);
+
+      // Check order of changes - class change should be third (index 2)
+      expect(applied[0].change.type).toBe('text');
+      expect(applied[1].change.type).toBe('style');
+      expect(applied[2].change.type).toBe('class');
+      expect(applied[3].change.type).toBe('attribute');
+
+      // Check the original states stored
+      const classOriginalState = stateManager.getOriginalState('.btn', 'class');
+      expect(classOriginalState).toBeDefined();
+      expect(classOriginalState?.originalState.classList).toEqual(['btn']);
+
       // Remove all and verify restoration
       domManipulator.removeChanges('exp1');
+
+      // Debug: Check the actual classes on the element
+      // After removal, should only have original class
+
       expect(element.textContent).toBe('Click');
       // Style should be completely cleared since original had no style attribute
       expect(element.getAttribute('style')).toBeNull();
+      // The original element had class "btn", so after restoration it should only have "btn"
+      expect(element.className).toBe('btn');
+      expect(element.classList.contains('btn')).toBe(true);
       expect(element.classList.contains('primary')).toBe(false);
       expect(element.classList.contains('large')).toBe(false);
       expect(element.hasAttribute('disabled')).toBe(false);
