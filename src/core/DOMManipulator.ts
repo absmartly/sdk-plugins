@@ -49,7 +49,7 @@ export class DOMManipulator {
         // If waitForElement is true, add to pending changes
         if (change.waitForElement) {
           if (this.debug) {
-            console.log(`[ABsmartly] Element not found, adding to pending: ${change.selector}`);
+            logDebug(`[ABsmartly] Element not found, adding to pending: ${change.selector}`);
           }
           this.pendingManager.addPending({
             change,
@@ -60,7 +60,7 @@ export class DOMManipulator {
         }
 
         if (this.debug) {
-          console.warn(`[ABsmartly] No elements found for selector: ${change.selector}`);
+          logDebug(`[ABsmartly] No elements found for selector: ${change.selector}`);
         }
         logDebug(`No elements found for selector`, {
           experimentName,
@@ -84,7 +84,7 @@ export class DOMManipulator {
               fn(element);
               appliedElements.push(element);
             } catch (error) {
-              console.error('[ABsmartly] JavaScript execution error:', error);
+              logDebug('[ABsmartly] JavaScript execution error:', error);
             }
           }
         } else if (change.type === 'move') {
@@ -106,7 +106,7 @@ export class DOMManipulator {
               this.moveElement(element, target, position);
               appliedElements.push(element);
             } else if (this.debug) {
-              console.warn(`[ABsmartly] Move target not found: ${targetSelector}`);
+              logDebug(`[ABsmartly] Move target not found: ${targetSelector}`);
             }
           }
         } else {
@@ -152,7 +152,7 @@ export class DOMManipulator {
       return false;
     } catch (error) {
       if (this.debug) {
-        console.error('[ABsmartly] Error applying DOM change:', error, change);
+        logDebug('[ABsmartly] Error applying DOM change:', error, change);
       }
       logDebug(`Error applying DOM change`, {
         experimentName,
@@ -207,7 +207,7 @@ export class DOMManipulator {
     const target = document.querySelector(change.targetSelector);
     if (!target) {
       if (this.debug) {
-        console.warn(`[ABsmartly] Create target not found: ${change.targetSelector}`);
+        logDebug(`[ABsmartly] Create target not found: ${change.targetSelector}`);
       }
       return null;
     }
@@ -325,7 +325,7 @@ export class DOMManipulator {
       });
     } catch (error) {
       if (this.debug) {
-        console.error('[ABsmartly] Error removing changes for experiment:', error);
+        logDebug('[ABsmartly] Error removing changes for experiment:', error);
       }
       logDebug(`Error removing changes`, {
         experimentName,
@@ -353,8 +353,8 @@ export class DOMManipulator {
       manager.setRule(ruleKey, css);
 
       if (this.debug) {
-        console.log(`[ABsmartly] Applied style rule: ${ruleKey}`);
-        console.log(`[ABsmartly] CSS: ${css}`);
+        logDebug(`[ABsmartly] Applied style rule: ${ruleKey}`);
+        logDebug(`[ABsmartly] CSS: ${css}`);
       }
 
       // Extract base selector without pseudo-classes for element selection
@@ -387,7 +387,7 @@ export class DOMManipulator {
       return true; // Success if rule was added, regardless of element matches
     } catch (error) {
       if (this.debug) {
-        console.error('[ABsmartly] Error applying style rules:', error);
+        logDebug('[ABsmartly] Error applying style rules:', error);
       }
       return false;
     }
@@ -454,7 +454,7 @@ export class DOMManipulator {
             }
             this.moveElement(element, target, moveValue.position);
           } else if (this.debug) {
-            console.warn(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
+            logDebug(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
           }
         }
         break;
@@ -533,7 +533,7 @@ export class DOMManipulator {
             element.removeAttribute('data-absmartly-original-target');
             element.removeAttribute('data-absmartly-original-position');
           } else if (this.debug) {
-            console.warn(`[ABsmartly] Original move target not found: ${originalTarget}`);
+            logDebug(`[ABsmartly] Original move target not found: ${originalTarget}`);
           }
         } else if (original.parent) {
           // Fallback to the old method if no original position data
@@ -586,7 +586,7 @@ export class DOMManipulator {
           const fn = new Function('element', String(change.value));
           fn(element);
         } catch (error) {
-          console.error('[ABsmartly] JavaScript execution error:', error);
+          logDebug('[ABsmartly] JavaScript execution error:', error);
           return false;
         }
       } else if (change.type === 'move') {
@@ -640,7 +640,7 @@ export class DOMManipulator {
       return true;
     } catch (error) {
       if (this.debug) {
-        console.error('[ABsmartly] Error applying change to specific element:', error);
+        logDebug('[ABsmartly] Error applying change to specific element:', error);
       }
       return false;
     }
@@ -750,7 +750,7 @@ export class DOMManipulator {
       return true;
     } catch (error) {
       if (this.debug) {
-        console.error('[ABsmartly] Error removing specific change:', error);
+        logDebug('[ABsmartly] Error removing specific change:', error);
       }
       return false;
     }
@@ -783,7 +783,7 @@ export class DOMManipulator {
       return true;
     } catch (error) {
       if (this.debug) {
-        console.error('[ABsmartly] Error reverting change:', error);
+        logDebug('[ABsmartly] Error reverting change:', error);
       }
       return false;
     }

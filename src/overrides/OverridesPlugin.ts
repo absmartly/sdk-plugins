@@ -5,6 +5,7 @@
  */
 
 import { OverridesPluginLite } from './OverridesPluginLite';
+import { logDebug } from '../utils/debug';
 import {
   OverridesPluginConfig,
   CookieAdapter,
@@ -95,7 +96,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     };
 
     if (this.fullConfig.debug) {
-      console.log('[OverridesPlugin] Initialized with config:', {
+      logDebug('[OverridesPlugin] Initialized with config:', {
         isServerSide: this.isServerSide,
         cookieName: this.fullConfig.cookieName,
         useQueryString: this.fullConfig.useQueryString,
@@ -112,7 +113,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     // Check if already initialized (use base class property)
     if (this.initialized) {
       if (this.fullConfig.debug) {
-        console.log('[OverridesPlugin] Already initialized, skipping re-initialization');
+        logDebug('[OverridesPlugin] Already initialized, skipping re-initialization');
       }
       return;
     }
@@ -128,7 +129,7 @@ export class OverridesPlugin extends OverridesPluginLite {
 
     if (Object.keys(overridesData.overrides).length === 0) {
       if (this.fullConfig.debug) {
-        console.log('[OverridesPlugin] No overrides found');
+        logDebug('[OverridesPlugin] No overrides found');
       }
       return;
     }
@@ -231,12 +232,12 @@ export class OverridesPlugin extends OverridesPluginLite {
       }
 
       if (this.fullConfig.debug && Object.keys(overrides).length > 0) {
-        console.log('[OverridesPlugin] Query string overrides:', overrides, 'env:', devEnv);
+        logDebug('[OverridesPlugin] Query string overrides:', overrides, 'env:', devEnv);
       }
 
       return { overrides, devEnv };
     } catch (error) {
-      console.error('[OverridesPlugin] Error parsing query string:', error);
+      logDebug('[OverridesPlugin] Error parsing query string:', error);
       return { overrides: {}, devEnv: null };
     }
   }
@@ -266,13 +267,13 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     if (this.fullConfig.debug && cookieValue) {
-      console.log('[OverridesPlugin] Raw cookie value:', cookieValue);
+      logDebug('[OverridesPlugin] Raw cookie value:', cookieValue);
     }
 
     const parsed = this.parseEnhancedCookieValue(cookieValue);
 
     if (this.fullConfig.debug && Object.keys(parsed.overrides).length > 0) {
-      console.log('[OverridesPlugin] Parsed cookie overrides:', parsed);
+      logDebug('[OverridesPlugin] Parsed cookie overrides:', parsed);
     }
 
     return parsed;
@@ -317,7 +318,7 @@ export class OverridesPlugin extends OverridesPluginLite {
 
       return { overrides, devEnv };
     } catch (error) {
-      console.error('[OverridesPlugin] Error parsing overrides:', error);
+      logDebug('[OverridesPlugin] Error parsing overrides:', error);
       return { overrides: {}, devEnv: null };
     }
   }
@@ -390,7 +391,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     if (this.fullConfig.debug) {
-      console.log('[OverridesPlugin] Persisted to cookie:', cookieValue);
+      logDebug('[OverridesPlugin] Persisted to cookie:', cookieValue);
     }
   }
 
@@ -399,8 +400,8 @@ export class OverridesPlugin extends OverridesPluginLite {
     devEnv: string | null
   ): Promise<void> {
     // Log all overrides at initialization
-    console.log('[OverridesPlugin] Initializing with overrides:', overrides);
-    console.log('[OverridesPlugin] Dev environment:', devEnv);
+    logDebug('[OverridesPlugin] Initializing with overrides:', overrides);
+    logDebug('[OverridesPlugin] Dev environment:', devEnv);
 
     // Collect experiments that need to be fetched
     const devExperiments: Array<[string, OverrideValue]> = [];
@@ -412,24 +413,24 @@ export class OverridesPlugin extends OverridesPluginLite {
 
       if (override.env === 1) {
         // Development environment experiment
-        console.log(`[OverridesPlugin] ${name} categorized as DEV experiment (env=1)`);
+        logDebug(`[OverridesPlugin] ${name} categorized as DEV experiment (env=1)`);
         devExperiments.push([name, override]);
       } else if (override.env === 2 && override.id) {
         // Draft experiment with ID
-        console.log(
+        logDebug(
           `[OverridesPlugin] ${name} categorized as DRAFT experiment (env=2, id=${override.id})`
         );
         apiExperimentIds.add(override.id);
       } else {
         // Running experiment (env=0 or undefined)
-        console.log(
+        logDebug(
           `[OverridesPlugin] ${name} categorized as RUNNING experiment (env=${override.env || 0})`
         );
       }
     }
 
     // Log summary
-    console.log('[OverridesPlugin] Categorization summary:', {
+    logDebug('[OverridesPlugin] Categorization summary:', {
       total_overrides: Object.keys(overrides).length,
       dev_experiments: devExperiments.length,
       draft_experiments: apiExperimentIds.size,
@@ -440,21 +441,19 @@ export class OverridesPlugin extends OverridesPluginLite {
 
     // Fetch non-running experiments if needed
     if (apiExperimentIds.size > 0) {
-      console.log(
-        `[OverridesPlugin] Will fetch ${apiExperimentIds.size} DRAFT experiments from API`
-      );
+      logDebug(`[OverridesPlugin] Will fetch ${apiExperimentIds.size} DRAFT experiments from API`);
       await this.fetchFromAPI(Array.from(apiExperimentIds));
     }
 
     // Fetch dev experiments if needed
     const effectiveDevEnv = devEnv || this.fullConfig.environment || null;
     if (devExperiments.length > 0 && effectiveDevEnv) {
-      console.log(
+      logDebug(
         `[OverridesPlugin] Will fetch ${devExperiments.length} DEV experiments for environment: ${effectiveDevEnv}`
       );
       await this.fetchFromDevSDK(devExperiments, effectiveDevEnv);
     } else if (devExperiments.length > 0) {
-      console.log(
+      logDebug(
         `[OverridesPlugin] Have ${devExperiments.length} DEV experiments but NO devEnv specified - NOT fetching`
       );
     }
@@ -465,7 +464,7 @@ export class OverridesPlugin extends OverridesPluginLite {
       this.fullConfig.context.override(experimentName, variant);
 
       if (this.fullConfig.debug) {
-        console.log(`[OverridesPlugin] Override: ${experimentName} -> variant ${variant}`);
+        logDebug(`[OverridesPlugin] Override: ${experimentName} -> variant ${variant}`);
       }
     }
   }
@@ -473,7 +472,7 @@ export class OverridesPlugin extends OverridesPluginLite {
   private async fetchFromAPI(experimentIds: number[]): Promise<void> {
     if (experimentIds.length === 0) {
       if (this.fullConfig.debug) {
-        console.log('[OverridesPlugin] No experiment IDs to fetch from API');
+        logDebug('[OverridesPlugin] No experiment IDs to fetch from API');
       }
       return;
     }
@@ -498,7 +497,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     const apiUrl = `${apiEndpoint}/v1/experiments?ids=${experimentIds.join(',')}`;
 
     if (this.fullConfig.debug) {
-      console.log('[OverridesPlugin] Fetching non-running experiments from API:', apiUrl);
+      logDebug('[OverridesPlugin] Fetching non-running experiments from API:', apiUrl);
     }
 
     try {
@@ -516,14 +515,12 @@ export class OverridesPlugin extends OverridesPluginLite {
         mode: 'cors',
       });
 
-      console.log('[OverridesPlugin] API Response status:', response.status, response.statusText);
+      logDebug('[OverridesPlugin] API Response status:', response.status, response.statusText);
 
       if (!response.ok) {
-        console.error(`[OverridesPlugin] API request failed with status ${response.status}`);
+        logDebug(`[OverridesPlugin] API request failed with status ${response.status}`);
         if (response.status === 401) {
-          console.error(
-            '[OverridesPlugin] Check if you need to log in to the ABsmartly console first'
-          );
+          logDebug('[OverridesPlugin] Check if you need to log in to the ABsmartly console first');
         }
         return;
       }
@@ -537,7 +534,7 @@ export class OverridesPlugin extends OverridesPluginLite {
         this.notifyExperimentsAdded();
       }
     } catch (error) {
-      console.error('[OverridesPlugin] Failed to fetch experiments from API:', error);
+      logDebug('[OverridesPlugin] Failed to fetch experiments from API:', error);
     }
   }
 
@@ -564,7 +561,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     }
 
     if (this.fullConfig.debug) {
-      console.log('[OverridesPlugin] Fetching development experiments from SDK:', devSdkUrl);
+      logDebug('[OverridesPlugin] Fetching development experiments from SDK:', devSdkUrl);
     }
 
     try {
@@ -578,10 +575,10 @@ export class OverridesPlugin extends OverridesPluginLite {
         headers,
       });
 
-      console.log('[OverridesPlugin] DEV Response status:', response.status, response.statusText);
+      logDebug('[OverridesPlugin] DEV Response status:', response.status, response.statusText);
 
       if (!response.ok) {
-        console.error(`[OverridesPlugin] DEV SDK request failed with status ${response.status}`);
+        logDebug(`[OverridesPlugin] DEV SDK request failed with status ${response.status}`);
         return;
       }
 
@@ -600,7 +597,7 @@ export class OverridesPlugin extends OverridesPluginLite {
         this.notifyExperimentsAdded();
       }
     } catch (error) {
-      console.error('[OverridesPlugin] Failed to fetch experiments from dev SDK:', error);
+      logDebug('[OverridesPlugin] Failed to fetch experiments from dev SDK:', error);
     }
   }
 
@@ -659,12 +656,12 @@ export class OverridesPlugin extends OverridesPluginLite {
                 variantData.variables = {
                   [domChangesField]: config[domChangesField],
                 };
-                console.log(
+                logDebug(
                   `[OverridesPlugin] Variant ${i} has DOM changes field '${domChangesField}'`
                 );
               }
             } catch (e) {
-              console.error(`[OverridesPlugin] Failed to parse variant config:`, e);
+              logDebug(`[OverridesPlugin] Failed to parse variant config:`, e);
             }
           }
 
@@ -704,7 +701,7 @@ export class OverridesPlugin extends OverridesPluginLite {
     };
 
     if (this.fullConfig.debug) {
-      console.log(`[OverridesPlugin] Injected ${experiments.length} experiments into context`);
+      logDebug(`[OverridesPlugin] Injected ${experiments.length} experiments into context`);
     }
   }
 
@@ -715,7 +712,7 @@ export class OverridesPlugin extends OverridesPluginLite {
 
   private notifyExperimentsAdded(): void {
     if (this.fullConfig.debug) {
-      console.log(
+      logDebug(
         `[OverridesPlugin] Notifying ${this.onExperimentsAddedCallbacks.length} listeners about new experiments`
       );
     }
@@ -723,7 +720,7 @@ export class OverridesPlugin extends OverridesPluginLite {
       try {
         callback();
       } catch (error) {
-        console.error('[OverridesPlugin] Error in experiments added callback:', error);
+        logDebug('[OverridesPlugin] Error in experiments added callback:', error);
       }
     }
   }
@@ -746,7 +743,7 @@ export class OverridesPlugin extends OverridesPluginLite {
       };
 
       if (this.fullConfig.debug) {
-        console.log('[OverridesPlugin] Registered with context at __plugins.overridesPlugin');
+        logDebug('[OverridesPlugin] Registered with context at __plugins.overridesPlugin');
       }
     }
   }
@@ -756,7 +753,7 @@ export class OverridesPlugin extends OverridesPluginLite {
       delete this.fullConfig.context.__plugins.overridesPlugin;
 
       if (this.fullConfig.debug) {
-        console.log('[OverridesPlugin] Unregistered from context');
+        logDebug('[OverridesPlugin] Unregistered from context');
       }
     }
   }

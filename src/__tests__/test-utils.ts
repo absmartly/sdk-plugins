@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Comprehensive Test Utilities for DOM Changes Plugin
  *
@@ -461,7 +462,7 @@ export class TestAssertions {
   ): void {
     expect(duration).toBeLessThan(maxMs);
     if (duration > maxMs * 0.8) {
-      console.warn(`${operation} took ${duration}ms, approaching limit of ${maxMs}ms`);
+      logDebug(`${operation} took ${duration}ms, approaching limit of ${maxMs}ms`);
     }
   }
 
@@ -477,9 +478,9 @@ export class TestAssertions {
       expect(memoryResult.leaked).toBe(false);
 
       if (memoryResult.finalMemory > memoryResult.initialMemory) {
-        const increase = memoryResult.finalMemory - memoryResult.initialMemory;
-        const percentIncrease = (increase / memoryResult.initialMemory) * 100;
-        console.log(`Memory increased by ${increase} bytes (${percentIncrease.toFixed(2)}%)`);
+        // const increase = memoryResult.finalMemory - memoryResult.initialMemory;
+        // const percentIncrease = (increase / memoryResult.initialMemory) * 100;
+        // console.log(`Memory increased by ${increase} bytes (${percentIncrease.toFixed(2)}%)`);
       }
     }
   }

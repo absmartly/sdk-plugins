@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
 import { OverridesPlugin } from '../overrides/OverridesPlugin';
 

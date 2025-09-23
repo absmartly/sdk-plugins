@@ -1,4 +1,5 @@
 import type { Context } from '@absmartly/javascript-sdk';
+import { logDebug } from '../utils/debug';
 
 export interface CookiePluginOptions {
   context?: Context;
@@ -57,9 +58,9 @@ export class CookiePlugin {
     this.expiryCheckInterval = options.expiryCheckInterval || 30;
   }
 
-  private debugLog(...args: any[]): void {
+  private debugLog(...args: unknown[]): void {
     if (this.debug) {
-      console.debug('[CookiePlugin]', ...args);
+      logDebug('[CookiePlugin]', ...args);
     }
   }
 
@@ -96,7 +97,7 @@ export class CookiePlugin {
       this.debugLog(`Set cookie ${name}:`, value);
       return true;
     } catch (e) {
-      console.warn(`Unable to set cookie ${name}:`, e);
+      logDebug(`[CookiePlugin] Unable to set cookie ${name}:`, e);
       return false;
     }
   }
@@ -301,7 +302,7 @@ export class CookiePlugin {
   public applyUtmAttributesToContext(context?: Context): void {
     const ctx = context || this.context;
     if (!ctx) {
-      console.warn('No context available to apply UTM attributes');
+      logDebug('[CookiePlugin] No context available to apply UTM attributes');
       return;
     }
 
@@ -396,7 +397,7 @@ export class CookiePlugin {
   public trackLanding(context?: Context): void {
     const ctx = context || this.context;
     if (!ctx) {
-      console.warn('No context available for tracking landing');
+      logDebug('[CookiePlugin] No context available for tracking landing');
       return;
     }
 

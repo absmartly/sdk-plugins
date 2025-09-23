@@ -1,4 +1,5 @@
 import { ABsmartlyContext, DOMChange, ExperimentTracking } from '../types';
+import { logDebug } from '../utils/debug';
 
 interface TrackedElement {
   element: Element;
@@ -32,7 +33,7 @@ export class ExposureTracker {
     allVariantsChanges: DOMChange[][]
   ): void {
     if (this.debug) {
-      console.log(`[ABsmartly] Registering experiment ${experimentName} for exposure tracking`);
+      logDebug(`[ABsmartly] Registering experiment ${experimentName} for exposure tracking`);
     }
 
     // Collect all unique selectors that need viewport tracking across ALL variants
@@ -106,7 +107,7 @@ export class ExposureTracker {
     this.experiments.set(experimentName, tracking);
 
     if (this.debug) {
-      console.log(
+      logDebug(
         `[ABsmartly] Experiment ${experimentName} will track selectors:`,
         Array.from(tracking.allPossibleSelectors)
       );
@@ -121,7 +122,7 @@ export class ExposureTracker {
     if (hasImmediateTrigger) {
       // Don't await here to avoid blocking the tracking setup
       this.triggerExposure(experimentName).catch(error => {
-        console.error(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
+        logDebug(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
       });
     }
   }
@@ -282,14 +283,14 @@ export class ExposureTracker {
       if (experiment && !experiment.triggered) {
         // Don't await here to avoid blocking the visibility handler
         this.triggerExposure(experimentName).catch(error => {
-          console.error(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
+          logDebug(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
         });
 
         if (this.debug) {
           const selector = tracked.isPlaceholder
             ? element.getAttribute('data-absmartly-original-selector')
             : this.getElementSelector(element);
-          console.log(`[ABsmartly] Triggering exposure for ${experimentName} via ${selector}`);
+          logDebug(`[ABsmartly] Triggering exposure for ${experimentName} via ${selector}`);
         }
       }
     });
@@ -309,7 +310,7 @@ export class ExposureTracker {
     experiment.triggered = true;
 
     if (this.debug) {
-      console.log(`[ABsmartly] Exposure triggered for experiment: ${experimentName}`);
+      logDebug(`[ABsmartly] Exposure triggered for experiment: ${experimentName}`);
     }
 
     // Clean up tracking for this experiment
@@ -395,7 +396,7 @@ export class ExposureTracker {
     this.placeholders.clear();
 
     if (this.debug) {
-      console.log('[ABsmartly] ExposureTracker destroyed');
+      logDebug('[ABsmartly] ExposureTracker destroyed');
     }
   }
 }

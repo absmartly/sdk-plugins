@@ -1,3 +1,4 @@
+import { logDebug } from '../utils/debug';
 export class StyleSheetManager {
   private styleEl: HTMLStyleElement | null = null;
   private rules = new Map<string, string>(); // ruleKey -> css text
@@ -22,7 +23,7 @@ export class StyleSheetManager {
         this.styleEl = el;
 
         if (this.debug) {
-          console.log(`[ABsmartly] Created stylesheet: ${this.id}`);
+          logDebug(`[ABsmartly] Created stylesheet: ${this.id}`);
         }
       }
     }
@@ -34,7 +35,7 @@ export class StyleSheetManager {
     this.render();
 
     if (this.debug) {
-      console.log(`[ABsmartly] Set CSS rule for ${key}`);
+      logDebug(`[ABsmartly] Set CSS rule for ${key}`);
     }
   }
 
@@ -43,7 +44,7 @@ export class StyleSheetManager {
       this.render();
 
       if (this.debug) {
-        console.log(`[ABsmartly] Deleted CSS rule for ${key}`);
+        logDebug(`[ABsmartly] Deleted CSS rule for ${key}`);
       }
     }
   }
@@ -60,7 +61,7 @@ export class StyleSheetManager {
       this.render();
 
       if (this.debug) {
-        console.log(`[ABsmartly] Cleared all CSS rules from ${this.id}`);
+        logDebug(`[ABsmartly] Cleared all CSS rules from ${this.id}`);
       }
     }
   }
@@ -72,7 +73,7 @@ export class StyleSheetManager {
       this.styleEl = null;
 
       if (this.debug) {
-        console.log(`[ABsmartly] Destroyed stylesheet: ${this.id}`);
+        logDebug(`[ABsmartly] Destroyed stylesheet: ${this.id}`);
       }
     }
   }

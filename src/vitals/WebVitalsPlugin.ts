@@ -1,4 +1,5 @@
 import type { Context } from '@absmartly/javascript-sdk';
+import { logDebug } from '../utils/debug';
 
 export interface WebVitalsPluginOptions {
   context?: Context;
@@ -38,7 +39,7 @@ export class WebVitalsPlugin {
     this.autoTrack = options.autoTrack !== false;
   }
 
-  private debugLog(...args: any[]): void {
+  private debugLog(...args: unknown[]): void {
     if (this.debug) {
       console.debug('[WebVitalsPlugin]', ...args);
     }
@@ -63,7 +64,7 @@ export class WebVitalsPlugin {
         resolve();
       };
       script.onerror = error => {
-        console.error('Failed to load Web Vitals library:', error);
+        logDebug('[WebVitalsPlugin] Failed to load Web Vitals library:', error);
         reject(error);
       };
       document.head.appendChild(script);
@@ -73,7 +74,7 @@ export class WebVitalsPlugin {
   public async trackWebVitalsMetrics(context?: Context): Promise<void> {
     const ctx = context || this.context;
     if (!ctx) {
-      console.warn('No context available for tracking web vitals');
+      logDebug('[WebVitalsPlugin] No context available for tracking web vitals');
       return;
     }
 
@@ -87,7 +88,7 @@ export class WebVitalsPlugin {
       // Check if webVitals is available
       const webVitals = (window as any).webVitals;
       if (!webVitals) {
-        console.error('Web Vitals library not available');
+        logDebug('[WebVitalsPlugin] Web Vitals library not available');
         return;
       }
 
@@ -119,7 +120,7 @@ export class WebVitalsPlugin {
 
       this.debugLog('Web Vitals tracking initialized');
     } catch (error) {
-      console.error('Error tracking web vitals:', error);
+      logDebug('[WebVitalsPlugin] Error tracking web vitals:', error);
       ctx.track('vitals_tracking_error', {
         error: (error as Error).message,
         type: (error as Error).name,
@@ -130,7 +131,7 @@ export class WebVitalsPlugin {
   public trackPageMetricsData(context?: Context): void {
     const ctx = context || this.context;
     if (!ctx) {
-      console.warn('No context available for tracking page metrics');
+      logDebug('[WebVitalsPlugin] No context available for tracking page metrics');
       return;
     }
 
@@ -151,7 +152,7 @@ export class WebVitalsPlugin {
 
       this.metricsTracked = true;
     } catch (error) {
-      console.error('Error tracking page metrics:', error);
+      logDebug('[WebVitalsPlugin] Error tracking page metrics:', error);
       ctx.track('metrics_tracking_error', {
         error: (error as Error).message,
         type: (error as Error).name,

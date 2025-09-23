@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import '@testing-library/jest-dom';
 
 // Mock console methods to reduce noise in tests

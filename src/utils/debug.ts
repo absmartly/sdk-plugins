@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 // This will be replaced by webpack DefinePlugin
 declare const __DEBUG__: boolean;
 

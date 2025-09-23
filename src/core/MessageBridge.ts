@@ -1,5 +1,5 @@
 import { MessagePayload, MessagePayloadData, MessageHandler, ExperimentData } from '../types';
-import { logMessage } from '../utils/debug';
+import { logMessage, logDebug } from '../utils/debug';
 
 export class MessageBridge {
   private handlers: Map<string, MessageHandler> = new Map();
@@ -24,7 +24,7 @@ export class MessageBridge {
       logMessage('received', data.type, data.payload);
 
       if (this.debug) {
-        console.log('[ABsmartly] Received message:', data.type, data.payload);
+        logDebug('[ABsmartly] Received message:', data.type, data.payload);
       }
 
       const handler = this.handlers.get(data.type);
@@ -32,7 +32,7 @@ export class MessageBridge {
         try {
           handler(data.payload || {});
         } catch (error) {
-          console.error('[ABsmartly] Error handling message:', error);
+          logDebug('[ABsmartly] Error handling message:', error);
           this.sendError(error instanceof Error ? error.message : 'Unknown error');
         }
       }
@@ -59,7 +59,7 @@ export class MessageBridge {
     logMessage('sent', type, payload);
 
     if (this.debug) {
-      console.log('[ABsmartly] Sending message:', type, payload);
+      logDebug('[ABsmartly] Sending message:', type, payload);
     }
 
     window.postMessage(message, '*');

@@ -1,4 +1,5 @@
 import { InjectionData } from '../types';
+import { logDebug } from '../utils/debug';
 
 export class CodeInjector {
   private injectedLocations: Set<string> = new Set();
@@ -97,13 +98,13 @@ export class CodeInjector {
       this.injectedLocations.add(location);
 
       if (this.debug) {
-        console.log(`[ABsmartly] Injecting code at ${location}`);
+        logDebug(`[ABsmartly] Injecting code at ${location}`);
       }
 
       return true;
     } catch (error) {
       if (this.debug) {
-        console.error(`[ABsmartly] Error injecting code at ${location}:`, error);
+        logDebug(`[ABsmartly] Error injecting code at ${location}:`, error);
       }
       return false;
     }
@@ -114,7 +115,7 @@ export class CodeInjector {
     document.querySelectorAll('script[data-absmartly-injected]').forEach(script => {
       const location = script.getAttribute('data-absmartly-injected');
       if (location && this.debug) {
-        console.log(`[ABsmartly] Removing injected script at ${location}`);
+        logDebug(`[ABsmartly] Removing injected script at ${location}`);
       }
       script.remove();
     });

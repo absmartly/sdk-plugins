@@ -1,4 +1,5 @@
 import { DOMChange } from '../types';
+import { logDebug } from '../utils/debug';
 
 export interface PendingChange {
   change: DOMChange;
@@ -28,7 +29,7 @@ export class PendingChangeManager {
     let effectiveRoot = observerRoot;
     if (observerRoot && !document.querySelector(observerRoot)) {
       if (this.debug) {
-        console.log('[ABsmartly] Observer root not found, using document:', observerRoot);
+        logDebug('[ABsmartly] Observer root not found, using document:', observerRoot);
       }
       effectiveRoot = undefined;
     }
@@ -36,7 +37,7 @@ export class PendingChangeManager {
     const key = `${change.selector}-${effectiveRoot || 'document'}`;
 
     if (this.debug) {
-      console.log('[ABsmartly] Adding pending change for selector:', change.selector);
+      logDebug('[ABsmartly] Adding pending change for selector:', change.selector);
     }
 
     // Check if element already exists
@@ -110,7 +111,7 @@ export class PendingChangeManager {
     this.observers.set(rootKey, observer);
 
     if (this.debug) {
-      console.log('[ABsmartly] Started observer for root:', rootKey);
+      logDebug('[ABsmartly] Started observer for root:', rootKey);
     }
   }
 
@@ -172,7 +173,7 @@ export class PendingChangeManager {
     this.batchTimer = null;
 
     if (this.debug && work.length > 0) {
-      console.log('[ABsmartly] Processing batched work:', work.length, 'items');
+      logDebug('[ABsmartly] Processing batched work:', work.length, 'items');
     }
 
     // Apply all changes
@@ -189,7 +190,7 @@ export class PendingChangeManager {
     }
 
     if (this.debug) {
-      console.log('[ABsmartly] Applying pending change to element:', change.selector);
+      logDebug('[ABsmartly] Applying pending change to element:', change.selector);
     }
 
     // Apply the change
@@ -253,7 +254,7 @@ export class PendingChangeManager {
         this.observers.delete(rootKey);
 
         if (this.debug) {
-          console.log('[ABsmartly] Disconnected observer for root:', rootKey);
+          logDebug('[ABsmartly] Disconnected observer for root:', rootKey);
         }
       }
     }
@@ -285,7 +286,7 @@ export class PendingChangeManager {
         this.observers.delete(rootKey);
 
         if (this.debug) {
-          console.log('[ABsmartly] Cleaned up observer for root:', rootKey);
+          logDebug('[ABsmartly] Cleaned up observer for root:', rootKey);
         }
       }
     });
@@ -309,7 +310,7 @@ export class PendingChangeManager {
     this.batchedWork.clear();
 
     if (this.debug) {
-      console.log('[ABsmartly] PendingChangeManager destroyed');
+      logDebug('[ABsmartly] PendingChangeManager destroyed');
     }
   }
 

@@ -1,3 +1,4 @@
+import { logDebug } from '../utils/debug';
 /**
  * Lightweight client-side version of OverridesPlugin
  * Minimal code for production websites - handles cookie and query string parsing
@@ -38,7 +39,7 @@ export class OverridesPluginLite {
     };
 
     if (this.config.debug) {
-      console.log('[OverridesPluginLite] Initialized with config:', {
+      logDebug('[OverridesPluginLite] Initialized with config:', {
         cookieName: this.config.cookieName,
         useQueryString: this.config.useQueryString,
         queryPrefix: this.config.queryPrefix,
@@ -49,7 +50,7 @@ export class OverridesPluginLite {
   async ready(): Promise<void> {
     if (this.initialized) {
       if (this.config.debug) {
-        console.log('[OverridesPluginLite] Already initialized');
+        logDebug('[OverridesPluginLite] Already initialized');
       }
       return;
     }
@@ -82,7 +83,7 @@ export class OverridesPluginLite {
 
     if (Object.keys(overrides).length === 0) {
       if (this.config.debug) {
-        console.log('[OverridesPluginLite] No overrides found');
+        logDebug('[OverridesPluginLite] No overrides found');
       }
       return;
     }
@@ -93,7 +94,7 @@ export class OverridesPluginLite {
       this.config.context.override(experimentName, variant);
 
       if (this.config.debug) {
-        console.log(`[OverridesPluginLite] Override: ${experimentName} -> variant ${variant}`);
+        logDebug(`[OverridesPluginLite] Override: ${experimentName} -> variant ${variant}`);
       }
     }
   }
@@ -135,7 +136,7 @@ export class OverridesPluginLite {
     }
 
     if (this.config.debug && Object.keys(overrides).length > 0) {
-      console.log('[OverridesPluginLite] Query string overrides:', overrides);
+      logDebug('[OverridesPluginLite] Query string overrides:', overrides);
     }
 
     return overrides;
@@ -225,7 +226,7 @@ export class OverridesPluginLite {
     )};path=/;max-age=${maxAge}`;
 
     if (this.config.debug) {
-      console.log('[OverridesPluginLite] Persisted to cookie:', cookieValue);
+      logDebug('[OverridesPluginLite] Persisted to cookie:', cookieValue);
     }
   }
 
@@ -247,7 +248,7 @@ export class OverridesPluginLite {
       };
 
       if (this.config.debug) {
-        console.log('[OverridesPluginLite] Registered with context at __plugins.overridesPlugin');
+        logDebug('[OverridesPluginLite] Registered with context at __plugins.overridesPlugin');
       }
     }
   }
@@ -257,7 +258,7 @@ export class OverridesPluginLite {
       delete this.config.context.__plugins.overridesPlugin;
 
       if (this.config.debug) {
-        console.log('[OverridesPluginLite] Unregistered from context');
+        logDebug('[OverridesPluginLite] Unregistered from context');
       }
     }
   }

@@ -121,10 +121,10 @@ export class DOMChangesPlugin {
       logPerformance('Plugin initialization', duration);
 
       if (this.config.debug) {
-        console.log('[ABsmartly] DOM Changes Plugin initialized');
+        logDebug('[ABsmartly] DOM Changes Plugin initialized');
       }
     } catch (error) {
-      console.error('[ABsmartly] Failed to initialize plugin:', error);
+      logDebug('[ABsmartly] Failed to initialize plugin:', error);
       throw error;
     }
   }
@@ -217,16 +217,16 @@ export class DOMChangesPlugin {
     });
 
     if (this.config.debug) {
-      console.log('[ABsmartly] === DOM Changes Application Starting ===');
-      console.log('[ABsmartly] Target:', experimentName || 'all experiments');
-      console.log('[ABsmartly] Context ready:', !!(this.config.context as any).ready);
+      logDebug('[ABsmartly] === DOM Changes Application Starting ===');
+      logDebug('[ABsmartly] Target:', experimentName || 'all experiments');
+      logDebug('[ABsmartly] Context ready:', !!(this.config.context as any).ready);
     }
 
     // Ensure context is ready before accessing data
     try {
       await (this.config.context as any).ready();
     } catch (error) {
-      console.error('[ABsmartly] Failed to wait for context ready:', error);
+      logDebug('[ABsmartly] Failed to wait for context ready:', error);
       return;
     }
 
@@ -244,7 +244,7 @@ export class DOMChangesPlugin {
 
       if (this.config.debug) {
         const variant = this.config.context.peek(experimentName);
-        console.log(`[ABsmartly] Single experiment '${experimentName}':`, {
+        logDebug(`[ABsmartly] Single experiment '${experimentName}':`, {
           variant,
           hasChanges: !!changes,
           changeCount: changes?.length || 0,
@@ -256,7 +256,7 @@ export class DOMChangesPlugin {
       changesMap = new Map();
 
       if (this.config.debug) {
-        console.log(
+        logDebug(
           '[ABsmartly] All available experiments with DOM changes:',
           Array.from(allVariants.keys())
         );
@@ -267,7 +267,7 @@ export class DOMChangesPlugin {
         const currentVariant = this.config.context.peek(expName);
 
         if (this.config.debug) {
-          console.log(`[ABsmartly] Experiment '${expName}':`, {
+          logDebug(`[ABsmartly] Experiment '${expName}':`, {
             assignedVariant: currentVariant,
             availableVariants: Array.from(variantMap.keys()),
           });
@@ -278,15 +278,15 @@ export class DOMChangesPlugin {
           if (changes && changes.length > 0) {
             changesMap.set(expName, changes);
             if (this.config.debug) {
-              console.log(
+              logDebug(
                 `[ABsmartly]   -> Will apply ${changes.length} changes for variant ${currentVariant}`
               );
             }
           } else if (this.config.debug) {
-            console.log(`[ABsmartly]   -> No changes found for variant ${currentVariant}`);
+            logDebug(`[ABsmartly]   -> No changes found for variant ${currentVariant}`);
           }
         } else if (this.config.debug) {
-          console.log(`[ABsmartly]   -> No variant assigned (control or not in experiment)`);
+          logDebug(`[ABsmartly]   -> No variant assigned (control or not in experiment)`);
         }
       }
     }
@@ -295,8 +295,8 @@ export class DOMChangesPlugin {
     const experimentStats = new Map<string, { total: number; success: number; pending: number }>();
 
     if (this.config.debug) {
-      console.log('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
-      console.log('[ABsmartly] Total experiments with changes:', changesMap.size);
+      logDebug('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
+      logDebug('[ABsmartly] Total experiments with changes:', changesMap.size);
     }
 
     for (const [expName, changes] of changesMap) {
@@ -308,7 +308,7 @@ export class DOMChangesPlugin {
       });
 
       if (this.config.debug) {
-        console.log(
+        logDebug(
           `[ABsmartly] Processing experiment '${expName}' with ${changes.length} changes:`,
           changes.map(c => ({
             type: c.type,
@@ -392,8 +392,8 @@ export class DOMChangesPlugin {
     });
 
     if (this.config.debug) {
-      console.log('[ABsmartly] === DOM Changes Application Complete ===');
-      console.log('[ABsmartly] Summary:', {
+      logDebug('[ABsmartly] === DOM Changes Application Complete ===');
+      logDebug('[ABsmartly] Summary:', {
         totalChangesApplied: totalApplied,
         experimentsProcessed: experimentStats.size,
         duration: `${duration.toFixed(2)}ms`,
@@ -436,7 +436,7 @@ export class DOMChangesPlugin {
 
     // Log removed changes for debugging
     if (this.config.debug) {
-      console.log(`[ABsmartly] Removed ${removedChanges.length} changes`, removedChanges);
+      logDebug(`[ABsmartly] Removed ${removedChanges.length} changes`, removedChanges);
     }
 
     this.emit('changes-removed', { experimentName, removedChanges });
@@ -508,7 +508,7 @@ export class DOMChangesPlugin {
       return success;
     } catch (error) {
       if (this.config.debug) {
-        console.error('[ABsmartly] Error applying change:', error);
+        logDebug('[ABsmartly] Error applying change:', error);
       }
       return false;
     }
@@ -542,7 +542,7 @@ export class DOMChangesPlugin {
       return this.domManipulator.revertChange(appliedChange);
     } catch (error) {
       if (this.config.debug) {
-        console.error('[ABsmartly] Error reverting change:', error);
+        logDebug('[ABsmartly] Error reverting change:', error);
       }
       return false;
     }
@@ -572,7 +572,7 @@ export class DOMChangesPlugin {
       try {
         callback(data);
       } catch (error) {
-        console.error(`[ABsmartly] Error in event listener for ${event}:`, error);
+        logDebug(`[ABsmartly] Error in event listener for ${event}:`, error);
       }
     });
   }
@@ -744,7 +744,7 @@ export class DOMChangesPlugin {
   // Call this after overrides plugin has added experiments
   public refreshExperiments(): void {
     if (this.config.debug) {
-      console.log('[ABsmartly] Refreshing experiments and clearing cache');
+      logDebug('[ABsmartly] Refreshing experiments and clearing cache');
     }
     this.variantExtractor.clearCache();
     // Re-apply changes with fresh data
@@ -799,7 +799,7 @@ export class DOMChangesPlugin {
     this.initialized = false;
 
     if (this.config.debug) {
-      console.log('[ABsmartly] DOM Changes Plugin destroyed');
+      logDebug('[ABsmartly] DOM Changes Plugin destroyed');
     }
   }
 
@@ -824,7 +824,7 @@ export class DOMChangesPlugin {
       this.config.context.__domPlugin = this.config.context.__plugins.domPlugin;
 
       if (this.config.debug) {
-        console.log('[ABsmartly] DOMChangesPlugin registered with context at __plugins.domPlugin');
+        logDebug('[ABsmartly] DOMChangesPlugin registered with context at __plugins.domPlugin');
       }
     }
   }
@@ -842,7 +842,7 @@ export class DOMChangesPlugin {
       }
 
       if (this.config.debug) {
-        console.log('[ABsmartly] DOMChangesPlugin unregistered from context');
+        logDebug('[ABsmartly] DOMChangesPlugin unregistered from context');
       }
     }
   }

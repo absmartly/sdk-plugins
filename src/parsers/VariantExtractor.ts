@@ -1,4 +1,5 @@
 import { DOMChange, ContextData, ABsmartlyContext, ExperimentData } from '../types';
+import { logDebug } from '../utils/debug';
 
 export class VariantExtractor {
   private context: ABsmartlyContext;
@@ -29,7 +30,7 @@ export class VariantExtractor {
     // Return cached version if available
     if (this.cachedAllChanges) {
       if (this.debug) {
-        console.log('[ABsmartly VariantExtractor] Returning cached changes');
+        logDebug('[ABsmartly VariantExtractor] Returning cached changes');
       }
       return this.cachedAllChanges;
     }
@@ -40,7 +41,7 @@ export class VariantExtractor {
       const contextData = this.context.data() as ContextData;
 
       // Always log the raw context data structure for debugging
-      console.log('[VariantExtractor DEBUG] Raw context data structure:', {
+      logDebug('[VariantExtractor DEBUG] Raw context data structure:', {
         hasData: !!contextData,
         contextKeys: contextData ? Object.keys(contextData) : [],
         experimentCount: contextData?.experiments?.length || 0,
@@ -58,7 +59,7 @@ export class VariantExtractor {
       });
 
       if (this.debug) {
-        console.log('[ABsmartly VariantExtractor] Extracting changes from context:', {
+        logDebug('[ABsmartly VariantExtractor] Extracting changes from context:', {
           hasData: !!contextData,
           experimentCount: contextData?.experiments?.length || 0,
         });
@@ -67,7 +68,7 @@ export class VariantExtractor {
       // Extract from SDK context data
       if (contextData?.experiments) {
         if (this.debug) {
-          console.log(
+          logDebug(
             '[ABsmartly VariantExtractor] Available experiments:',
             contextData.experiments.map((exp: any) => ({
               name: exp.name,
@@ -83,7 +84,7 @@ export class VariantExtractor {
           if (variantChanges.size > 0) {
             allChanges.set(experiment.name, variantChanges);
             if (this.debug) {
-              console.log(
+              logDebug(
                 `[ABsmartly VariantExtractor] Experiment '${experiment.name}' has DOM changes:`,
                 {
                   variantsWithChanges: Array.from(variantChanges.keys()),
@@ -96,7 +97,7 @@ export class VariantExtractor {
               );
             }
           } else if (this.debug) {
-            console.log(
+            logDebug(
               `[ABsmartly VariantExtractor] Experiment '${experiment.name}' has no DOM changes`
             );
           }
@@ -105,7 +106,7 @@ export class VariantExtractor {
 
       // No need to check window storage - experiments are now injected into context data
     } catch (error) {
-      console.error('[ABsmartly] Error extracting DOM changes:', error);
+      logDebug('[ABsmartly] Error extracting DOM changes:', error);
     }
 
     // Cache the result
@@ -117,7 +118,7 @@ export class VariantExtractor {
   private extractAllVariantsForExperiment(experiment: ExperimentData): Map<number, DOMChange[]> {
     const variantChanges = new Map<number, DOMChange[]>();
 
-    console.log(
+    logDebug(
       '[DEBUG] Processing experiment:',
       experiment.name,
       'with',
@@ -126,7 +127,7 @@ export class VariantExtractor {
     );
 
     if (!experiment.variants) {
-      console.log('[DEBUG] No variants found for experiment:', experiment.name);
+      logDebug('[DEBUG] No variants found for experiment:', experiment.name);
       return variantChanges;
     }
 
@@ -145,19 +146,19 @@ export class VariantExtractor {
 
             if (config && config[this.dataFieldName]) {
               changesData = config[this.dataFieldName];
-              console.log(
+              logDebug(
                 `[VariantExtractor DEBUG] ✓ Found DOM changes in config[${this.dataFieldName}]:`,
                 changesData
               );
             } else {
-              console.log(
+              logDebug(
                 '[VariantExtractor DEBUG] ✗ No',
                 this.dataFieldName,
                 'field found in parsed config'
               );
             }
           } catch (e) {
-            console.error(
+            logDebug(
               '[VariantExtractor DEBUG] ✗ Failed to parse variant.config:',
               e,
               'Raw config:',
@@ -198,7 +199,7 @@ export class VariantExtractor {
 
     if (currentVariant === undefined || currentVariant === null) {
       if (this.debug) {
-        console.log(`[ABsmartly] No variant selected for ${experimentName}`);
+        logDebug(`[ABsmartly] No variant selected for ${experimentName}`);
       }
       return null;
     }
@@ -216,7 +217,7 @@ export class VariantExtractor {
       try {
         changesData = JSON.parse(changesData);
       } catch (error) {
-        console.error('[ABsmartly] Failed to parse DOM changes JSON:', error);
+        logDebug('[ABsmartly] Failed to parse DOM changes JSON:', error);
         return null;
       }
     }
@@ -224,7 +225,7 @@ export class VariantExtractor {
     // Ensure it's an array
     if (!Array.isArray(changesData)) {
       if (this.debug) {
-        console.warn('[ABsmartly] DOM changes data is not an array');
+        logDebug('[ABsmartly] DOM changes data is not an array');
       }
       return null;
     }
@@ -236,7 +237,7 @@ export class VariantExtractor {
       if (this.isValidChange(change)) {
         validChanges.push(change);
       } else if (this.debug) {
-        console.warn('[ABsmartly] Invalid DOM change:', change);
+        logDebug('[ABsmartly] Invalid DOM change:', change);
       }
     }
 
@@ -345,7 +346,7 @@ export class VariantExtractor {
       return contextData.experiments.find(exp => exp.name === experimentName) || null;
     } catch (error) {
       if (this.debug) {
-        console.warn(
+        logDebug(
           `[ABsmartly VariantExtractor] Failed to get experiment '${experimentName}' - context may not be ready:`,
           error
         );
