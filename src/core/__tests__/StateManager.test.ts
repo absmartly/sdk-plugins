@@ -48,7 +48,8 @@ describe('StateManager', () => {
 
       const attrState = stateManager.getOriginalState('.test-attr', 'attribute');
       expect(attrState?.originalState.attributes).toHaveProperty('data-test', 'test-value');
-      expect(attrState?.originalState.attributes).toHaveProperty('style', 'color: red;');
+      // Style is not stored in attributes as it's handled by the 'style' change type
+      expect(attrState?.originalState.attributes).not.toHaveProperty('style');
     });
 
     it('should store move operation original state', () => {

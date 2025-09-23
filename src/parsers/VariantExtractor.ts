@@ -139,8 +139,16 @@ export class VariantExtractor {
       let changesData = null;
 
       if (this.dataSource === 'variable') {
-        // ABSmartly SDK provides data in variant.config as a JSON string
-        if (variant.config) {
+        // First check variant.variables (common in tests and some setups)
+        if (variant.variables && variant.variables[this.dataFieldName]) {
+          changesData = variant.variables[this.dataFieldName];
+          logDebug(
+            `[VariantExtractor DEBUG] ✓ Found DOM changes in variables[${this.dataFieldName}]:`,
+            changesData
+          );
+        }
+        // Then check variant.config (ABSmartly SDK provides data here as a JSON string)
+        else if (variant.config) {
           try {
             const config =
               typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;

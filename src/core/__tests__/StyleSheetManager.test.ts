@@ -268,7 +268,9 @@ describe('StyleSheetManager', () => {
 
       debugManager.clear(); // No rules to clear
 
-      expect(logDebugSpy).not.toHaveBeenCalledWith(expect.stringContaining('Cleared all CSS rules'));
+      expect(logDebugSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Cleared all CSS rules')
+      );
       logDebugSpy.mockRestore();
       debugManager.destroy();
     });

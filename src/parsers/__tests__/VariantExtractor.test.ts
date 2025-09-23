@@ -51,7 +51,10 @@ describe('VariantExtractor', () => {
 
       expect(changes.size).toBe(1);
       expect(changes.has('exp1')).toBe(true);
-      expect(changes.get('exp1')).toEqual([
+
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants).toBeDefined();
+      expect(exp1Variants?.get(0)).toEqual([
         {
           selector: '.test',
           type: 'text',
@@ -89,7 +92,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual(changesArray);
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual(changesArray);
     });
 
     it('should handle no variant selected', () => {
@@ -189,7 +193,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual([
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual([
         { selector: '.variant1', type: 'text', value: 'Variant 1' },
       ]);
     });
@@ -223,7 +228,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual(changesData);
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual(changesData);
       expect(mockContext.customFieldValue).toHaveBeenCalledWith('exp1', 'dom_changes_field');
     });
 
@@ -272,7 +278,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual([{ selector: '.valid', type: 'text', value: 'Valid' }]);
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual([{ selector: '.valid', type: 'text', value: 'Valid' }]);
     });
 
     it('should validate class changes', () => {
@@ -300,7 +307,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual([
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual([
         { selector: '.valid', type: 'class', add: ['new-class'] },
       ]);
     });
@@ -329,7 +337,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual([
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual([
         { selector: '.valid', type: 'move', targetSelector: '.target' },
       ]);
     });
@@ -364,7 +373,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual([
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual([
         {
           selector: '.valid',
           type: 'create',
@@ -400,7 +410,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual([
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual([
         { selector: '.valid-style', type: 'style', value: { color: 'red' } },
         { selector: '.valid-attr', type: 'attribute', value: { 'data-test': 'value' } },
       ]);
@@ -824,7 +835,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual(changesArray);
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual(changesArray);
     });
 
     it('should handle empty array of changes', () => {
@@ -943,7 +955,8 @@ describe('VariantExtractor', () => {
 
       const changes = variantExtractor.extractAllChanges();
 
-      expect(changes.get('exp1')).toEqual(changesArray);
+      const exp1Variants = changes.get('exp1');
+      expect(exp1Variants?.get(0)).toEqual(changesArray);
     });
 
     it('should handle custom field with invalid JSON', () => {
