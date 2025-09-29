@@ -630,14 +630,13 @@ export class DOMChangesPlugin {
     this.persistenceObserver = new MutationObserver(mutations => {
       // Check if visual editor is actively modifying DOM - don't reapply changes during operations like resize
       const isModifying = (window as any).__absmartlyVisualEditorModifying;
-      logDebug('Persistence observer triggered', {
-        isVisualEditorModifying: isModifying,
-        flagValue: (window as any).__absmartlyVisualEditorModifying,
-        mutationCount: mutations.length,
-      });
+      // Only log if we're actually skipping due to visual editor modification
+      // Don't log every single mutation - it's too noisy
 
       if (isModifying) {
-        logDebug('Skipping style persistence - visual editor is modifying DOM');
+        logDebug('Skipping style persistence - visual editor is modifying DOM', {
+          mutationCount: mutations.length,
+        });
         return;
       }
 
@@ -667,14 +666,12 @@ export class DOMChangesPlugin {
                 if (needsReapply) {
                   // Check again if visual editor is modifying before reapplying
                   const isModifyingNow = (window as any).__absmartlyVisualEditorModifying;
-                  logDebug('About to reapply style change', {
-                    selector: change.selector,
-                    isVisualEditorModifying: isModifyingNow,
-                    flagValue: (window as any).__absmartlyVisualEditorModifying,
-                  });
 
                   if (isModifyingNow) {
-                    logDebug('Skipping style reapplication - visual editor is modifying DOM');
+                    // Only log when we actually skip, not every time we check
+                    logDebug('Skipping style reapplication - visual editor is modifying DOM', {
+                      selector: change.selector,
+                    });
                     return;
                   }
 
