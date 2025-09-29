@@ -296,7 +296,7 @@ export class DOMManipulator {
               logDebug(`[ABsmartly] No original state found for restoration`, {
                 selector: change.selector,
                 type: change.type,
-                experimentName
+                experimentName,
               });
             }
 
@@ -473,7 +473,11 @@ export class DOMManipulator {
 
     switch (changeType) {
       case 'text':
-        if (original.text !== undefined) {
+        // If we stored HTML (element had children), restore the full HTML structure
+        // Otherwise just restore the text content
+        if (original.html !== undefined) {
+          element.innerHTML = original.html;
+        } else if (original.text !== undefined) {
           element.textContent = original.text;
         }
         break;
@@ -500,7 +504,7 @@ export class DOMManipulator {
           logDebug(`[ABsmartly] Restoring classes`, {
             originalClasses: original.classList,
             currentClasses: Array.from(element.classList),
-            selector: element.className
+            selector: element.className,
           });
         }
         if (original.classList) {
@@ -516,7 +520,7 @@ export class DOMManipulator {
         }
         if (this.debug) {
           logDebug(`[ABsmartly] Classes after restoration`, {
-            classes: Array.from(element.classList)
+            classes: Array.from(element.classList),
           });
         }
         break;

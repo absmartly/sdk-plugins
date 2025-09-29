@@ -19,7 +19,7 @@ import { ExposureTracker } from './ExposureTracker';
 import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
 
 export class DOMChangesPlugin {
-  public static readonly VERSION = '1.0.0';
+  public static readonly VERSION = '1.0.1';
 
   private config: Required<PluginConfig>;
   private stateManager: StateManager;
@@ -121,8 +121,11 @@ export class DOMChangesPlugin {
       const duration = performance.now() - startTime;
       logPerformance('Plugin initialization', duration);
 
+      // Always log successful initialization with version
+      console.log(`[ABsmartly] DOM plugin loaded successfully (v${DOMChangesPlugin.VERSION})`);
+
       if (this.config.debug) {
-        logDebug('[ABsmartly] DOM Changes Plugin initialized');
+        logDebug('[ABsmartly] DOM Changes Plugin initialized with debug mode');
       }
     } catch (error) {
       logDebug('[ABsmartly] Failed to initialize plugin:', error);
@@ -625,6 +628,19 @@ export class DOMChangesPlugin {
     if (this.persistenceObserver) return;
 
     this.persistenceObserver = new MutationObserver(mutations => {
+      // Check if visual editor is actively modifying DOM - don't reapply changes during operations like resize
+      const isModifying = (window as any).__absmartlyVisualEditorModifying;
+      logDebug('Persistence observer triggered', {
+        isVisualEditorModifying: isModifying,
+        flagValue: (window as any).__absmartlyVisualEditorModifying,
+        mutationCount: mutations.length,
+      });
+
+      if (isModifying) {
+        logDebug('Skipping style persistence - visual editor is modifying DOM');
+        return;
+      }
+
       mutations.forEach(mutation => {
         const element = mutation.target as Element;
 
@@ -649,6 +665,19 @@ export class DOMChangesPlugin {
                 );
 
                 if (needsReapply) {
+                  // Check again if visual editor is modifying before reapplying
+                  const isModifyingNow = (window as any).__absmartlyVisualEditorModifying;
+                  logDebug('About to reapply style change', {
+                    selector: change.selector,
+                    isVisualEditorModifying: isModifyingNow,
+                    flagValue: (window as any).__absmartlyVisualEditorModifying,
+                  });
+
+                  if (isModifyingNow) {
+                    logDebug('Skipping style reapplication - visual editor is modifying DOM');
+                    return;
+                  }
+
                   // Mark element as being reapplied to prevent infinite loops
                   this.reapplyingElements.add(element);
 

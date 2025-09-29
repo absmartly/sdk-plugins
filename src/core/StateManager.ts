@@ -28,6 +28,11 @@ export class StateManager {
     switch (changeType) {
       case 'text':
         state.originalState.text = element.textContent || '';
+        // Also store HTML for text changes in case element has child elements
+        // This preserves structure when reverting text changes
+        if (element.children.length > 0) {
+          state.originalState.html = element.innerHTML;
+        }
         break;
       case 'html':
         state.originalState.html = element.innerHTML;

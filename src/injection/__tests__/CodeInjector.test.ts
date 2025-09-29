@@ -315,7 +315,9 @@ describe('CodeInjector', () => {
       debugInjector.inject(data);
       debugInjector.cleanup();
 
-      expect(logDebugSpy).toHaveBeenCalledWith('[ABsmartly] Removing injected script at head-start');
+      expect(logDebugSpy).toHaveBeenCalledWith(
+        '[ABsmartly] Removing injected script at head-start'
+      );
 
       logDebugSpy.mockRestore();
     });
