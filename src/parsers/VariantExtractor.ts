@@ -275,6 +275,8 @@ export class VariantExtractor {
       'javascript',
       'move',
       'create',
+      'delete',
+      'styleRules',
     ];
     if (!validTypes.includes(obj.type as string)) {
       return false;

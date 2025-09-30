@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
+import { DOMChangesPluginLite } from '../core/DOMChangesPluginLite';
 import { OverridesPlugin } from '../overrides/OverridesPlugin';
 
 // Mock fetch globally
 global.fetch = jest.fn();
 
 describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
-  let domPlugin: DOMChangesPlugin;
+  let domPlugin: DOMChangesPluginLite;
   let overridesPlugin: OverridesPlugin;
   let mockContext: any;
   let originalData: any;
@@ -130,7 +130,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       });
 
       // Initialize DOM plugin
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
         debug: true,
@@ -209,7 +209,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       });
 
       // Initialize DOM plugin
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
         debug: true,
@@ -303,7 +303,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       });
 
       // Initialize DOM plugin
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
       });
@@ -411,7 +411,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       });
 
       // Initialize DOM plugin
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
       });
@@ -499,7 +499,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       });
 
       // Initialize DOM plugin
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
       });
@@ -539,7 +539,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       });
 
       // Initialize DOM plugin
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
       });
@@ -583,7 +583,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       document.body.innerHTML = '<div class="running-test">Original</div>';
 
-      domPlugin = new DOMChangesPlugin({
+      domPlugin = new DOMChangesPluginLite({
         context: mockContext,
         autoApply: true,
       });

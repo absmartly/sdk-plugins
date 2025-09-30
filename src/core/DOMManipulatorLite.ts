@@ -37,10 +37,23 @@ export class DOMManipulatorLite {
         return this.applyStyleRules(change, experimentName);
       }
 
+      // Handle create changes separately as they don't require a selector
+      if (change.type === 'create') {
+        if (change.element && change.targetSelector) {
+          const created = this.createElement(change, experimentName);
+          if (created) {
+            this.trackAppliedChange(experimentName, change);
+            logChangeApplication(experimentName, change.targetSelector, change.type, 1, true);
+            return true;
+          }
+        }
+        return false;
+      }
+
       const elements = document.querySelectorAll(change.selector);
       const appliedElements: Element[] = [];
 
-      if (elements.length === 0 && change.type !== 'create') {
+      if (elements.length === 0) {
         if (change.waitForElement) {
           if (this.debug) {
             logDebug(`[ABsmartly] Element not found, adding to pending: ${change.selector}`);
@@ -102,13 +115,6 @@ export class DOMManipulatorLite {
           appliedElements.push(element);
         }
       });
-
-      if (change.type === 'create' && change.element && change.targetSelector) {
-        const created = this.createElement(change, experimentName);
-        if (created) {
-          appliedElements.push(created);
-        }
-      }
 
       if (appliedElements.length > 0) {
         this.trackAppliedChange(experimentName, change);
@@ -184,15 +190,19 @@ export class DOMManipulatorLite {
 
     const tempContainer = document.createElement('div');
     tempContainer.innerHTML = change.element;
-    const newElement = tempContainer.firstElementChild;
 
-    if (!newElement) {
+    // Move all children (not just the first one) to support multiple elements
+    const children = Array.from(tempContainer.children);
+    if (children.length === 0) {
       return null;
     }
 
-    this.moveElement(newElement, target, change.position);
+    for (const child of children) {
+      this.moveElement(child, target, change.position);
+    }
 
-    return newElement;
+    // Return the first element for compatibility
+    return children[0] as Element;
   }
 
   private applyStyleRules(change: DOMChange, experimentName: string): boolean {
@@ -200,11 +210,23 @@ export class DOMManipulatorLite {
       const manager = this.plugin.getStyleManager(experimentName);
       const ruleKey = `${change.selector}::states`;
 
-      const css = this.plugin.buildStateRules(
-        change.selector,
-        change.states || {},
-        change.important !== false
-      );
+      let css: string;
+
+      // Support both raw CSS string in value and structured states
+      if (typeof change.value === 'string' && change.value.trim()) {
+        // Raw CSS provided in value
+        css = change.value;
+      } else if (change.states) {
+        // Structured states provided
+        css = this.plugin.buildStateRules(
+          change.selector,
+          change.states,
+          change.important !== false
+        );
+      } else {
+        // No CSS provided
+        return false;
+      }
 
       manager.setRule(ruleKey, css);
 

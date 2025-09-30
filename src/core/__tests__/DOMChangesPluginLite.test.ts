@@ -560,6 +560,51 @@ describe('DOMChangesPluginLite', () => {
   });
 
   describe('Delete Changes', () => {
+    it('should delete elements via manipulator directly', () => {
+      TestDOMUtils.createTestPage();
+      const context = MockContextFactory.create();
+      const plugin = new DOMChangesPluginLite({ context });
+      const manipulator = (plugin as any).domManipulator;
+
+      expect(document.querySelector('.hero-description')).not.toBeNull();
+
+      const deleteChange: DOMChange = {
+        selector: '.hero-description',
+        type: 'delete',
+      };
+      const result = manipulator.applyChange(deleteChange, 'test_exp');
+
+      expect(result).toBe(true);
+      expect(document.querySelector('.hero-description')).toBeNull();
+    });
+
+    it('should extract delete changes from context', () => {
+      consoleLogSpy.mockRestore(); // Restore console.log for this test
+
+      const deleteChange: DOMChange = {
+        selector: '.hero-description',
+        type: 'delete',
+      };
+      const experiment = TestDataFactory.createExperiment('test_exp', [deleteChange], 1);
+      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+
+      // Debug: check what the context returns
+      const contextData = context.data();
+      console.log('Context data:', JSON.stringify(contextData, null, 2));
+      console.log('Peek result:', context.peek('test_exp'));
+
+      const plugin = new DOMChangesPluginLite({ context });
+      const extractor = (plugin as any).variantExtractor;
+
+      const allChanges = extractor.extractAllChanges();
+      console.log('All changes:', allChanges);
+
+      const changes = extractor.getExperimentChanges('test_exp');
+      console.log('Experiment changes:', changes);
+
+      expect(changes).toEqual([deleteChange]);
+    });
+
     it('should delete elements', async () => {
       TestDOMUtils.createTestPage();
 

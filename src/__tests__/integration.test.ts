@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
+import { DOMChangesPluginLite } from '../core/DOMChangesPluginLite';
 import { DOMChange, ContextData, ExperimentData } from '../types';
 
 // Helper to configure mock context with experiments
@@ -33,7 +33,7 @@ const createMockContext = (experiments: ExperimentData[] = []) => {
 };
 
 describe('Integration Tests - End-to-End Plugin Workflows', () => {
-  let plugin: DOMChangesPlugin;
+  let plugin: DOMChangesPluginLite;
   let mockContext: any;
 
   beforeEach(() => {
@@ -42,7 +42,7 @@ describe('Integration Tests - End-to-End Plugin Workflows', () => {
     document.head.innerHTML = '';
 
     mockContext = createMockContext();
-    plugin = new DOMChangesPlugin({
+    plugin = new DOMChangesPluginLite({
       context: mockContext,
       autoApply: false, // Manual control for testing
       spa: true,
