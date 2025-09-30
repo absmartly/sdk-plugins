@@ -2,7 +2,7 @@
  * Entry point for DOM Changes Plugin + Overrides Lite
  * Medium bundle - DOM manipulation + lightweight override detection
  */
-import { DOMChangesPlugin } from '../core/DOMChangesPlugin';
+import { DOMChangesPluginLite } from '../core/DOMChangesPluginLite';
 import { OverridesPluginLite } from '../overrides/OverridesPluginLite';
 
 // Re-export types
@@ -10,7 +10,8 @@ export * from '../types';
 export * from '../overrides/types';
 
 // Export the plugins
-export { DOMChangesPlugin, OverridesPluginLite };
+export { DOMChangesPluginLite, OverridesPluginLite };
+export { DOMChangesPluginLite as DOMChangesPlugin }; // Alias for backward compatibility
 
 // Default export for UMD builds
-export default DOMChangesPlugin;
+export default DOMChangesPluginLite;

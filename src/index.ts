@@ -1,4 +1,3 @@
-import { DOMChangesPlugin } from './core/DOMChangesPlugin';
 import { DOMChangesPluginLite } from './core/DOMChangesPluginLite';
 import { OverridesPlugin } from './overrides/OverridesPlugin';
 import { BrowserCookieAdapter } from './overrides/BrowserCookieAdapter';
@@ -12,11 +11,11 @@ export type { CookiePluginOptions } from './cookies/CookiePlugin';
 export type { WebVitalsPluginOptions, Metric } from './vitals/WebVitalsPlugin';
 
 // Export the plugin classes
-// For backward compatibility, we export the original OverridesPlugin (which is the full-featured one)
+// For backward compatibility, we export DOMChangesPlugin as an alias for DOMChangesPluginLite
 // Users should choose either OverridesPluginLite OR OverridesPluginFull from the specific builds
 export {
-  DOMChangesPlugin,
   DOMChangesPluginLite,
+  DOMChangesPluginLite as DOMChangesPlugin, // Alias for backward compatibility
   OverridesPlugin, // Legacy export - this is the original full-featured version
   BrowserCookieAdapter,
   CookiePlugin,
@@ -24,4 +23,4 @@ export {
 };
 
 // Default export for UMD builds (backward compatibility)
-export default DOMChangesPlugin;
+export default DOMChangesPluginLite;
