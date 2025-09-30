@@ -1,4 +1,5 @@
 import { DOMChangesPlugin } from './core/DOMChangesPlugin';
+import { DOMChangesPluginLite } from './core/DOMChangesPluginLite';
 import { OverridesPlugin } from './overrides/OverridesPlugin';
 import { BrowserCookieAdapter } from './overrides/BrowserCookieAdapter';
 import { CookiePlugin } from './cookies/CookiePlugin';
@@ -15,6 +16,7 @@ export type { WebVitalsPluginOptions, Metric } from './vitals/WebVitalsPlugin';
 // Users should choose either OverridesPluginLite OR OverridesPluginFull from the specific builds
 export {
   DOMChangesPlugin,
+  DOMChangesPluginLite,
   OverridesPlugin, // Legacy export - this is the original full-featured version
   BrowserCookieAdapter,
   CookiePlugin,

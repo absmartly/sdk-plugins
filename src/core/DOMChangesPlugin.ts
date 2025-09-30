@@ -1,81 +1,51 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  PluginConfig,
-  AppliedChange,
-  PendingChange,
-  InjectionData,
-  ElementState,
-  EventCallback,
-  EventCallbackData,
-  DOMChange,
-} from '../types';
+import { PluginConfig, AppliedChange, PendingChange, InjectionData, ElementState } from '../types';
 import { StateManager } from './StateManager';
 import { DOMManipulator } from './DOMManipulator';
 import { MessageBridge } from './MessageBridge';
 import { CodeInjector } from '../injection/CodeInjector';
-import { VariantExtractor } from '../parsers/VariantExtractor';
-import { StyleSheetManager } from './StyleSheetManager';
-import { ExposureTracker } from './ExposureTracker';
-import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
+import { DOMChangesPluginLite } from './DOMChangesPluginLite';
+import { logDebug } from '../utils/debug';
 
-export class DOMChangesPlugin {
+export class DOMChangesPlugin extends DOMChangesPluginLite {
   public static readonly VERSION = '1.0.1';
 
-  private config: Required<PluginConfig>;
   private stateManager: StateManager;
-  private domManipulator: DOMManipulator;
+  private fullDomManipulator: DOMManipulator;
   private messageBridge: MessageBridge | null = null;
   private codeInjector: CodeInjector;
-  private variantExtractor: VariantExtractor;
-  private exposureTracker: ExposureTracker;
-  private mutationObserver: MutationObserver | null = null;
-  private visibilityObserver: IntersectionObserver | null = null;
   private persistenceObserver: MutationObserver | null = null;
-  private exposedExperiments: Set<string> = new Set();
-  private eventListeners: Map<string, EventCallback[]> = new Map();
-  private styleManagers: Map<string, StyleSheetManager> = new Map();
   private watchedElements: WeakMap<Element, Set<string>> = new WeakMap();
   private reapplyingElements = new WeakSet<Element>();
   private reapplyLogThrottle = new Map<string, number>();
-  private initialized = false;
 
   constructor(config: PluginConfig) {
-    this.config = {
-      context: config.context,
-      autoApply: config.autoApply ?? true,
-      spa: config.spa ?? true,
-      visibilityTracking: config.visibilityTracking ?? true,
-      extensionBridge: config.extensionBridge ?? true,
-      dataSource: config.dataSource ?? 'variable',
-      dataFieldName: config.dataFieldName ?? '__dom_changes',
-      debug: config.debug ?? false,
-    };
+    // Call parent constructor with extensionBridge disabled
+    super({ ...config, extensionBridge: false });
 
-    if (!this.config.context) {
-      throw new Error('[ABsmartly] Context is required');
-    }
-
-    // Initialize core components
+    // Initialize full-version components
     this.stateManager = new StateManager();
-    this.domManipulator = new DOMManipulator(this.stateManager, this.config.debug, this);
+    this.fullDomManipulator = new DOMManipulator(this.stateManager, this.config.debug, this);
     this.codeInjector = new CodeInjector(this.config.debug);
-    this.variantExtractor = new VariantExtractor(
-      this.config.context,
-      this.config.dataSource,
-      this.config.dataFieldName,
-      this.config.debug
-    );
-    this.exposureTracker = new ExposureTracker(this.config.context, this.config.debug);
+
+    // Override domManipulator with the full version
+    this.domManipulator = this.fullDomManipulator as any;
+
+    // Update config to respect extensionBridge setting
+    this.config = {
+      ...this.config,
+      extensionBridge: config.extensionBridge ?? true,
+    };
   }
 
-  async ready(): Promise<void> {
+  override async ready(): Promise<void> {
     if (this.initialized) {
       logDebug('Plugin already initialized');
       return;
     }
 
     const startTime = performance.now();
-    logDebug('Initializing ABsmartly DOM Changes Plugin', {
+    logDebug('Initializing ABsmartly DOM Changes Plugin (Full)', {
       version: DOMChangesPlugin.VERSION,
       config: {
         autoApply: this.config.autoApply,
@@ -83,7 +53,6 @@ export class DOMChangesPlugin {
         visibilityTracking: this.config.visibilityTracking,
         extensionBridge: this.config.extensionBridge,
         dataSource: this.config.dataSource,
-        DEBUG,
       },
     });
 
@@ -93,39 +62,20 @@ export class DOMChangesPlugin {
         this.setupMessageBridge();
       }
 
-      // Set up SPA support
-      if (this.config.spa) {
-        this.setupMutationObserver();
-      }
-
-      // Note: Visibility tracking is now handled by ExposureTracker
-      // The old visibilityTracking config is kept for backward compatibility
-
-      // Auto-apply changes if configured
-      if (this.config.autoApply) {
-        await this.applyChanges();
-      }
+      // Call parent ready() which sets up SPA, applies changes, etc.
+      await super.ready();
 
       // Request injection code from extension
       if (this.config.extensionBridge && this.messageBridge) {
         this.messageBridge.requestInjectionCode();
       }
 
-      this.initialized = true;
-
-      // Register plugin with context for detection by extension
-      this.registerWithContext();
-
-      this.emit('initialized');
-
       const duration = performance.now() - startTime;
-      logPerformance('Plugin initialization', duration);
 
-      // Always log successful initialization with version
       console.log(`[ABsmartly] DOM plugin loaded successfully (v${DOMChangesPlugin.VERSION})`);
 
       if (this.config.debug) {
-        logDebug('[ABsmartly] DOM Changes Plugin initialized with debug mode');
+        logDebug('[ABsmartly] DOM Changes Plugin (Full) initialized', { duration });
       }
     } catch (error) {
       logDebug('[ABsmartly] Failed to initialize plugin:', error);
@@ -133,25 +83,17 @@ export class DOMChangesPlugin {
     }
   }
 
-  // Alias for backwards compatibility
-  async initialize(): Promise<void> {
-    return this.ready();
-  }
-
   private setupMessageBridge(): void {
     this.messageBridge = new MessageBridge(this.config.debug);
 
-    // Handle apply changes
     this.messageBridge.on('APPLY_CHANGES', payload => {
       this.applyChanges(payload.experimentName);
     });
 
-    // Handle remove changes
     this.messageBridge.on('REMOVE_CHANGES', payload => {
       this.removeChanges(payload.experimentName);
     });
 
-    // Handle injection code
     this.messageBridge.on('INJECTION_CODE', payload => {
       const injectionData: InjectionData = {
         headStart: payload.headStart,
@@ -162,16 +104,12 @@ export class DOMChangesPlugin {
       this.injectCode(injectionData);
     });
 
-    // Handle data requests
-
     this.messageBridge.on('GET_EXPERIMENTS', async () => {
-      // Ensure context is ready before accessing data
       await this.config.context.ready();
       const experiments = this.config.context.data()?.experiments || [];
       this.messageBridge?.sendExperimentData(experiments);
     });
 
-    // Notify extension that plugin is ready
     this.messageBridge.notifyReady(DOMChangesPlugin.VERSION, [
       'overrides',
       'injection',
@@ -180,225 +118,7 @@ export class DOMChangesPlugin {
     ]);
   }
 
-  private setupMutationObserver(): void {
-    const observer = new MutationObserver(() => {
-      // Check for pending changes that might now be applicable
-      const pending = this.stateManager.getPendingChanges();
-      if (pending.length === 0) return;
-
-      for (const pendingChange of pending) {
-        const elements = document.querySelectorAll(pendingChange.change.selector);
-        if (elements.length > 0) {
-          const success = this.domManipulator.applyChange(
-            pendingChange.change,
-            pendingChange.experimentName
-          );
-
-          if (success) {
-            this.stateManager.removePendingChange(
-              pendingChange.experimentName,
-              pendingChange.change
-            );
-          }
-        }
-      }
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    this.mutationObserver = observer;
-  }
-
-  async applyChanges(experimentName?: string): Promise<void> {
-    const startTime = performance.now();
-
-    logDebug('Starting to apply changes', {
-      specificExperiment: experimentName || 'all',
-      action: 'apply_start',
-    });
-
-    if (this.config.debug) {
-      logDebug('[ABsmartly] === DOM Changes Application Starting ===');
-      logDebug('[ABsmartly] Target:', experimentName || 'all experiments');
-      logDebug('[ABsmartly] Context ready:', true);
-    }
-
-    // Ensure context is ready before accessing data
-    try {
-      await this.config.context.ready();
-    } catch (error) {
-      logDebug('[ABsmartly] Failed to wait for context ready:', error);
-      return;
-    }
-
-    // Clear the variant extractor cache to ensure we get fresh data
-    // This is important when the overrides plugin has added new experiments
-    this.variantExtractor.clearCache();
-
-    // Get changes to apply
-    let changesMap: Map<string, DOMChange[]>;
-
-    if (experimentName) {
-      // Single experiment
-      const changes = this.variantExtractor.getExperimentChanges(experimentName);
-      changesMap = new Map(changes ? [[experimentName, changes]] : []);
-
-      if (this.config.debug) {
-        const variant = this.config.context.peek(experimentName);
-        logDebug(`[ABsmartly] Single experiment '${experimentName}':`, {
-          variant,
-          hasChanges: !!changes,
-          changeCount: changes?.length || 0,
-        });
-      }
-    } else {
-      // All experiments - extract all variants then get current ones
-      const allVariants = this.variantExtractor.extractAllChanges();
-      changesMap = new Map();
-
-      logDebug(
-        '[ABsmartly] All available experiments with DOM changes:',
-        Array.from(allVariants.keys())
-      );
-
-      for (const [expName, variantMap] of allVariants) {
-        // Get the current variant for this experiment
-        const currentVariant = this.config.context.peek(expName);
-
-        logDebug(`[ABsmartly] Experiment '${expName}':`, {
-          assignedVariant: currentVariant,
-          availableVariants: Array.from(variantMap.keys()),
-        });
-
-        if (currentVariant) {
-          const changes = variantMap.get(currentVariant);
-          if (changes && changes.length > 0) {
-            changesMap.set(expName, changes);
-            logDebug(
-              `[ABsmartly]   -> Will apply ${changes.length} changes for variant ${currentVariant}`
-            );
-          } else {
-            logDebug(`[ABsmartly]   -> No changes found for variant ${currentVariant}`);
-          }
-        } else {
-          logDebug(`[ABsmartly]   -> No variant assigned (control or not in experiment)`);
-        }
-      }
-    }
-
-    let totalApplied = 0;
-    const experimentStats = new Map<string, { total: number; success: number; pending: number }>();
-
-    logDebug('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
-    logDebug('[ABsmartly] Total experiments with changes:', changesMap.size);
-
-    for (const [expName, changes] of changesMap) {
-      const stats = { total: changes.length, success: 0, pending: 0 };
-
-      logDebug(
-        `[ABsmartly] Processing experiment '${expName}' with ${changes.length} changes:`,
-        changes.map(c => ({
-          type: c.type,
-          selector: c.selector,
-          trigger: c.trigger_on_view ? 'viewport' : 'immediate',
-        }))
-      );
-
-      // Get the current variant for this experiment
-      const currentVariant = this.config.context.peek(expName);
-
-      // Get ALL variant changes for exposure tracking
-      const allVariantChanges = this.variantExtractor.getAllVariantChanges(expName);
-
-      // Track what types of triggers we have
-      let hasImmediateTrigger = false;
-      let hasViewportTrigger = false;
-
-      for (const change of changes) {
-        const elements = document.querySelectorAll(change.selector);
-
-        if (elements.length === 0 && change.type !== 'create') {
-          // Element not found, add to pending if SPA mode or waitForElement
-          if (this.config.spa || change.waitForElement) {
-            this.stateManager.addPendingChange(expName, change);
-            stats.pending++;
-
-            // Still need to track for exposure if trigger_on_view
-            if (change.trigger_on_view) {
-              hasViewportTrigger = true;
-            }
-          }
-        } else {
-          const success = this.domManipulator.applyChange(change, expName);
-          if (success) {
-            totalApplied++;
-            stats.success++;
-
-            // Determine trigger type
-            if (change.trigger_on_view) {
-              hasViewportTrigger = true;
-            } else {
-              hasImmediateTrigger = true;
-            }
-          }
-        }
-      }
-
-      // Set up exposure tracking for this experiment
-      if (hasViewportTrigger || hasImmediateTrigger) {
-        this.exposureTracker.registerExperiment(
-          expName,
-          currentVariant,
-          changes,
-          allVariantChanges
-        );
-      }
-
-      // If there are only immediate triggers (no viewport tracking), trigger exposure now
-      if (hasImmediateTrigger && !hasViewportTrigger) {
-        // Ensure context is ready before calling treatment
-        await this.config.context.ready();
-        this.config.context.treatment(expName);
-        this.exposedExperiments.add(expName);
-        logDebug(`Triggered immediate exposure for experiment: ${expName}`);
-      }
-
-      experimentStats.set(expName, stats);
-      logExperimentSummary(expName, stats.total, stats.success, stats.pending);
-    }
-
-    const duration = performance.now() - startTime;
-    logPerformance('Apply changes', duration, {
-      totalApplied,
-      experiments: experimentStats.size,
-    });
-
-    if (this.config.debug) {
-      logDebug('[ABsmartly] === DOM Changes Application Complete ===');
-      logDebug('[ABsmartly] Summary:', {
-        totalChangesApplied: totalApplied,
-        experimentsProcessed: experimentStats.size,
-        duration: `${duration.toFixed(2)}ms`,
-        experiments: Array.from(experimentStats.entries()).map(([name, stats]) => ({
-          name,
-          total: stats.total,
-          success: stats.success,
-          pending: stats.pending,
-          pendingReason:
-            stats.pending > 0 ? 'Elements not found yet (SPA mode will retry)' : undefined,
-        })),
-      });
-    }
-
-    this.emit('changes-applied', { count: totalApplied, experimentName });
-    this.messageBridge?.notifyChangesApplied(totalApplied, experimentName);
-  }
-
   removeChanges(experimentName?: string): AppliedChange[] {
-    const startTime = performance.now();
     let removedChanges: AppliedChange[] = [];
 
     logDebug('Starting to remove changes', {
@@ -407,19 +127,11 @@ export class DOMChangesPlugin {
     });
 
     if (experimentName) {
-      // Call the fixed method that handles all changes for an experiment
-      removedChanges = this.domManipulator.removeChanges(experimentName);
+      removedChanges = this.fullDomManipulator.removeChanges(experimentName);
     } else {
-      // Remove all changes
-      removedChanges = this.domManipulator.removeAllChanges();
+      removedChanges = this.fullDomManipulator.removeAllChanges();
     }
 
-    const duration = performance.now() - startTime;
-    logPerformance('Remove changes', duration, {
-      changesRemoved: removedChanges.length,
-    });
-
-    // Log removed changes for debugging
     if (this.config.debug) {
       logDebug(`[ABsmartly] Removed ${removedChanges.length} changes`, removedChanges);
     }
@@ -449,12 +161,7 @@ export class DOMChangesPlugin {
     return this.stateManager.getPendingChanges();
   }
 
-  hasChanges(experimentName: string): boolean {
-    return this.stateManager.hasChanges(experimentName);
-  }
-
   getOriginalState(selector: string): ElementState | undefined {
-    // Try to find the state from any change type
     const types = ['text', 'html', 'style', 'class', 'attribute', 'move'];
     for (const type of types) {
       const state = this.stateManager.getOriginalState(selector, type);
@@ -466,51 +173,13 @@ export class DOMChangesPlugin {
   }
 
   removeSpecificChange(experimentName: string, selector: string, changeType: string): boolean {
-    return this.domManipulator.removeSpecificChange(experimentName, selector, changeType);
+    return this.fullDomManipulator.removeSpecificChange(experimentName, selector, changeType);
   }
 
-  /**
-   * Apply a single DOM change
-   * This is the main method extensions should use to apply individual changes
-   */
-  applyChange(change: DOMChange, experimentName: string): boolean {
-    logDebug('Applying single change via public API', {
-      experimentName,
-      selector: change.selector,
-      changeType: change.type,
-    });
-
-    try {
-      const success = this.domManipulator.applyChange(change, experimentName);
-
-      if (success) {
-        this.emit('change_applied', {
-          experimentName,
-          change,
-        });
-      }
-
-      return success;
-    } catch (error) {
-      if (this.config.debug) {
-        logDebug('[ABsmartly] Error applying change:', error);
-      }
-      return false;
-    }
-  }
-
-  /**
-   * Remove all changes for a specific experiment
-   * Delegates to the existing removeChanges method
-   */
   removeAllChanges(experimentName?: string): AppliedChange[] {
     return this.removeChanges(experimentName);
   }
 
-  /**
-   * Get applied changes for a specific experiment
-   * Overrides the existing method to support filtering by experiment
-   */
   getAppliedChanges(experimentName?: string): AppliedChange[] {
     if (experimentName) {
       return this.stateManager.getAppliedChanges(experimentName);
@@ -518,13 +187,9 @@ export class DOMChangesPlugin {
     return this.stateManager.getAppliedChanges();
   }
 
-  /**
-   * Revert a specific applied change
-   * Useful for undo functionality
-   */
   revertChange(appliedChange: AppliedChange): boolean {
     try {
-      return this.domManipulator.revertChange(appliedChange);
+      return this.fullDomManipulator.revertChange(appliedChange);
     } catch (error) {
       if (this.config.debug) {
         logDebug('[ABsmartly] Error reverting change:', error);
@@ -533,86 +198,11 @@ export class DOMChangesPlugin {
     }
   }
 
-  on(event: string, callback: EventCallback): void {
-    const listeners = this.eventListeners.get(event) || [];
-    listeners.push(callback);
-    this.eventListeners.set(event, listeners);
-  }
-
-  off(event: string, callback?: EventCallback): void {
-    if (!callback) {
-      this.eventListeners.delete(event);
-    } else {
-      const listeners = this.eventListeners.get(event) || [];
-      const index = listeners.indexOf(callback);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    }
-  }
-
-  private emit(event: string, data?: EventCallbackData): void {
-    const listeners = this.eventListeners.get(event) || [];
-    listeners.forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        logDebug(`[ABsmartly] Error in event listener for ${event}:`, error);
-      }
-    });
-  }
-
-  getStyleManager(experimentName: string): StyleSheetManager {
-    const id = `absmartly-styles-${experimentName}`;
-    let manager = this.styleManagers.get(experimentName);
-
-    if (!manager) {
-      manager = new StyleSheetManager(id, this.config.debug);
-      this.styleManagers.set(experimentName, manager);
-    }
-
-    return manager;
-  }
-
-  buildCssRule(selector: string, properties: Record<string, string>, important = true): string {
-    const declarations = Object.entries(properties)
-      .map(([prop, value]) => {
-        const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-        const bang = important ? ' !important' : '';
-        return `  ${cssProp}: ${value}${bang};`;
-      })
-      .join('\n');
-
-    return `${selector} {\n${declarations}\n}`;
-  }
-
-  buildStateRules(selector: string, states: any, important = true): string {
-    const rules: string[] = [];
-
-    if (states.normal) {
-      rules.push(this.buildCssRule(selector, states.normal, important));
-    }
-    if (states.hover) {
-      rules.push(this.buildCssRule(`${selector}:hover`, states.hover, important));
-    }
-    if (states.active) {
-      rules.push(this.buildCssRule(`${selector}:active`, states.active, important));
-    }
-    if (states.focus) {
-      rules.push(this.buildCssRule(`${selector}:focus`, states.focus, important));
-    }
-
-    return rules.join('\n\n');
-  }
-
   setupPersistenceObserver(): void {
     if (this.persistenceObserver) return;
 
     this.persistenceObserver = new MutationObserver(mutations => {
-      // Check if visual editor is actively modifying DOM - don't reapply changes during operations like resize
       const isModifying = (window as any).__absmartlyVisualEditorModifying;
-      // Only log if we're actually skipping due to visual editor modification
-      // Don't log every single mutation - it's too noisy
 
       if (isModifying) {
         logDebug('Skipping style persistence - visual editor is modifying DOM', {
@@ -624,7 +214,6 @@ export class DOMChangesPlugin {
       mutations.forEach(mutation => {
         const element = mutation.target as Element;
 
-        // Skip if we're currently reapplying styles to this element (prevents infinite loop)
         if (this.reapplyingElements.has(element)) {
           return;
         }
@@ -632,37 +221,30 @@ export class DOMChangesPlugin {
         const experiments = this.watchedElements.get(element);
 
         if (experiments) {
-          // Check each experiment's changes for this element
           experiments.forEach(experimentName => {
             const appliedChanges = this.stateManager.getAppliedChanges(experimentName);
 
             appliedChanges.forEach(({ change }) => {
               if (change.type === 'style' && element.matches(change.selector)) {
-                // Check if inline styles were overwritten
                 const needsReapply = this.checkStyleOverwritten(
                   element as HTMLElement,
                   change.value as Record<string, string>
                 );
 
                 if (needsReapply) {
-                  // Check again if visual editor is modifying before reapplying
                   const isModifyingNow = (window as any).__absmartlyVisualEditorModifying;
 
                   if (isModifyingNow) {
-                    // Only log when we actually skip, not every time we check
                     logDebug('Skipping style reapplication - visual editor is modifying DOM', {
                       selector: change.selector,
                     });
                     return;
                   }
 
-                  // Mark element as being reapplied to prevent infinite loops
                   this.reapplyingElements.add(element);
 
-                  // Reapply the change
-                  this.domManipulator.applyChange(change, experimentName);
+                  this.fullDomManipulator.applyChange(change, experimentName);
 
-                  // Throttle logging to once every 5 seconds per selector
                   const logKey = `${experimentName}-${change.selector}`;
                   const now = Date.now();
                   const lastLogged = this.reapplyLogThrottle.get(logKey) || 0;
@@ -675,9 +257,8 @@ export class DOMChangesPlugin {
                     });
                     this.reapplyLogThrottle.set(logKey, now);
 
-                    // Clean up old entries to prevent memory leak
                     if (this.reapplyLogThrottle.size > 100) {
-                      const oldestAllowed = now - 60000; // 1 minute
+                      const oldestAllowed = now - 60000;
                       for (const [key, time] of this.reapplyLogThrottle.entries()) {
                         if (time < oldestAllowed) {
                           this.reapplyLogThrottle.delete(key);
@@ -686,7 +267,6 @@ export class DOMChangesPlugin {
                     }
                   }
 
-                  // Clear the flag after a micro-task to allow future mutations
                   Promise.resolve().then(() => {
                     this.reapplyingElements.delete(element);
                   });
@@ -698,7 +278,6 @@ export class DOMChangesPlugin {
       });
     });
 
-    // Observe only style attribute changes
     this.persistenceObserver.observe(document.body, {
       attributes: true,
       attributeFilter: ['style'],
@@ -716,7 +295,6 @@ export class DOMChangesPlugin {
       const currentValue = element.style.getPropertyValue(cssProp);
       const currentPriority = element.style.getPropertyPriority(cssProp);
 
-      // Check if the value was changed or priority was removed
       if (currentValue !== value || (value.includes('!important') && !currentPriority)) {
         return true;
       }
@@ -732,7 +310,6 @@ export class DOMChangesPlugin {
     }
     experiments.add(experimentName);
 
-    // Ensure persistence observer is running
     if (!this.persistenceObserver) {
       this.setupPersistenceObserver();
     }
@@ -748,44 +325,10 @@ export class DOMChangesPlugin {
     }
   }
 
-  // Public method to force re-processing of experiments
-  // Call this after overrides plugin has added experiments
-  public refreshExperiments(): void {
-    if (this.config.debug) {
-      logDebug('[ABsmartly] Refreshing experiments and clearing cache');
-    }
-    this.variantExtractor.clearCache();
-    // Re-apply changes with fresh data
-    if (this.config.autoApply) {
-      this.applyChanges();
-    }
-  }
-
-  destroy(): void {
-    // Clean up all resources
+  override destroy(): void {
     this.removeChanges();
     this.codeInjector.cleanup();
     this.stateManager.clearAll();
-
-    // Clean up DOM manipulator (includes pending manager)
-    this.domManipulator.destroy();
-
-    // Clean up exposure tracker
-    this.exposureTracker.destroy();
-
-    // Clean up style managers
-    this.styleManagers.forEach(manager => manager.destroy());
-    this.styleManagers.clear();
-
-    if (this.mutationObserver) {
-      this.mutationObserver.disconnect();
-      this.mutationObserver = null;
-    }
-
-    if (this.visibilityObserver) {
-      this.visibilityObserver.disconnect();
-      this.visibilityObserver = null;
-    }
 
     if (this.persistenceObserver) {
       this.persistenceObserver.disconnect();
@@ -797,28 +340,21 @@ export class DOMChangesPlugin {
       this.messageBridge = null;
     }
 
-    this.eventListeners.clear();
-    this.exposedExperiments.clear();
     this.watchedElements = new WeakMap();
 
-    // Unregister from context
-    this.unregisterFromContext();
-
-    this.initialized = false;
+    super.destroy();
 
     if (this.config.debug) {
-      logDebug('[ABsmartly] DOM Changes Plugin destroyed');
+      logDebug('[ABsmartly] DOM Changes Plugin (Full) destroyed');
     }
   }
 
-  private registerWithContext(): void {
+  protected override registerWithContext(): void {
     if (this.config.context) {
-      // Ensure __plugins object exists
       if (!this.config.context.__plugins) {
         this.config.context.__plugins = {};
       }
 
-      // Register under standardized __plugins structure
       this.config.context.__plugins.domPlugin = {
         name: 'DOMChangesPlugin',
         version: DOMChangesPlugin.VERSION,
@@ -828,29 +364,10 @@ export class DOMChangesPlugin {
         timestamp: Date.now(),
       };
 
-      // Also register at legacy location for backwards compatibility
       this.config.context.__domPlugin = this.config.context.__plugins.domPlugin;
 
       if (this.config.debug) {
         logDebug('[ABsmartly] DOMChangesPlugin registered with context at __plugins.domPlugin');
-      }
-    }
-  }
-
-  private unregisterFromContext(): void {
-    if (this.config.context) {
-      // Remove from standardized location
-      if (this.config.context.__plugins?.domPlugin) {
-        delete this.config.context.__plugins.domPlugin;
-      }
-
-      // Remove from legacy location
-      if (this.config.context.__domPlugin) {
-        delete this.config.context.__domPlugin;
-      }
-
-      if (this.config.debug) {
-        logDebug('[ABsmartly] DOMChangesPlugin unregistered from context');
       }
     }
   }

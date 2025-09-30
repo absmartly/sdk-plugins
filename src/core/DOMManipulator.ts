@@ -3,29 +3,19 @@ import { DOMChange, ElementState, AppliedChange } from '../types';
 import { StateManager } from './StateManager';
 import { logDebug, logChangeApplication, logChangeRemoval } from '../utils/debug';
 import type { DOMChangesPlugin } from './DOMChangesPlugin';
-import { PendingChangeManager } from './PendingChangeManager';
+import { DOMManipulatorLite } from './DOMManipulatorLite';
 
-export class DOMManipulator {
+export class DOMManipulator extends DOMManipulatorLite {
   private stateManager: StateManager;
-  private debug: boolean;
-  private plugin: DOMChangesPlugin;
-  private pendingManager: PendingChangeManager;
+  protected override plugin: DOMChangesPlugin;
 
   constructor(stateManager: StateManager, debug = false, plugin: DOMChangesPlugin) {
+    super(debug, plugin as any);
     this.stateManager = stateManager;
-    this.debug = debug;
     this.plugin = plugin;
-
-    // Initialize pending manager with a callback to apply changes
-    this.pendingManager = new PendingChangeManager((change, experimentName, element) => {
-      if (element) {
-        return this.applyChangeToSpecificElement(change, experimentName, element as HTMLElement);
-      }
-      return this.applyChange(change, experimentName);
-    }, debug);
   }
 
-  applyChange(change: DOMChange, experimentName: string): boolean {
+  override applyChange(change: DOMChange, experimentName: string): boolean {
     if (!change.enabled && change.enabled !== undefined) {
       logDebug(`Skipping disabled change for experiment: ${experimentName}`, {
         experimentName,
@@ -36,18 +26,14 @@ export class DOMManipulator {
     }
 
     try {
-      // Handle styleRules type separately - doesn't iterate over elements
-      // This needs to be checked BEFORE element selection since styleRules
-      // can have pseudo-classes that won't match querySelectorAll
       if (change.type === 'styleRules') {
-        return this.applyStyleRules(change, experimentName);
+        return this.applyStyleRulesWithState(change, experimentName);
       }
 
       const elements = document.querySelectorAll(change.selector);
       const appliedElements: Element[] = [];
 
       if (elements.length === 0 && change.type !== 'create') {
-        // If waitForElement is true, add to pending changes
         if (change.waitForElement) {
           if (this.debug) {
             logDebug(`[ABsmartly] Element not found, adding to pending: ${change.selector}`);
@@ -57,7 +43,7 @@ export class DOMManipulator {
             experimentName,
             observerRoot: change.observerRoot,
           });
-          return true; // Return true as it's been queued for later
+          return true;
         }
 
         if (this.debug) {
@@ -72,12 +58,11 @@ export class DOMManipulator {
       }
 
       elements.forEach(element => {
+        // Store original state before applying change
         this.stateManager.storeOriginalState(change.selector, element, change.type);
 
-        // Apply the change using the helper method
         this.applyChangeToElement(element, change);
 
-        // Handle special cases
         if (change.type === 'javascript') {
           if (change.value) {
             try {
@@ -89,7 +74,6 @@ export class DOMManipulator {
             }
           }
         } else if (change.type === 'move') {
-          // Move changes can have targetSelector at root or inside value object
           const targetSelector =
             (change as any).targetSelector ||
             (change.value && typeof change.value === 'object'
@@ -114,6 +98,7 @@ export class DOMManipulator {
           appliedElements.push(element);
         }
 
+        // Add tracking attributes
         element.setAttribute('data-absmartly-modified', 'true');
         element.setAttribute('data-absmartly-experiment', experimentName);
 
@@ -123,9 +108,8 @@ export class DOMManipulator {
         }
       });
 
-      // Handle create type separately
       if (change.type === 'create' && change.element && change.targetSelector) {
-        const created = this.createElement(change, experimentName);
+        const created = this.createElementWithState(change, experimentName);
         if (created) {
           appliedElements.push(created);
         }
@@ -134,7 +118,6 @@ export class DOMManipulator {
       if (appliedElements.length > 0) {
         this.stateManager.addAppliedChange(experimentName, change, appliedElements);
 
-        // Remove from pending if it was there
         if (change.waitForElement) {
           this.pendingManager.removePending(change.selector, experimentName, change.observerRoot);
         }
@@ -165,42 +148,7 @@ export class DOMManipulator {
     }
   }
 
-  private moveElement(element: Element, target: Element, position?: string): void {
-    // Track original parent before moving
-    const originalParent = element.parentElement;
-    if (originalParent) {
-      const parentSelector = this.getParentSelector(originalParent);
-      if (parentSelector) {
-        element.setAttribute('data-absmartly-original-parent', parentSelector);
-      }
-    }
-
-    switch (position) {
-      case 'before':
-        target.parentElement?.insertBefore(element, target);
-        break;
-      case 'after':
-        if (target.nextSibling) {
-          target.parentElement?.insertBefore(element, target.nextSibling);
-        } else {
-          target.parentElement?.appendChild(element);
-        }
-        break;
-      case 'firstChild':
-        if (target.firstChild) {
-          target.insertBefore(element, target.firstChild);
-        } else {
-          target.appendChild(element);
-        }
-        break;
-      case 'lastChild':
-      default:
-        target.appendChild(element);
-        break;
-    }
-  }
-
-  private createElement(change: DOMChange, experimentName: string): Element | null {
+  private createElementWithState(change: DOMChange, experimentName: string): Element | null {
     if (!change.element || !change.targetSelector) {
       return null;
     }
@@ -233,11 +181,57 @@ export class DOMManipulator {
     return newElement;
   }
 
+  private applyStyleRulesWithState(change: DOMChange, experimentName: string): boolean {
+    try {
+      const manager = this.plugin.getStyleManager(experimentName);
+      const ruleKey = `${change.selector}::states`;
+
+      const css = this.plugin.buildStateRules(
+        change.selector,
+        change.states || {},
+        change.important !== false
+      );
+
+      manager.setRule(ruleKey, css);
+
+      if (this.debug) {
+        logDebug(`[ABsmartly] Applied style rule: ${ruleKey}`);
+        logDebug(`[ABsmartly] CSS: ${css}`);
+      }
+
+      const baseSelector = change.selector.replace(/:hover|:active|:focus|:visited/g, '');
+
+      let elements: NodeListOf<Element>;
+      try {
+        elements = document.querySelectorAll(baseSelector);
+        elements.forEach(element => {
+          element.setAttribute('data-absmartly-modified', 'true');
+          element.setAttribute('data-absmartly-experiment', experimentName);
+          element.setAttribute('data-absmartly-style-rules', 'true');
+        });
+      } catch (e) {
+        elements = document.querySelectorAll(
+          '*[data-absmartly-experiment="' + experimentName + '"]'
+        );
+      }
+
+      this.stateManager.addAppliedChange(experimentName, change, Array.from(elements));
+
+      logChangeApplication(experimentName, change.selector, 'styleRules', elements.length, true);
+
+      return true;
+    } catch (error) {
+      if (this.debug) {
+        logDebug('[ABsmartly] Error applying style rules:', error);
+      }
+      return false;
+    }
+  }
+
   removeChanges(experimentName: string): AppliedChange[] {
     const removedChanges: AppliedChange[] = [];
 
-    // Remove any pending changes for this experiment
-    this.pendingManager.removeAllPending(experimentName);
+    this.removeAllPending(experimentName);
 
     logDebug(`Starting to remove changes for experiment: ${experimentName}`, {
       experimentName,
@@ -245,23 +239,18 @@ export class DOMManipulator {
     });
 
     try {
-      // Get all applied changes for this experiment from state manager
       const appliedChanges = this.stateManager.getAppliedChanges(experimentName);
 
-      // Store them for return value
       removedChanges.push(...appliedChanges);
 
-      // Process each applied change
       for (const applied of appliedChanges) {
         const { change, elements } = applied;
 
-        // Handle styleRules removal
         if (change.type === 'styleRules') {
           const manager = this.plugin.getStyleManager(experimentName);
           const ruleKey = `${change.selector}::states`;
           manager.deleteRule(ruleKey);
 
-          // Clean up element attributes
           const styledElements = document.querySelectorAll(change.selector);
           styledElements.forEach(element => {
             element.removeAttribute('data-absmartly-modified');
@@ -271,7 +260,6 @@ export class DOMManipulator {
           continue;
         }
 
-        // Handle delete changes specially - need to restore deleted elements
         if (change.type === 'delete' && change.value) {
           const deleteValue = change.value as {
             html?: string;
@@ -283,13 +271,11 @@ export class DOMManipulator {
             const parent = document.querySelector(deleteValue.parentSelector);
 
             if (parent) {
-              // Create a temporary container to parse the HTML
               const temp = document.createElement('div');
               temp.innerHTML = deleteValue.html;
               const elementToRestore = temp.firstElementChild as HTMLElement;
 
               if (elementToRestore) {
-                // Try to restore to original position
                 if (deleteValue.nextSiblingSelector) {
                   const nextSibling = document.querySelector(deleteValue.nextSiblingSelector);
                   if (nextSibling && nextSibling.parentElement === parent) {
@@ -312,10 +298,8 @@ export class DOMManipulator {
           continue;
         }
 
-        // For each element that was modified by this change
         elements.forEach(element => {
           if (element.hasAttribute('data-absmartly-created')) {
-            // Remove created elements
             const changeId = element.getAttribute('data-absmartly-change-id');
             if (changeId) {
               this.stateManager.removeCreatedElement(changeId);
@@ -327,7 +311,6 @@ export class DOMManipulator {
               changeType: 'create',
             });
           } else {
-            // Restore modified elements to their original state
             const originalState = this.stateManager.getOriginalState(change.selector, change.type);
 
             if (originalState) {
@@ -341,26 +324,21 @@ export class DOMManipulator {
               });
             }
 
-            // Clean up tracking attributes
             element.removeAttribute('data-absmartly-modified');
             element.removeAttribute('data-absmartly-experiment');
             element.removeAttribute('data-absmartly-style-rules');
 
-            // Stop watching for persistence
             if (change.type === 'style') {
               this.plugin.unwatchElement(element, experimentName);
             }
           }
         });
 
-        // Clear the original state after restoring so it can be recaptured on next apply
         this.stateManager.clearOriginalState(change.selector, change.type);
       }
 
-      // Clear the applied changes from state manager
       this.stateManager.removeAppliedChanges(experimentName);
 
-      // Clean up style manager if it exists
       const styleManager = this.plugin.getStyleManager(experimentName);
       if (styleManager) {
         styleManager.destroy();
@@ -381,156 +359,7 @@ export class DOMManipulator {
       });
     }
 
-    // Return the changes that were removed for debugging or reapplication
     return removedChanges;
-  }
-
-  private applyStyleRules(change: DOMChange, experimentName: string): boolean {
-    try {
-      const manager = this.plugin.getStyleManager(experimentName);
-      const ruleKey = `${change.selector}::states`;
-
-      // Build CSS from states
-      const css = this.plugin.buildStateRules(
-        change.selector,
-        change.states || {},
-        change.important !== false // default true
-      );
-
-      // Set the rule in the stylesheet
-      manager.setRule(ruleKey, css);
-
-      if (this.debug) {
-        logDebug(`[ABsmartly] Applied style rule: ${ruleKey}`);
-        logDebug(`[ABsmartly] CSS: ${css}`);
-      }
-
-      // Extract base selector without pseudo-classes for element selection
-      // e.g., ".btn:hover .icon" -> ".btn .icon"
-      const baseSelector = change.selector.replace(/:hover|:active|:focus|:visited/g, '');
-
-      // Try to mark elements - may not match if selector is complex
-      let elements: NodeListOf<Element>;
-      try {
-        elements = document.querySelectorAll(baseSelector);
-        elements.forEach(element => {
-          element.setAttribute('data-absmartly-modified', 'true');
-          element.setAttribute('data-absmartly-experiment', experimentName);
-          element.setAttribute('data-absmartly-style-rules', 'true');
-        });
-      } catch (e) {
-        // If selector doesn't match (e.g., complex pseudo-selectors), that's OK
-        // The CSS rules will still apply
-        elements = document.querySelectorAll(
-          '*[data-absmartly-experiment="' + experimentName + '"]'
-        );
-      }
-
-      // Store the change even if no elements matched
-      // (CSS rules are still active and will apply when conditions are met)
-      this.stateManager.addAppliedChange(experimentName, change, Array.from(elements));
-
-      logChangeApplication(experimentName, change.selector, 'styleRules', elements.length, true);
-
-      return true; // Success if rule was added, regardless of element matches
-    } catch (error) {
-      if (this.debug) {
-        logDebug('[ABsmartly] Error applying style rules:', error);
-      }
-      return false;
-    }
-  }
-
-  applyChangeToElement(element: Element, change: DOMChange): void {
-    switch (change.type) {
-      case 'text':
-        if (change.value !== undefined) {
-          element.textContent = String(change.value);
-        }
-        break;
-      case 'html':
-        if (change.value !== undefined) {
-          element.innerHTML = String(change.value);
-        }
-        break;
-      case 'style':
-        if (change.value && typeof change.value === 'object') {
-          Object.entries(change.value).forEach(([property, value]) => {
-            // Convert camelCase to kebab-case for CSS properties
-            const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
-            (element as HTMLElement).style.setProperty(cssProperty, String(value));
-          });
-        }
-        break;
-      case 'class':
-        if (change.add && Array.isArray(change.add)) {
-          element.classList.add(...change.add);
-        }
-        if (change.remove && Array.isArray(change.remove)) {
-          element.classList.remove(...change.remove);
-        }
-        break;
-      case 'attribute':
-        if (change.value && typeof change.value === 'object') {
-          Object.entries(change.value).forEach(([attr, value]) => {
-            if (value === null || value === undefined) {
-              element.removeAttribute(attr);
-            } else {
-              element.setAttribute(attr, String(value));
-            }
-          });
-        }
-        break;
-      case 'move':
-        // Handle move changes - value contains targetSelector and position
-        if (change.value && typeof change.value === 'object') {
-          const moveValue = change.value as {
-            targetSelector: string;
-            position: string;
-            originalTargetSelector?: string;
-            originalPosition?: string;
-          };
-          const target = document.querySelector(moveValue.targetSelector);
-          if (target) {
-            // Store original position if provided (for reverting)
-            if (moveValue.originalTargetSelector && moveValue.originalPosition) {
-              element.setAttribute(
-                'data-absmartly-original-target',
-                moveValue.originalTargetSelector
-              );
-              element.setAttribute('data-absmartly-original-position', moveValue.originalPosition);
-            }
-            this.moveElement(element, target, moveValue.position);
-          } else if (this.debug) {
-            logDebug(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
-          }
-        }
-        break;
-      case 'delete':
-        // Store the element's current HTML and position for restoration
-        if (change.value && typeof change.value === 'object') {
-          const deleteValue = change.value as {
-            html?: string;
-            parentSelector?: string;
-            nextSiblingSelector?: string;
-          };
-
-          // Store restoration data in attributes
-          if (deleteValue.html) {
-            element.setAttribute('data-absmartly-deleted-html', deleteValue.html);
-          }
-          if (deleteValue.parentSelector) {
-            element.setAttribute('data-absmartly-deleted-parent', deleteValue.parentSelector);
-          }
-          if (deleteValue.nextSiblingSelector) {
-            element.setAttribute('data-absmartly-deleted-sibling', deleteValue.nextSiblingSelector);
-          }
-        }
-
-        // Remove the element from DOM
-        element.remove();
-        break;
-    }
   }
 
   private restoreElement(element: Element, state: ElementState, changeType: string): void {
@@ -538,8 +367,6 @@ export class DOMManipulator {
 
     switch (changeType) {
       case 'text':
-        // If we stored HTML (element had children), restore the full HTML structure
-        // Otherwise just restore the text content
         if (original.html !== undefined) {
           element.innerHTML = original.html;
         } else if (original.text !== undefined) {
@@ -556,7 +383,6 @@ export class DOMManipulator {
       case 'style':
         if (original.style !== undefined) {
           if (original.style === '') {
-            // If original had no style, remove the attribute entirely
             element.removeAttribute('style');
           } else {
             element.setAttribute('style', original.style);
@@ -573,14 +399,11 @@ export class DOMManipulator {
           });
         }
         if (original.classList) {
-          // Clear all classes first
           element.className = '';
-          // Then add back the original classes
           if (original.classList.length > 0) {
             element.classList.add(...original.classList);
           }
         } else {
-          // If there were no original classes, clear all classes
           element.className = '';
         }
         if (this.debug) {
@@ -592,22 +415,17 @@ export class DOMManipulator {
 
       case 'attribute':
         if (original.attributes) {
-          // Get current attribute names
           const currentAttrs = new Set<string>();
           for (let i = 0; i < element.attributes.length; i++) {
             currentAttrs.add(element.attributes[i].name);
           }
 
-          // Restore original attributes (add/update)
           Object.entries(original.attributes).forEach(([name, value]) => {
             element.setAttribute(name, value as string);
             currentAttrs.delete(name);
           });
 
-          // Remove attributes that weren't in the original
-          // but skip special attributes managed by other change types
           currentAttrs.forEach(name => {
-            // Don't remove style, class, or our tracking attributes as they're managed separately
             if (name !== 'style' && name !== 'class' && !name.startsWith('data-absmartly-')) {
               element.removeAttribute(name);
             }
@@ -616,7 +434,6 @@ export class DOMManipulator {
         break;
 
       case 'move': {
-        // First try to use the stored original position from the move change
         const originalTarget = element.getAttribute('data-absmartly-original-target');
         const originalPosition = element.getAttribute('data-absmartly-original-position');
 
@@ -624,14 +441,12 @@ export class DOMManipulator {
           const target = document.querySelector(originalTarget);
           if (target) {
             this.moveElement(element, target, originalPosition);
-            // Clean up move-related attributes
             element.removeAttribute('data-absmartly-original-target');
             element.removeAttribute('data-absmartly-original-position');
           } else if (this.debug) {
             logDebug(`[ABsmartly] Original move target not found: ${originalTarget}`);
           }
         } else if (original.parent) {
-          // Fallback to the old method if no original position data
           if (original.nextSibling) {
             original.parent.insertBefore(element, original.nextSibling);
           } else {
@@ -647,11 +462,9 @@ export class DOMManipulator {
     const allRemovedChanges: AppliedChange[] = [];
 
     if (experimentName) {
-      // Remove changes for specific experiment
       const removed = this.removeChanges(experimentName);
       allRemovedChanges.push(...removed);
     } else {
-      // Remove ALL changes across all experiments
       const allExperiments = this.stateManager.getAllExperimentNames();
       for (const exp of allExperiments) {
         const removed = this.removeChanges(exp);
@@ -660,106 +473,6 @@ export class DOMManipulator {
     }
 
     return allRemovedChanges;
-  }
-
-  // Apply change to a specific element (used by PendingChangeManager)
-  private applyChangeToSpecificElement(
-    change: DOMChange,
-    experimentName: string,
-    element: HTMLElement
-  ): boolean {
-    try {
-      // Store original state
-      this.stateManager.storeOriginalState(change.selector, element, change.type);
-
-      // Apply the change
-      this.applyChangeToElement(element, change);
-
-      // Handle special cases
-      if (change.type === 'javascript' && change.value) {
-        try {
-          const fn = new Function('element', String(change.value));
-          fn(element);
-        } catch (error) {
-          logDebug('[ABsmartly] JavaScript execution error:', error);
-          return false;
-        }
-      } else if (change.type === 'move') {
-        // Move changes can have targetSelector at root or inside value object
-        const targetSelector =
-          (change as any).targetSelector ||
-          (change.value && typeof change.value === 'object'
-            ? (change.value as any).targetSelector
-            : null);
-        const position =
-          (change as any).position ||
-          (change.value && typeof change.value === 'object'
-            ? (change.value as any).position
-            : null);
-
-        if (targetSelector) {
-          const target = document.querySelector(targetSelector);
-          if (target) {
-            this.moveElement(element, target, position);
-          } else {
-            return false;
-          }
-        }
-      }
-
-      // Mark element as modified
-      element.setAttribute('data-absmartly-modified', 'true');
-      element.setAttribute('data-absmartly-experiment', experimentName);
-
-      // Watch for persistence if it's an inline style change
-      if (change.type === 'style') {
-        this.plugin.watchElement(element, experimentName);
-      }
-
-      // Update state manager
-      const existing = this.stateManager.getAppliedChanges(experimentName);
-      const found = existing.find(
-        ac => ac.change.selector === change.selector && ac.change.type === change.type
-      );
-
-      if (found) {
-        // Add to existing elements array if not already there
-        if (!found.elements.includes(element)) {
-          found.elements.push(element);
-        }
-      } else {
-        // Add new applied change
-        this.stateManager.addAppliedChange(experimentName, change, [element]);
-      }
-
-      return true;
-    } catch (error) {
-      if (this.debug) {
-        logDebug('[ABsmartly] Error applying change to specific element:', error);
-      }
-      return false;
-    }
-  }
-
-  // Get a selector for a parent element
-  private getParentSelector(element: Element): string | null {
-    if (element.id) {
-      return `#${element.id}`;
-    }
-
-    if (element.className) {
-      const classes = element.className.split(' ').filter(c => c && !c.startsWith('absmartly'));
-      if (classes.length > 0) {
-        return `.${classes[0]}`;
-      }
-    }
-
-    return element.tagName.toLowerCase();
-  }
-
-  // Clean up pending manager on destroy
-  destroy(): void {
-    this.pendingManager.destroy();
   }
 
   removeSpecificChange(experimentName: string, selector: string, changeType: string): boolean {
@@ -773,7 +486,6 @@ export class DOMManipulator {
     try {
       const appliedChanges = this.stateManager.getAppliedChanges(experimentName);
 
-      // Find ALL changes for this selector and type
       const matchingChanges = appliedChanges.filter(
         applied => applied.change.selector === selector && applied.change.type === changeType
       );
@@ -787,7 +499,6 @@ export class DOMManipulator {
         return false;
       }
 
-      // Find the index of the first matching change to remove
       const changeIndex = appliedChanges.findIndex(
         applied => applied.change.selector === selector && applied.change.type === changeType
       );
@@ -795,7 +506,6 @@ export class DOMManipulator {
       const applied = appliedChanges[changeIndex];
       const { change, elements } = applied;
 
-      // If this is a created element, just remove it
       if (elements[0]?.hasAttribute('data-absmartly-created')) {
         elements.forEach(element => {
           const changeId = element.getAttribute('data-absmartly-change-id');
@@ -805,31 +515,25 @@ export class DOMManipulator {
           element.remove();
         });
       } else {
-        // For modified elements, we need to handle multiple changes
         const originalState = this.stateManager.getOriginalState(change.selector, change.type);
 
-        // First, restore to original state
         if (originalState) {
           elements.forEach(element => {
             this.restoreElement(element, originalState, change.type);
           });
         }
 
-        // Then reapply all OTHER changes of the same type for this selector
-        // (excluding the one we're removing)
         const remainingChanges = matchingChanges.filter(
           (_, idx) => appliedChanges.indexOf(matchingChanges[idx]) !== changeIndex
         );
 
         for (const remainingChange of remainingChanges) {
-          // Reapply the change
           const reapplyElements = document.querySelectorAll(remainingChange.change.selector);
           reapplyElements.forEach(element => {
             this.applyChangeToElement(element, remainingChange.change);
           });
         }
 
-        // Clean up attributes only if no more changes for this element
         if (remainingChanges.length === 0) {
           elements.forEach(element => {
             element.removeAttribute('data-absmartly-modified');
@@ -838,7 +542,6 @@ export class DOMManipulator {
         }
       }
 
-      // Remove this specific change from the state manager
       this.stateManager.removeSpecificAppliedChange(experimentName, selector, changeType);
 
       logChangeRemoval(experimentName, selector, changeType, elements.length);
@@ -856,7 +559,7 @@ export class DOMManipulator {
 
     try {
       elements.forEach(element => {
-        if (!element) return; // Skip null/undefined elements
+        if (!element) return;
 
         if (element.hasAttribute('data-absmartly-created')) {
           const changeId = element.getAttribute('data-absmartly-change-id');
@@ -882,5 +585,24 @@ export class DOMManipulator {
       }
       return false;
     }
+  }
+
+  getAppliedChanges(experimentName?: string): AppliedChange[] {
+    if (experimentName) {
+      return this.stateManager.getAppliedChanges(experimentName);
+    }
+    return this.stateManager.getAppliedChanges();
+  }
+
+  getOriginalState(selector: string, changeType: string): ElementState | undefined {
+    return this.stateManager.getOriginalState(selector, changeType);
+  }
+
+  getPendingChanges(): Array<{ experimentName: string; change: DOMChange; retryCount: number }> {
+    return this.stateManager.getPendingChanges();
+  }
+
+  override hasChanges(experimentName: string): boolean {
+    return this.stateManager.hasChanges(experimentName);
   }
 }
