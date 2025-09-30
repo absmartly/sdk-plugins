@@ -259,37 +259,31 @@ export class DOMChangesPlugin {
       const allVariants = this.variantExtractor.extractAllChanges();
       changesMap = new Map();
 
-      if (this.config.debug) {
-        logDebug(
-          '[ABsmartly] All available experiments with DOM changes:',
-          Array.from(allVariants.keys())
-        );
-      }
+      logDebug(
+        '[ABsmartly] All available experiments with DOM changes:',
+        Array.from(allVariants.keys())
+      );
 
       for (const [expName, variantMap] of allVariants) {
         // Get the current variant for this experiment
         const currentVariant = this.config.context.peek(expName);
 
-        if (this.config.debug) {
-          logDebug(`[ABsmartly] Experiment '${expName}':`, {
-            assignedVariant: currentVariant,
-            availableVariants: Array.from(variantMap.keys()),
-          });
-        }
+        logDebug(`[ABsmartly] Experiment '${expName}':`, {
+          assignedVariant: currentVariant,
+          availableVariants: Array.from(variantMap.keys()),
+        });
 
-        if (currentVariant !== undefined && currentVariant !== null) {
+        if (currentVariant) {
           const changes = variantMap.get(currentVariant);
           if (changes && changes.length > 0) {
             changesMap.set(expName, changes);
-            if (this.config.debug) {
-              logDebug(
-                `[ABsmartly]   -> Will apply ${changes.length} changes for variant ${currentVariant}`
-              );
-            }
-          } else if (this.config.debug) {
+            logDebug(
+              `[ABsmartly]   -> Will apply ${changes.length} changes for variant ${currentVariant}`
+            );
+          } else {
             logDebug(`[ABsmartly]   -> No changes found for variant ${currentVariant}`);
           }
-        } else if (this.config.debug) {
+        } else {
           logDebug(`[ABsmartly]   -> No variant assigned (control or not in experiment)`);
         }
       }
@@ -298,36 +292,23 @@ export class DOMChangesPlugin {
     let totalApplied = 0;
     const experimentStats = new Map<string, { total: number; success: number; pending: number }>();
 
-    if (this.config.debug) {
-      logDebug('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
-      logDebug('[ABsmartly] Total experiments with changes:', changesMap.size);
-    }
+    logDebug('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
+    logDebug('[ABsmartly] Total experiments with changes:', changesMap.size);
 
     for (const [expName, changes] of changesMap) {
       const stats = { total: changes.length, success: 0, pending: 0 };
 
-      logDebug(`Applying changes for experiment: ${expName}`, {
-        experimentName: expName,
-        totalChanges: changes.length,
-      });
-
-      if (this.config.debug) {
-        logDebug(
-          `[ABsmartly] Processing experiment '${expName}' with ${changes.length} changes:`,
-          changes.map(c => ({
-            type: c.type,
-            selector: c.selector,
-            trigger: c.trigger_on_view ? 'viewport' : 'immediate',
-          }))
-        );
-      }
+      logDebug(
+        `[ABsmartly] Processing experiment '${expName}' with ${changes.length} changes:`,
+        changes.map(c => ({
+          type: c.type,
+          selector: c.selector,
+          trigger: c.trigger_on_view ? 'viewport' : 'immediate',
+        }))
+      );
 
       // Get the current variant for this experiment
       const currentVariant = this.config.context.peek(expName);
-      if (currentVariant === undefined || currentVariant === null) {
-        logDebug(`No variant selected for experiment: ${expName}`);
-        continue;
-      }
 
       // Get ALL variant changes for exposure tracking
       const allVariantChanges = this.variantExtractor.getAllVariantChanges(expName);
