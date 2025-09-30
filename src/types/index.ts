@@ -7,7 +7,8 @@ export type ChangeType =
   | 'attribute'
   | 'javascript'
   | 'move'
-  | 'create';
+  | 'create'
+  | 'delete';
 
 export type DOMChangeValue = string | number | boolean | Record<string, string> | undefined;
 

@@ -271,6 +271,47 @@ export class DOMManipulator {
           continue;
         }
 
+        // Handle delete changes specially - need to restore deleted elements
+        if (change.type === 'delete' && change.value) {
+          const deleteValue = change.value as {
+            html?: string;
+            parentSelector?: string;
+            nextSiblingSelector?: string;
+          };
+
+          if (deleteValue.html && deleteValue.parentSelector) {
+            const parent = document.querySelector(deleteValue.parentSelector);
+
+            if (parent) {
+              // Create a temporary container to parse the HTML
+              const temp = document.createElement('div');
+              temp.innerHTML = deleteValue.html;
+              const elementToRestore = temp.firstElementChild as HTMLElement;
+
+              if (elementToRestore) {
+                // Try to restore to original position
+                if (deleteValue.nextSiblingSelector) {
+                  const nextSibling = document.querySelector(deleteValue.nextSiblingSelector);
+                  if (nextSibling && nextSibling.parentElement === parent) {
+                    parent.insertBefore(elementToRestore, nextSibling);
+                  } else {
+                    parent.appendChild(elementToRestore);
+                  }
+                } else {
+                  parent.appendChild(elementToRestore);
+                }
+
+                logDebug(`Restored deleted element`, {
+                  experimentName,
+                  selector: change.selector,
+                  changeType: 'delete',
+                });
+              }
+            }
+          }
+          continue;
+        }
+
         // For each element that was modified by this change
         elements.forEach(element => {
           if (element.hasAttribute('data-absmartly-created')) {
@@ -464,6 +505,30 @@ export class DOMManipulator {
             logDebug(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
           }
         }
+        break;
+      case 'delete':
+        // Store the element's current HTML and position for restoration
+        if (change.value && typeof change.value === 'object') {
+          const deleteValue = change.value as {
+            html?: string;
+            parentSelector?: string;
+            nextSiblingSelector?: string;
+          };
+
+          // Store restoration data in attributes
+          if (deleteValue.html) {
+            element.setAttribute('data-absmartly-deleted-html', deleteValue.html);
+          }
+          if (deleteValue.parentSelector) {
+            element.setAttribute('data-absmartly-deleted-parent', deleteValue.parentSelector);
+          }
+          if (deleteValue.nextSiblingSelector) {
+            element.setAttribute('data-absmartly-deleted-sibling', deleteValue.nextSiblingSelector);
+          }
+        }
+
+        // Remove the element from DOM
+        element.remove();
         break;
     }
   }
