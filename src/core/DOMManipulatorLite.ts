@@ -54,7 +54,10 @@ export class DOMManipulatorLite {
       const appliedElements: Element[] = [];
 
       if (elements.length === 0) {
-        if (change.waitForElement) {
+        // Add to pending if waitForElement is explicitly true OR if SPA mode is enabled
+        const shouldWaitForElement = change.waitForElement || (this.plugin as any).config?.spa;
+
+        if (shouldWaitForElement) {
           if (this.debug) {
             logDebug(`[ABsmartly] Element not found, adding to pending: ${change.selector}`);
           }
