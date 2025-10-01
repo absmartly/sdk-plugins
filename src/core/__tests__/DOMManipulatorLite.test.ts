@@ -96,7 +96,9 @@ describe('DOMManipulatorLite', () => {
       const result = manipulator.applyChange(change, 'test_exp');
 
       expect(result).toBe(true);
-      expect(document.querySelector('.target')?.innerHTML).toBe('<strong>Modified</strong> Content');
+      expect(document.querySelector('.target')?.innerHTML).toBe(
+        '<strong>Modified</strong> Content'
+      );
     });
 
     it('should preserve existing HTML structure', () => {
@@ -201,9 +203,14 @@ describe('DOMManipulatorLite', () => {
     });
 
     it('should remove classes', () => {
-      document.body.innerHTML = '<div class="target old-class another-class keep-this">Content</div>';
+      document.body.innerHTML =
+        '<div class="target old-class another-class keep-this">Content</div>';
 
-      const change = TestDataFactory.createClassChange('.target', [], ['old-class', 'another-class']);
+      const change = TestDataFactory.createClassChange(
+        '.target',
+        [],
+        ['old-class', 'another-class']
+      );
       const result = manipulator.applyChange(change, 'test_exp');
 
       expect(result).toBe(true);
@@ -304,7 +311,7 @@ describe('DOMManipulatorLite', () => {
       const change: DOMChange = {
         selector: '.target',
         type: 'attribute',
-        value: { 'href': 'new.html' },
+        value: { href: 'new.html' },
       };
       manipulator.applyChange(change, 'test_exp');
 
@@ -317,7 +324,7 @@ describe('DOMManipulatorLite', () => {
       const change: DOMChange = {
         selector: '.target',
         type: 'attribute',
-        value: { 'disabled': 'true' },
+        value: { disabled: 'true' },
       };
       manipulator.applyChange(change, 'test_exp');
 
@@ -922,7 +929,7 @@ describe('DOMManipulatorLite', () => {
       const change: DOMChange = {
         selector: '.target-circle',
         type: 'attribute',
-        value: { 'r': '100' },
+        value: { r: '100' },
       };
       const result = manipulator.applyChange(change, 'test_exp');
 
@@ -934,8 +941,9 @@ describe('DOMManipulatorLite', () => {
   describe('Performance', () => {
     it('should handle bulk changes efficiently', () => {
       // Create 100 elements
-      document.body.innerHTML = Array.from({ length: 100 }, (_, i) =>
-        `<div class="item" data-index="${i}">Item ${i}</div>`
+      document.body.innerHTML = Array.from(
+        { length: 100 },
+        (_, i) => `<div class="item" data-index="${i}">Item ${i}</div>`
       ).join('');
 
       const change: DOMChange = {

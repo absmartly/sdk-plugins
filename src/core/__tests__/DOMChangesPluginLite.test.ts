@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import {
-  TestDataFactory,
-  MockContextFactory,
-  TestDOMUtils,
-} from '../../__tests__/test-utils';
+import { TestDataFactory, MockContextFactory, TestDOMUtils } from '../../__tests__/test-utils';
 import { DOMChange } from '../../types';
 
 describe('DOMChangesPluginLite', () => {
@@ -312,7 +308,10 @@ describe('DOMChangesPluginLite', () => {
     it('should add classes', async () => {
       TestDOMUtils.createTestPage();
 
-      const classChange = TestDataFactory.createClassChange('.hero-cta', ['btn-large', 'btn-primary']);
+      const classChange = TestDataFactory.createClassChange('.hero-cta', [
+        'btn-large',
+        'btn-primary',
+      ]);
       const experiment = TestDataFactory.createExperiment('test_exp', [classChange], 1);
       const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
 
@@ -325,9 +324,14 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should remove classes', async () => {
-      document.body.innerHTML = '<button class="btn hero-cta old-class another-class">Click</button>';
+      document.body.innerHTML =
+        '<button class="btn hero-cta old-class another-class">Click</button>';
 
-      const classChange = TestDataFactory.createClassChange('.hero-cta', [], ['old-class', 'another-class']);
+      const classChange = TestDataFactory.createClassChange(
+        '.hero-cta',
+        [],
+        ['old-class', 'another-class']
+      );
       const experiment = TestDataFactory.createExperiment('test_exp', [classChange], 1);
       const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
 
@@ -343,7 +347,11 @@ describe('DOMChangesPluginLite', () => {
     it('should add and remove classes in one change', async () => {
       document.body.innerHTML = '<button class="btn hero-cta old-class">Click</button>';
 
-      const classChange = TestDataFactory.createClassChange('.hero-cta', ['new-class'], ['old-class']);
+      const classChange = TestDataFactory.createClassChange(
+        '.hero-cta',
+        ['new-class'],
+        ['old-class']
+      );
       const experiment = TestDataFactory.createExperiment('test_exp', [classChange], 1);
       const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
 
@@ -513,6 +521,24 @@ describe('DOMChangesPluginLite', () => {
   });
 
   describe('Create Changes', () => {
+    it('should extract create changes from context', () => {
+      const createElement: DOMChange = {
+        selector: '',
+        type: 'create',
+        element: '<div class="new-item">New Item</div>',
+        targetSelector: '.container',
+        position: 'lastChild',
+      };
+      const experiment = TestDataFactory.createExperiment('test_exp', [createElement], 1);
+      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+
+      const plugin = new DOMChangesPluginLite({ context });
+      const extractor = (plugin as any).variantExtractor;
+
+      const changes = extractor.getExperimentChanges('test_exp');
+      expect(changes).toEqual([createElement]);
+    });
+
     it('should create new elements', async () => {
       document.body.innerHTML = '<div class="container"></div>';
 

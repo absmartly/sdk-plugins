@@ -208,25 +208,33 @@ export class DOMChangesPluginLite {
       let hasViewportTrigger = false;
 
       for (const change of changes) {
-        const elements = document.querySelectorAll(change.selector);
+        // Always call applyChange and let DOMManipulator handle the logic
+        // It will register pending changes with PendingChangeManager when needed
+        const success = this.domManipulator.applyChange(change, expName);
 
-        if (elements.length === 0 && change.type !== 'create') {
-          if (this.config.spa || change.waitForElement) {
-            stats.pending++;
-            if (change.trigger_on_view) {
-              hasViewportTrigger = true;
-            }
+        if (success) {
+          totalApplied++;
+          stats.success++;
+
+          if (change.trigger_on_view) {
+            hasViewportTrigger = true;
+          } else {
+            hasImmediateTrigger = true;
           }
-        } else {
-          const success = this.domManipulator.applyChange(change, expName);
-          if (success) {
-            totalApplied++;
-            stats.success++;
-
-            if (change.trigger_on_view) {
-              hasViewportTrigger = true;
-            } else {
-              hasImmediateTrigger = true;
+        } else if (change.type !== 'create' && change.type !== 'styleRules') {
+          // Track pending changes for stats (but DOMManipulator already handles retries)
+          try {
+            const elements = document.querySelectorAll(change.selector);
+            if (elements.length === 0 && (this.config.spa || change.waitForElement)) {
+              stats.pending++;
+              if (change.trigger_on_view) {
+                hasViewportTrigger = true;
+              }
+            }
+          } catch (error) {
+            // Invalid selector, ignore
+            if (this.config.debug) {
+              logDebug(`[ABsmartly] Invalid selector: ${change.selector}`, error);
             }
           }
         }
