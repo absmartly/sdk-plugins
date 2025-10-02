@@ -263,6 +263,124 @@ describe('ExposureTracker', () => {
       // This ensures whichever element becomes visible first triggers the experiment,
       // even if the user is in a variant where that element doesn't have changes
     });
+
+    it('should create placeholders for cross-variant move positions to ensure fair tracking', () => {
+      document.body.innerHTML = `
+        <div class="header">
+          <div class="element-a">Element A</div>
+        </div>
+        <div class="footer">
+          Footer content
+        </div>
+      `;
+
+      // Variant 0 (control): element-a stays in header, triggers on viewport
+      const variant0Changes: DOMChange[] = [
+        {
+          selector: '.element-a',
+          type: 'style',
+          value: { color: 'red' },
+          trigger_on_view: true,
+        },
+      ];
+
+      // Variant 1: element-a moved to footer (appears earlier in viewport), triggers on viewport
+      const variant1Changes: DOMChange[] = [
+        {
+          selector: '.element-a',
+          type: 'move',
+          targetSelector: '.footer',
+          position: 'firstChild',
+          trigger_on_view: true,
+        },
+      ];
+
+      const allVariantChanges = [variant0Changes, variant1Changes];
+
+      // User is in variant 0 (control) - element stays in header
+      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges);
+
+      // Should create a placeholder in .footer at firstChild position
+      // This placeholder tracks where element-a WOULD be in variant 1
+      const placeholder = document.querySelector('[data-absmartly-placeholder="true"]');
+      expect(placeholder).not.toBeNull();
+      expect(placeholder?.getAttribute('data-absmartly-original-selector')).toBe('.element-a');
+      expect(placeholder?.parentElement?.classList.contains('footer')).toBe(true);
+      
+      // Placeholder should be invisible
+      const styles = window.getComputedStyle(placeholder!);
+      expect(styles.opacity).toBe('0');
+      
+      // Both the actual element AND the placeholder are tracked
+      // So if either becomes visible (in their respective positions), experiment triggers
+    });
+
+    it('should handle multiple move variants with different positions', () => {
+      document.body.innerHTML = `
+        <div class="top">Top</div>
+        <div class="middle">Middle</div>
+        <div class="bottom">Bottom</div>
+      `;
+
+      // Variant 0: element in top (original position)
+      const variant0Changes: DOMChange[] = [
+        {
+          selector: '.element',
+          type: 'text',
+          value: 'V0',
+          trigger_on_view: true,
+        },
+      ];
+
+      // Variant 1: element moved to middle
+      const variant1Changes: DOMChange[] = [
+        {
+          selector: '.element',
+          type: 'move',
+          targetSelector: '.middle',
+          position: 'firstChild',
+          trigger_on_view: true,
+        },
+      ];
+
+      // Variant 2: element moved to bottom
+      const variant2Changes: DOMChange[] = [
+        {
+          selector: '.element',
+          type: 'move',
+          targetSelector: '.bottom',
+          position: 'lastChild',
+          trigger_on_view: true,
+        },
+      ];
+
+      const allVariantChanges = [variant0Changes, variant1Changes, variant2Changes];
+
+      // Create element in top position (variant 0)
+      const topDiv = document.querySelector('.top')!;
+      const element = document.createElement('div');
+      element.className = 'element';
+      element.textContent = 'Original';
+      topDiv.appendChild(element);
+
+      // User is in variant 0
+      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges);
+
+      // Should create placeholders for variant 1 (middle) and variant 2 (bottom) positions
+      const placeholders = document.querySelectorAll('[data-absmartly-placeholder="true"]');
+      expect(placeholders.length).toBe(2);
+
+      // Check placeholders are in correct positions
+      const middlePlaceholder = Array.from(placeholders).find(
+        p => p.parentElement?.classList.contains('middle')
+      );
+      const bottomPlaceholder = Array.from(placeholders).find(
+        p => p.parentElement?.classList.contains('bottom')
+      );
+
+      expect(middlePlaceholder).not.toBeNull();
+      expect(bottomPlaceholder).not.toBeNull();
+    });
   });
 
   describe('mixed trigger types', () => {
