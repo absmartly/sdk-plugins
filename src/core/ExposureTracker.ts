@@ -82,16 +82,19 @@ export class ExposureTracker {
       targetParents.forEach(parent => moveParentSelectors.add(parent));
     });
 
-    // Determine what triggers are needed
+    // Determine what triggers are needed by checking ALL variants
+    // This ensures experiments are tracked even if the user is in a variant without changes
     let hasImmediateTrigger = false;
     let hasViewportTrigger = false;
 
-    currentChanges.forEach(change => {
-      if (change.trigger_on_view) {
-        hasViewportTrigger = true;
-      } else {
-        hasImmediateTrigger = true;
-      }
+    allVariantsChanges.forEach(variantChanges => {
+      variantChanges.forEach(change => {
+        if (change.trigger_on_view) {
+          hasViewportTrigger = true;
+        } else {
+          hasImmediateTrigger = true;
+        }
+      });
     });
 
     // Store experiment tracking info

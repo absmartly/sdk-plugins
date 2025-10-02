@@ -68,6 +68,34 @@ describe('ExposureTracker', () => {
       expect(treatmentMock).not.toHaveBeenCalled();
     });
 
+    it('should trigger exposure immediately when ANY variant has immediate triggers (cross-variant tracking)', async () => {
+      // Variant 0 (control): no changes
+      const variant0Changes: DOMChange[] = [];
+
+      // Variant 1: has immediate trigger
+      const variant1Changes: DOMChange[] = [
+        {
+          selector: '.button',
+          type: 'style',
+          value: { backgroundColor: 'red' },
+          trigger_on_view: false, // Immediate trigger in variant 1
+        },
+      ];
+
+      // User is in variant 0 (control), but variant 1 has immediate trigger
+      // This should still trigger exposure immediately to track all users
+      const allVariantChanges = [variant0Changes, variant1Changes];
+
+      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges);
+
+      // Wait for async trigger
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Should trigger immediately even though current variant has no changes
+      // because another variant has an immediate trigger
+      expect(treatmentMock).toHaveBeenCalledWith('exp1');
+    });
+
     it('should track all variant selectors for viewport changes', () => {
       document.body.innerHTML = `
         <div class="header">Header</div>
