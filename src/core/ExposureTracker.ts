@@ -15,8 +15,6 @@ export class ExposureTracker {
   private mutationObserver: MutationObserver | null = null;
   private debug: boolean;
   private placeholders = new Map<string, HTMLElement>(); // experimentName-selector -> placeholder
-  private static PLACEHOLDER_STYLE_ID = 'absmartly-placeholder-styles';
-  private static PLACEHOLDER_CLASS = 'absmartly-placeholder';
 
   constructor(
     private context: ABsmartlyContext,
@@ -24,56 +22,6 @@ export class ExposureTracker {
   ) {
     this.debug = debug;
     this.setupIntersectionObserver();
-    this.ensurePlaceholderStyles();
-  }
-
-  /**
-   * Inject placeholder stylesheet if not already present
-   *
-   * Users can optionally pre-inject this stylesheet in their website code for better performance:
-   *
-   * ```html
-   * <style id="absmartly-placeholder-styles">
-   *   .absmartly-placeholder {
-   *     display: inline-block !important;
-   *     width: 1px !important;
-   *     height: 1px !important;
-   *     position: relative !important;
-   *     left: -1px !important;
-   *     visibility: hidden !important;
-   *     pointer-events: none !important;
-   *     font-size: 0 !important;
-   *     line-height: 0 !important;
-   *     overflow: hidden !important;
-   *   }
-   * </style>
-   * ```
-   *
-   * If pre-injected, this method will skip injection to avoid duplication.
-   */
-  private ensurePlaceholderStyles(): void {
-    // Check if stylesheet already exists (either from user or previous injection)
-    if (document.getElementById(ExposureTracker.PLACEHOLDER_STYLE_ID)) {
-      return;
-    }
-
-    const style = document.createElement('style');
-    style.id = ExposureTracker.PLACEHOLDER_STYLE_ID;
-    style.textContent = `
-      .${ExposureTracker.PLACEHOLDER_CLASS} {
-        display: inline-block !important;
-        width: 1px !important;
-        height: 1px !important;
-        position: relative !important;
-        left: -1px !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        font-size: 0 !important;
-        line-height: 0 !important;
-        overflow: hidden !important;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   /**
@@ -243,10 +191,21 @@ export class ExposureTracker {
       return;
     }
 
-    // Create minimal placeholder using CSS class
+    // Create minimal placeholder using inline styles
     // This will be observable by IntersectionObserver but won't affect layout
     const placeholder = document.createElement('span');
-    placeholder.className = ExposureTracker.PLACEHOLDER_CLASS;
+    placeholder.style.cssText = `
+      display: inline-block;
+      width: 1px;
+      height: 1px;
+      position: relative;
+      left: -1px;
+      visibility: hidden;
+      pointer-events: none;
+      font-size: 0;
+      line-height: 0;
+      overflow: hidden;
+    `;
     placeholder.setAttribute('data-absmartly-placeholder', 'true');
     placeholder.setAttribute('data-absmartly-original-selector', originalSelector);
     placeholder.setAttribute('data-absmartly-experiment', experimentName);
