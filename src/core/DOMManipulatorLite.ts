@@ -118,8 +118,8 @@ export class DOMManipulatorLite {
           appliedElements.push(element);
         }
 
-        // Watch for style persistence if it's an inline style change
-        if (change.type === 'style') {
+        // Watch for style persistence if explicitly enabled
+        if (change.type === 'style' && change.persistStyle) {
           this.plugin.watchElement(element, experimentName, change);
         }
       });

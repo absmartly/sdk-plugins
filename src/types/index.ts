@@ -44,6 +44,9 @@ export interface DOMChange {
   observerRoot?: string; // CSS selector for the root element to observe (e.g., '.main-content')
   waitForElement?: boolean; // If true, wait for element to appear before applying
 
+  // For style persistence (frameworks like React overwriting styles)
+  persistStyle?: boolean; // If true, watch for style changes and reapply when overwritten
+
   // For exposure tracking
   trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport
 }
