@@ -224,6 +224,47 @@ describe('ExposureTracker', () => {
     });
   });
 
+  describe('cross-variant viewport tracking', () => {
+    it('should track viewport elements from ALL variants, not just current variant', () => {
+      document.body.innerHTML = `
+        <div class="element-a">Element A (variant 0)</div>
+        <div class="element-b">Element B (variant 1)</div>
+      `;
+
+      // Variant 0: tracks .element-a
+      const variant0Changes: DOMChange[] = [
+        {
+          selector: '.element-a',
+          type: 'style',
+          value: { color: 'red' },
+          trigger_on_view: true,
+        },
+      ];
+
+      // Variant 1: tracks .element-b
+      const variant1Changes: DOMChange[] = [
+        {
+          selector: '.element-b',
+          type: 'style',
+          value: { color: 'blue' },
+          trigger_on_view: true,
+        },
+      ];
+
+      const allVariantChanges = [variant0Changes, variant1Changes];
+
+      // User is in variant 0, but should track elements from BOTH variants
+      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges);
+
+      // Verify it needs viewport tracking
+      expect(tracker.needsViewportTracking('exp1')).toBe(true);
+
+      // Both .element-a AND .element-b should be tracked
+      // This ensures whichever element becomes visible first triggers the experiment,
+      // even if the user is in a variant where that element doesn't have changes
+    });
+  });
+
   describe('mixed trigger types', () => {
     it('should handle mix of immediate and viewport triggers correctly', async () => {
       const changes: DOMChange[] = [
