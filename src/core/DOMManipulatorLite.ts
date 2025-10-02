@@ -117,6 +117,11 @@ export class DOMManipulatorLite {
         } else {
           appliedElements.push(element);
         }
+
+        // Watch for style persistence if it's an inline style change
+        if (change.type === 'style') {
+          this.plugin.watchElement(element, experimentName, change);
+        }
       });
 
       if (appliedElements.length > 0) {

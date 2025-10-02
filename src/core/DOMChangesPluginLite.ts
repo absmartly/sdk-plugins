@@ -18,6 +18,12 @@ export class DOMChangesPluginLite {
   protected eventListeners: Map<string, EventCallback[]> = new Map();
   protected styleManagers: Map<string, StyleSheetManager> = new Map();
   protected initialized = false;
+  protected watchedElements: WeakMap<Element, Set<string>> = new WeakMap();
+  protected persistenceObserver: MutationObserver | null = null;
+  protected reapplyingElements: Set<Element> = new Set();
+  protected reapplyLogThrottle: Map<string, number> = new Map();
+  protected appliedStyleChanges: Map<string, Array<{ change: DOMChange; elements: Element[] }>> =
+    new Map();
 
   constructor(config: PluginConfig) {
     this.config = {
@@ -410,8 +416,17 @@ export class DOMChangesPluginLite {
       this.mutationObserver = null;
     }
 
+    if (this.persistenceObserver) {
+      this.persistenceObserver.disconnect();
+      this.persistenceObserver = null;
+    }
+
     this.eventListeners.clear();
     this.exposedExperiments.clear();
+    this.watchedElements = new WeakMap();
+    this.appliedStyleChanges.clear();
+    this.reapplyingElements.clear();
+    this.reapplyLogThrottle.clear();
 
     this.unregisterFromContext();
 
@@ -459,5 +474,124 @@ export class DOMChangesPluginLite {
         logDebug('[ABsmartly] DOMChangesPluginLite unregistered from context');
       }
     }
+  }
+
+  watchElement(element: Element, experimentName: string, change: DOMChange): void {
+    let experiments = this.watchedElements.get(element);
+    if (!experiments) {
+      experiments = new Set();
+      this.watchedElements.set(element, experiments);
+    }
+    experiments.add(experimentName);
+
+    // Store the applied style change for this experiment
+    if (!this.appliedStyleChanges.has(experimentName)) {
+      this.appliedStyleChanges.set(experimentName, []);
+    }
+    const changes = this.appliedStyleChanges.get(experimentName)!;
+    const existing = changes.find(c => c.change === change);
+    if (existing) {
+      if (!existing.elements.includes(element)) {
+        existing.elements.push(element);
+      }
+    } else {
+      changes.push({ change, elements: [element] });
+    }
+
+    if (!this.persistenceObserver) {
+      this.setupPersistenceObserver();
+    }
+  }
+
+  unwatchElement(element: Element, experimentName: string): void {
+    const experiments = this.watchedElements.get(element);
+    if (experiments) {
+      experiments.delete(experimentName);
+      if (experiments.size === 0) {
+        this.watchedElements.delete(element);
+      }
+    }
+  }
+
+  private setupPersistenceObserver(): void {
+    if (this.persistenceObserver) return;
+
+    this.persistenceObserver = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        const element = mutation.target as Element;
+
+        if (this.reapplyingElements.has(element)) {
+          return;
+        }
+
+        const experiments = this.watchedElements.get(element);
+
+        if (experiments) {
+          experiments.forEach(experimentName => {
+            const appliedChanges = this.appliedStyleChanges.get(experimentName);
+
+            if (appliedChanges) {
+              appliedChanges.forEach(({ change, elements }) => {
+                if (change.type === 'style' && elements.includes(element)) {
+                  const needsReapply = this.checkStyleOverwritten(
+                    element as HTMLElement,
+                    change.value as Record<string, string>
+                  );
+
+                  if (needsReapply) {
+                    this.reapplyingElements.add(element);
+
+                    this.domManipulator.applyChange(change, experimentName);
+
+                    const logKey = `${experimentName}-${change.selector}`;
+                    const now = Date.now();
+                    const lastLogged = this.reapplyLogThrottle.get(logKey) || 0;
+
+                    if (this.config.debug && now - lastLogged > 5000) {
+                      logDebug(
+                        'Reapplied style after mutation (React/framework conflict detected)',
+                        {
+                          experimentName,
+                          selector: change.selector,
+                          note: 'This happens when the page framework (React/Vue/etc) fights with DOM changes',
+                        }
+                      );
+                      this.reapplyLogThrottle.set(logKey, now);
+                    }
+
+                    setTimeout(() => {
+                      this.reapplyingElements.delete(element);
+                    }, 0);
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+    });
+
+    this.persistenceObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['style'],
+      subtree: true,
+      attributeOldValue: true,
+    });
+  }
+
+  private checkStyleOverwritten(
+    element: HTMLElement,
+    expectedStyles: Record<string, string>
+  ): boolean {
+    for (const [prop, value] of Object.entries(expectedStyles)) {
+      const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+      const currentValue = element.style.getPropertyValue(cssProp);
+      const currentPriority = element.style.getPropertyPriority(cssProp);
+
+      if (currentValue !== value || (value.includes('!important') && !currentPriority)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
