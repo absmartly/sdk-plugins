@@ -65,33 +65,61 @@ export class ExposureTracker {
       });
     });
 
-    // For cross-variant move tracking, we track the TARGET CONTAINERS where elements
-    // would be moved to in other variants. When any target container becomes visible,
-    // it triggers the experiment. This ensures fair tracking without placeholder elements.
+    // For cross-variant move tracking, we need to track the EXACT POSITION where
+    // elements would appear in other variants. We use container-based invisible elements
+    // positioned exactly where the element would be, using CSS positioning.
     moveElements.forEach((_targetParents, selector) => {
+
       // Collect all move changes for this element across ALL variants
-      const allTargetContainers = new Set<string>();
-      
-      allVariantsChanges.forEach((variantChanges) => {
+      const allMovesForElement: Array<{ targetSelector: string; position: string; variantIndex: number }> = [];
+
+      allVariantsChanges.forEach((variantChanges, variantIndex) => {
         const moveChange = variantChanges.find(
           c => c.type === 'move' && c.selector === selector && c.trigger_on_view
         );
-        
+
         if (moveChange?.targetSelector) {
-          allTargetContainers.add(moveChange.targetSelector);
+          allMovesForElement.push({
+            targetSelector: moveChange.targetSelector,
+            position: moveChange.position || 'lastChild',
+            variantIndex
+          });
         }
       });
 
-      // Track the element itself in its current position
-      viewportSelectors.add(selector);
-      
-      // Track ALL target containers from ALL variants
-      // When any of these containers becomes visible, trigger the experiment
-      // This ensures fair tracking - if variant 1 moves element to .footer and
-      // .footer appears early, then variant 0 users also trigger when .footer appears
-      allTargetContainers.forEach(targetSelector => {
-        viewportSelectors.add(targetSelector);
-      });
+      // Check if current variant has a move for this element
+      const currentMoveIndex = allMovesForElement.findIndex(m => m.variantIndex === currentVariant);
+
+      if (currentMoveIndex >= 0) {
+        // Current variant HAS a move - track the element in its moved position
+        viewportSelectors.add(selector);
+
+        // For all OTHER variant positions, create container-based placeholders
+        allMovesForElement.forEach((move, index) => {
+          if (index !== currentMoveIndex) {
+            // Create placeholder at the position where element WOULD be in another variant
+            this.createContainerPlaceholder(
+              experimentName,
+              selector,
+              move.targetSelector,
+              move.position
+            );
+          }
+        });
+      } else {
+        // Current variant does NOT have a move - element stays in original position
+        viewportSelectors.add(selector);
+
+        // For ALL variant moves, create placeholders at those positions
+        allMovesForElement.forEach((move) => {
+          this.createContainerPlaceholder(
+            experimentName,
+            selector,
+            move.targetSelector,
+            move.position
+          );
+        });
+      }
     });
 
     // Determine what triggers are needed by checking ALL variants
@@ -144,6 +172,76 @@ export class ExposureTracker {
   }
 
   /**
+   * Create a container-based placeholder at the hypothetical position
+   * Uses inline-block with minimal dimensions to be observable but not affect layout
+   */
+  private createContainerPlaceholder(
+    experimentName: string,
+    originalSelector: string,
+    targetSelector: string,
+    position: string = 'lastChild'
+  ): void {
+    const targetElement = document.querySelector(targetSelector);
+    if (!targetElement) return;
+
+    const placeholderKey = `${experimentName}-${originalSelector}-${targetSelector}-${position}`;
+
+    // Check if placeholder already exists
+    if (this.placeholders.has(placeholderKey)) {
+      return;
+    }
+
+    // Create minimal placeholder using inline-block
+    // This will be observable by IntersectionObserver but won't affect layout
+    const placeholder = document.createElement('span');
+    placeholder.style.cssText = `
+      display: inline-block;
+      width: 1px;
+      height: 1px;
+      position: relative;
+      left: -1px;
+      visibility: hidden;
+      pointer-events: none;
+      font-size: 0;
+      line-height: 0;
+      overflow: hidden;
+    `;
+    placeholder.setAttribute('data-absmartly-placeholder', 'true');
+    placeholder.setAttribute('data-absmartly-original-selector', originalSelector);
+    placeholder.setAttribute('data-absmartly-experiment', experimentName);
+    placeholder.setAttribute('aria-hidden', 'true');
+
+    // Insert placeholder at the hypothetical position
+    switch (position) {
+      case 'firstChild':
+        targetElement.insertBefore(placeholder, targetElement.firstChild);
+        break;
+      case 'lastChild':
+        targetElement.appendChild(placeholder);
+        break;
+      case 'before':
+        targetElement.parentElement?.insertBefore(placeholder, targetElement);
+        break;
+      case 'after':
+        targetElement.parentElement?.insertBefore(placeholder, targetElement.nextSibling);
+        break;
+      default:
+        targetElement.appendChild(placeholder);
+    }
+
+    this.placeholders.set(placeholderKey, placeholder);
+
+    // Track the placeholder for viewport visibility
+    this.trackElement(placeholder, experimentName);
+
+    if (this.debug) {
+      logDebug(
+        `[ABsmartly] Created placeholder for ${originalSelector} at ${targetSelector} (${position})`
+      );
+    }
+  }
+
+  /**
    * Get the original parent selector for move changes
    * This should be called BEFORE the move is applied
    */
@@ -157,7 +255,7 @@ export class ExposureTracker {
   /**
    * Get a stable selector for a parent element
    */
-private getStableParentSelector(element: Element): string | null {
+  private getStableParentSelector(element: Element): string | null {
     // Try to get a good selector for the parent
     if (element.id) {
       return `#${element.id}`;

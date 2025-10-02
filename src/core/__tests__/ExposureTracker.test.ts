@@ -264,7 +264,7 @@ describe('ExposureTracker', () => {
       // even if the user is in a variant where that element doesn't have changes
     });
 
-    it('should track target containers from all variants for fair cross-variant triggering', () => {
+    it('should create minimal placeholders at hypothetical positions for fair cross-variant triggering', () => {
       document.body.innerHTML = `
         <div class="header">
           <div class="element-a">Element A</div>
@@ -300,9 +300,14 @@ describe('ExposureTracker', () => {
       // User is in variant 0 (control) - element stays in header
       tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges);
 
-      // Should track both the element AND the .footer container
-      // This ensures that if .footer becomes visible (where element would be in variant 1),
-      // the experiment triggers for variant 0 users too - ensuring fair tracking
+      // Should create a minimal placeholder in .footer (where element would be in variant 1)
+      const placeholder = document.querySelector('[data-absmartly-placeholder="true"]');
+      expect(placeholder).not.toBeNull();
+      expect(placeholder?.getAttribute('data-absmartly-original-selector')).toBe('.element-a');
+      expect(placeholder?.parentElement?.classList.contains('footer')).toBe(true);
+
+      // Placeholder should be minimal and invisible (1px inline-block with visibility:hidden)
+      expect(placeholder?.tagName.toLowerCase()).toBe('span');
       expect(tracker.needsViewportTracking('exp1')).toBe(true);
     });
 
@@ -352,9 +357,20 @@ describe('ExposureTracker', () => {
       // User is in variant 0
       tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges);
 
-      // Should track .element AND both .middle and .bottom containers
-      // When any of these becomes visible, experiment triggers
-      // This ensures fair tracking across all 3 variants
+      // Should create placeholders in .middle and .bottom (where element would be in variants 1 and 2)
+      const placeholders = document.querySelectorAll('[data-absmartly-placeholder="true"]');
+      expect(placeholders.length).toBe(2);
+
+      // Check placeholders are in correct positions
+      const middlePlaceholder = Array.from(placeholders).find(
+        p => p.parentElement?.classList.contains('middle')
+      );
+      const bottomPlaceholder = Array.from(placeholders).find(
+        p => p.parentElement?.classList.contains('bottom')
+      );
+
+      expect(middlePlaceholder).not.toBeNull();
+      expect(bottomPlaceholder).not.toBeNull();
       expect(tracker.needsViewportTracking('exp1')).toBe(true);
     });
   });
