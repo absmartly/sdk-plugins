@@ -118,8 +118,8 @@ export class DOMManipulatorLite {
           appliedElements.push(element);
         }
 
-        // Watch for style persistence if explicitly enabled
-        if (change.type === 'style' && change.persistStyle) {
+        // Watch for style persistence if explicitly enabled OR if SPA mode is on
+        if (change.type === 'style' && (change.persistStyle || (this.plugin as any).config?.spa)) {
           this.plugin.watchElement(element, experimentName, change);
         }
       });
