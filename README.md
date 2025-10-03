@@ -664,6 +664,71 @@ new DOMChangesPlugin({
 }
 ```
 
+## SPA Mode (React/Vue/Angular Support)
+
+Enable `spa: true` for Single Page Applications. This automatically activates two critical features:
+
+### 1. Wait for Element (Lazy-Loaded Content)
+
+Automatically waits for elements that don't exist yet in the DOM:
+
+```javascript
+{
+  selector: '.lazy-loaded-button',
+  type: 'style',
+  value: { backgroundColor: 'red' }
+  // No waitForElement needed - SPA mode handles it automatically!
+}
+```
+
+**Without SPA mode:** Change skipped if element doesn't exist
+**With SPA mode:** Observes DOM and applies when element appears
+
+### 2. Style Persistence (Framework Conflicts)
+
+Automatically re-applies styles when frameworks overwrite them:
+
+```javascript
+{
+  selector: '.button',
+  type: 'style',
+  value: { backgroundColor: 'red' }
+  // No persistStyle needed - SPA mode handles it automatically!
+}
+```
+
+**Without SPA mode:** React hover states can overwrite experiment styles
+**With SPA mode:** Detects and re-applies styles automatically
+
+### When to Use SPA Mode
+
+**✅ Enable `spa: true` for:**
+- React applications
+- Vue.js applications
+- Angular applications
+- Any app with client-side routing
+- Apps with lazy-loaded components
+- Apps with dynamic DOM updates
+
+**❌ Keep `spa: false` for:**
+- Static HTML sites
+- Server-rendered pages without client-side routing
+- Sites where performance is critical and you don't need dynamic features
+
+### Manual Override
+
+You can still use flags explicitly if you need granular control:
+
+```javascript
+{
+  selector: '.button',
+  type: 'style',
+  value: { backgroundColor: 'red' },
+  persistStyle: true,    // Force enable (even if spa: false)
+  waitForElement: true   // Force enable (even if spa: false)
+}
+```
+
 ## Configuration Options
 
 ```javascript
@@ -673,7 +738,8 @@ new DOMChangesPlugin({
 
   // Core options
   autoApply: true,               // Auto-apply changes from SDK
-  spa: true,                     // Enable SPA support (also enables style persistence)
+  spa: true,                     // Enable SPA support
+                                 // ✅ Auto-enables: waitForElement + persistStyle
   visibilityTracking: true,      // Track viewport visibility
   extensionBridge: true,         // Enable browser extension communication
   dataSource: 'variable',        // 'variable' or 'customField'
