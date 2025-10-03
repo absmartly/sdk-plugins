@@ -419,17 +419,272 @@ For detailed documentation:
 - **[Extension Integration Guide](docs/EXTENSION_INTEGRATION_GUIDE.md)** - Complete guide for browser extension integration, visual editing, preview mode, and advanced features
 - **[Exposure Tracking Guide](docs/EXPOSURE_TRACKING_GUIDE.md)** - Understanding trigger_on_view and preventing sample ratio mismatch
 
+## Anti-Flicker Support
+
+Prevent content flash before experiments load with two modes:
+
+### Quick Start
+
+**Hide entire page with smooth fade-in:**
+```javascript
+const domPlugin = new DOMChangesPlugin({
+  context: context,
+  hideUntilReady: 'body',
+  hideTransition: '0.3s ease-in'  // Smooth fade-in
+});
+```
+
+**Hide only experiment elements (recommended):**
+```html
+<!-- Mark elements that need anti-flicker -->
+<div data-absmartly-hide>
+  Hero section with experiment
+</div>
+
+<div data-absmartly-hide>
+  CTA button being tested
+</div>
+```
+
+```javascript
+const domPlugin = new DOMChangesPlugin({
+  context: context,
+  hideUntilReady: 'elements',     // Hide only marked elements
+  hideTransition: '0.4s ease-out'
+});
+```
+
+### How It Works
+
+1. **During Load (Before Experiments Applied):**
+   ```css
+   /* No transition: */
+   body { visibility: hidden !important; }
+
+   /* With transition: */
+   body {
+     visibility: hidden !important;
+     opacity: 0 !important;
+   }
+   ```
+
+2. **After Experiments Applied:**
+   - **No transition**: Instant reveal (removes `visibility:hidden`)
+   - **With transition**: Smooth 4-step fade-in:
+     1. Remove `visibility:hidden`
+     2. Add CSS transition
+     3. Animate opacity 0 → 1
+     4. Clean up after transition completes
+
+### Configuration Options
+
+```javascript
+new DOMChangesPlugin({
+  // Anti-flicker configuration
+  hideUntilReady: 'body',              // 'body' | 'elements' | true | false
+                                       // 'body': hide entire page
+                                       // 'elements': hide only marked elements
+                                       // true: same as 'elements'
+                                       // false: disabled (default)
+
+  hideTimeout: 3000,                   // Max wait time in ms (default: 3000)
+                                       // Content auto-shows after timeout
+                                       // even if experiments fail to load
+
+  hideTransition: '0.3s ease-in',      // CSS transition for fade-in
+                                       // Examples: '0.3s ease-in', '0.5s linear'
+                                       // false: instant reveal (default)
+
+  hideSelector: '[data-absmartly-hide]' // Custom selector for 'elements' mode
+                                       // default: '[data-absmartly-hide]'
+})
+```
+
+### Why This Matters
+
+**Without anti-flicker:**
+```
+User sees: Original → FLASH → Experiment Version
+           ^^^^^^^^   ^^^^^   ^^^^^^^^^^^^^^^^^^
+           (bad UX)   (jarring)
+```
+
+**With anti-flicker:**
+```
+User sees: [Hidden] → Experiment Version (smooth fade-in)
+           ^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           (no flash)  (professional)
+```
+
+### Best Practices
+
+**✅ Use `hideUntilReady: 'elements'` (Recommended)**
+- Mark only elements being tested
+- Faster perceived load time
+- Better user experience
+- No CLS (Cumulative Layout Shift)
+
+```html
+<nav>Normal navigation</nav>
+<div data-absmartly-hide>
+  <!-- Only this hero is hidden -->
+  <h1>Hero headline being tested</h1>
+</div>
+<main>Rest of content visible immediately</main>
+```
+
+**✅ Use `hideUntilReady: 'body'` (For whole-page experiments)**
+- Complete redesigns
+- Multiple changes across page
+- Ensures zero flicker
+
+**✅ Set appropriate timeout**
+```javascript
+{
+  hideTimeout: 2000  // Faster for good connections
+  hideTimeout: 3000  // Balanced (default)
+  hideTimeout: 5000  // Safer for slow connections
+}
+```
+
+**⚠️ Avoid long transitions**
+```javascript
+hideTransition: '0.2s ease-in'  // ✅ Subtle, professional
+hideTransition: '0.3s ease-out' // ✅ Smooth
+hideTransition: '1s linear'     // ❌ Too slow, feels broken
+```
+
+### Industry Standard Comparison
+
+| Tool | Method | Our Implementation |
+|------|--------|-------------------|
+| Google Optimize | `opacity: 0` | ✅ `visibility:hidden` (better) |
+| Optimizely | `opacity: 0` | ✅ `visibility:hidden` (better) |
+| VWO | `opacity: 0` on body | ✅ Both modes supported |
+| **ABsmartly** | - | ✅ `visibility:hidden` + optional smooth fade |
+
+**Why `visibility:hidden` is better:**
+- ✅ Hides from screen readers
+- ✅ Prevents interaction
+- ✅ No CLS (Cumulative Layout Shift)
+- ✅ Can add smooth opacity transition
+
+## Style Persistence
+
+Automatically reapply experiment styles when frameworks (React/Vue/Angular) overwrite them:
+
+### The Problem
+
+```javascript
+// Experiment changes button to red
+{ selector: '.button', type: 'style', value: { backgroundColor: 'red' } }
+
+// User hovers → React's hover handler changes it back to blue
+// Experiment style is lost! ❌
+```
+
+### The Solution
+
+```javascript
+{
+  selector: '.button',
+  type: 'style',
+  value: { backgroundColor: 'red' },
+  persistStyle: true  // ✅ Reapply when React overwrites it
+}
+```
+
+### How It Works
+
+1. **MutationObserver** watches for style attribute changes
+2. **Detects** when framework overwrites experiment styles
+3. **Automatically reapplies** experiment styles
+4. **Throttled logging** (max once per 5 seconds to avoid spam)
+
+### When It's Enabled
+
+**Automatically in SPA mode:**
+```javascript
+new DOMChangesPlugin({
+  context: context,
+  spa: true  // ✅ Style persistence auto-enabled for all style changes
+})
+```
+
+**Opt-in per change:**
+```javascript
+{
+  selector: '.button',
+  type: 'style',
+  value: { backgroundColor: 'red' },
+  persistStyle: true  // ✅ Explicit opt-in (works even if spa: false)
+}
+```
+
+### Use Cases
+
+**✅ React components with hover states:**
+```javascript
+// Button has React onClick that changes style
+{
+  selector: '.cta-button',
+  type: 'style',
+  value: { backgroundColor: '#ff6b6b' },
+  persistStyle: true  // Survives React re-renders
+}
+```
+
+**✅ Vue reactive styles:**
+```javascript
+{
+  selector: '.dynamic-price',
+  type: 'style',
+  value: { color: 'green', fontWeight: 'bold' },
+  persistStyle: true  // Persists through Vue updates
+}
+```
+
+**✅ Angular material components:**
+```javascript
+{
+  selector: 'mat-button',
+  type: 'style',
+  value: { backgroundColor: '#1976d2' },
+  persistStyle: true  // Works with Angular's style binding
+}
+```
+
+**❌ Static HTML (persistence not needed):**
+```javascript
+{
+  selector: '.static-banner',
+  type: 'style',
+  value: { display: 'none' },
+  persistStyle: false  // Not needed, saves performance
+}
+```
+
 ## Configuration Options
 
 ```javascript
 new DOMChangesPlugin({
-  context: absmartlyContext,     // Required: ABsmartly context
+  // Required
+  context: absmartlyContext,     // ABsmartly context
+
+  // Core options
   autoApply: true,               // Auto-apply changes from SDK
-  spa: true,                     // Enable SPA support
+  spa: true,                     // Enable SPA support (also enables style persistence)
+  visibilityTracking: true,      // Track viewport visibility
   extensionBridge: true,         // Enable browser extension communication
   dataSource: 'variable',        // 'variable' or 'customField'
   dataFieldName: '__dom_changes', // Variable/field name for changes
-  debug: false                   // Enable debug logging
+  debug: false,                  // Enable debug logging
+
+  // Anti-flicker options
+  hideUntilReady: false,         // 'body' | 'elements' | true | false
+  hideTimeout: 3000,             // Max wait time (ms)
+  hideTransition: false,         // CSS transition (e.g., '0.3s ease-in') or false
+  hideSelector: '[data-absmartly-hide]' // Custom selector for elements mode
 })
 ```
 
