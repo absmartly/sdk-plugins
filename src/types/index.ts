@@ -42,10 +42,10 @@ export interface DOMChange {
 
   // For pending changes (elements not yet in DOM)
   observerRoot?: string; // CSS selector for the root element to observe (e.g., '.main-content')
-  waitForElement?: boolean; // If true, wait for element to appear before applying
+  waitForElement?: boolean; // If true, wait for element to appear before applying (auto-enabled in SPA mode)
 
   // For style persistence (frameworks like React overwriting styles)
-  persistStyle?: boolean; // If true, watch for style changes and reapply when overwritten
+  persistStyle?: boolean; // If true, watch for style changes and reapply when overwritten (auto-enabled in SPA mode)
 
   // For exposure tracking
   trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport
@@ -100,6 +100,14 @@ export interface PluginRegistration {
 export interface PluginConfig {
   context: ABsmartlyContext;
   autoApply?: boolean;
+  /**
+   * SPA mode - Enables features for Single Page Applications (React, Vue, Angular, etc.)
+   * When enabled, automatically activates:
+   * - Wait for element: Observes DOM for elements that don't exist yet
+   * - Style persistence: Re-applies styles when frameworks overwrite them (e.g., on hover)
+   *
+   * Set to true for dynamic apps where DOM changes after page load
+   */
   spa?: boolean;
   visibilityTracking?: boolean;
   extensionBridge?: boolean;
