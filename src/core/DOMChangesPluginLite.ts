@@ -24,6 +24,8 @@ export class DOMChangesPluginLite {
   protected reapplyLogThrottle: Map<string, number> = new Map();
   protected appliedStyleChanges: Map<string, Array<{ change: DOMChange; elements: Element[] }>> =
     new Map();
+  protected antiFlickerTimeout: number | null = null;
+  protected antiFlickerStyleId = 'absmartly-antiflicker';
 
   constructor(config: PluginConfig) {
     this.config = {
@@ -35,10 +37,18 @@ export class DOMChangesPluginLite {
       dataSource: config.dataSource ?? 'variable',
       dataFieldName: config.dataFieldName ?? '__dom_changes',
       debug: config.debug ?? false,
+      hideUntilReady: config.hideUntilReady ?? false,
+      hideTimeout: config.hideTimeout ?? 3000,
+      hideSelector: config.hideSelector ?? '[data-absmartly-hide]',
     };
 
     if (!this.config.context) {
       throw new Error('[ABsmartly] Context is required');
+    }
+
+    // Apply anti-flicker hiding immediately if enabled
+    if (this.config.hideUntilReady) {
+      this.hideContent();
     }
 
     this.domManipulator = new DOMManipulatorLite(this.config.debug, this);
@@ -289,6 +299,11 @@ export class DOMChangesPluginLite {
       });
     }
 
+    // Show hidden content after changes are applied
+    if (this.config.hideUntilReady) {
+      this.showContent();
+    }
+
     this.emit('changes-applied', { count: totalApplied, experimentName });
   }
 
@@ -421,6 +436,16 @@ export class DOMChangesPluginLite {
       this.persistenceObserver = null;
     }
 
+    // Clean up anti-flicker timeout and style
+    if (this.antiFlickerTimeout !== null) {
+      clearTimeout(this.antiFlickerTimeout);
+      this.antiFlickerTimeout = null;
+    }
+    const antiFlickerStyle = document.getElementById(this.antiFlickerStyleId);
+    if (antiFlickerStyle) {
+      antiFlickerStyle.remove();
+    }
+
     this.eventListeners.clear();
     this.exposedExperiments.clear();
     this.watchedElements = new WeakMap();
@@ -472,6 +497,78 @@ export class DOMChangesPluginLite {
 
       if (this.config.debug) {
         logDebug('[ABsmartly] DOMChangesPluginLite unregistered from context');
+      }
+    }
+  }
+
+  /**
+   * Hide content to prevent flicker before experiments are applied
+   */
+  private hideContent(): void {
+    const mode = this.config.hideUntilReady;
+    if (!mode) return;
+
+    // Check if style already exists (prevent duplicate injection)
+    if (document.getElementById(this.antiFlickerStyleId)) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = this.antiFlickerStyleId;
+
+    if (mode === 'body') {
+      // Hide entire body
+      style.textContent = `
+        body {
+          opacity: 0 !important;
+        }
+      `;
+    } else {
+      // Hide only marked elements (mode === 'elements' or mode === true)
+      const selector = this.config.hideSelector || '[data-absmartly-hide]';
+      style.textContent = `
+        ${selector} {
+          opacity: 0 !important;
+        }
+      `;
+    }
+
+    document.head.appendChild(style);
+
+    // Set timeout to show content even if experiments fail to load
+    this.antiFlickerTimeout = window.setTimeout(() => {
+      if (this.config.debug) {
+        logDebug(
+          `[ABsmartly] Anti-flicker timeout reached (${this.config.hideTimeout}ms), showing content`
+        );
+      }
+      this.showContent();
+    }, this.config.hideTimeout);
+
+    if (this.config.debug) {
+      logDebug(
+        `[ABsmartly] Anti-flicker enabled (mode: ${mode}, timeout: ${this.config.hideTimeout}ms)`
+      );
+    }
+  }
+
+  /**
+   * Show hidden content after experiments are applied
+   */
+  private showContent(): void {
+    // Clear timeout if still pending
+    if (this.antiFlickerTimeout !== null) {
+      clearTimeout(this.antiFlickerTimeout);
+      this.antiFlickerTimeout = null;
+    }
+
+    // Remove anti-flicker style
+    const style = document.getElementById(this.antiFlickerStyleId);
+    if (style) {
+      style.remove();
+
+      if (this.config.debug) {
+        logDebug('[ABsmartly] Anti-flicker removed, content now visible');
       }
     }
   }

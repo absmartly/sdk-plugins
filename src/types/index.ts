@@ -106,6 +106,11 @@ export interface PluginConfig {
   dataSource?: 'variable' | 'customField';
   dataFieldName?: string;
   debug?: boolean;
+
+  // Anti-flicker functionality to prevent content flash before experiments load
+  hideUntilReady?: boolean | 'body' | 'elements'; // false: disabled, 'body': hide entire body, 'elements': hide only marked elements, true: same as 'elements'
+  hideTimeout?: number; // Max milliseconds to keep content hidden (default: 3000ms)
+  hideSelector?: string; // Custom selector for elements to hide (default: '[data-absmartly-hide]')
 }
 
 export interface AppliedChange {
