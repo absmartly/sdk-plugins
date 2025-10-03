@@ -40,6 +40,7 @@ export class DOMChangesPluginLite {
       hideUntilReady: config.hideUntilReady ?? false,
       hideTimeout: config.hideTimeout ?? 3000,
       hideSelector: config.hideSelector ?? '[data-absmartly-hide]',
+      hideTransition: config.hideTransition ?? false,
     };
 
     if (!this.config.context) {
@@ -516,19 +517,22 @@ export class DOMChangesPluginLite {
     const style = document.createElement('style');
     style.id = this.antiFlickerStyleId;
 
-    if (mode === 'body') {
-      // Hide entire body
+    const hasTransition = this.config.hideTransition !== false;
+    const selector = mode === 'body' ? 'body' : this.config.hideSelector || '[data-absmartly-hide]';
+
+    if (hasTransition) {
+      // Use both visibility:hidden and opacity:0 for smooth transition
       style.textContent = `
-        body {
+        ${selector} {
+          visibility: hidden !important;
           opacity: 0 !important;
         }
       `;
     } else {
-      // Hide only marked elements (mode === 'elements' or mode === true)
-      const selector = this.config.hideSelector || '[data-absmartly-hide]';
+      // Use only visibility:hidden for instant reveal (no layout shift)
       style.textContent = `
         ${selector} {
-          opacity: 0 !important;
+          visibility: hidden !important;
         }
       `;
     }
@@ -547,7 +551,7 @@ export class DOMChangesPluginLite {
 
     if (this.config.debug) {
       logDebug(
-        `[ABsmartly] Anti-flicker enabled (mode: ${mode}, timeout: ${this.config.hideTimeout}ms)`
+        `[ABsmartly] Anti-flicker enabled (mode: ${mode}, transition: ${hasTransition ? this.config.hideTransition : 'none'}, timeout: ${this.config.hideTimeout}ms)`
       );
     }
   }
@@ -562,9 +566,50 @@ export class DOMChangesPluginLite {
       this.antiFlickerTimeout = null;
     }
 
-    // Remove anti-flicker style
     const style = document.getElementById(this.antiFlickerStyleId);
-    if (style) {
+    if (!style) return;
+
+    const hasTransition = this.config.hideTransition !== false;
+
+    if (hasTransition) {
+      // Smooth fade-in: remove visibility, add transition, then animate opacity
+      const mode = this.config.hideUntilReady;
+      const selector =
+        mode === 'body' ? 'body' : this.config.hideSelector || '[data-absmartly-hide]';
+
+      // Step 1: Remove visibility:hidden, keep opacity:0, add transition
+      style.textContent = `
+        ${selector} {
+          opacity: 0 !important;
+          transition: opacity ${this.config.hideTransition} !important;
+        }
+      `;
+
+      // Step 2: Force reflow to ensure transition applies
+      style.offsetHeight;
+
+      // Step 3: Trigger fade-in by setting opacity to 1
+      style.textContent = `
+        ${selector} {
+          opacity: 1 !important;
+          transition: opacity ${this.config.hideTransition} !important;
+        }
+      `;
+
+      // Step 4: Remove style after transition completes
+      const transitionDuration = parseFloat(this.config.hideTransition as string) * 1000;
+      setTimeout(() => {
+        style.remove();
+        if (this.config.debug) {
+          logDebug('[ABsmartly] Anti-flicker fade-in complete, style removed');
+        }
+      }, transitionDuration);
+
+      if (this.config.debug) {
+        logDebug(`[ABsmartly] Anti-flicker fading in with transition: ${this.config.hideTransition}`);
+      }
+    } else {
+      // Instant reveal: just remove the style
       style.remove();
 
       if (this.config.debug) {

@@ -111,6 +111,7 @@ export interface PluginConfig {
   hideUntilReady?: boolean | 'body' | 'elements'; // false: disabled, 'body': hide entire body, 'elements': hide only marked elements, true: same as 'elements'
   hideTimeout?: number; // Max milliseconds to keep content hidden (default: 3000ms)
   hideSelector?: string; // Custom selector for elements to hide (default: '[data-absmartly-hide]')
+  hideTransition?: string | false; // CSS transition for fade-in (e.g., '0.3s ease-in'), false for instant reveal (default: false)
 }
 
 export interface AppliedChange {
