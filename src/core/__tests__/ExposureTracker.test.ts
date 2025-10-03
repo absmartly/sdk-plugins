@@ -362,11 +362,11 @@ describe('ExposureTracker', () => {
       expect(placeholders.length).toBe(2);
 
       // Check placeholders are in correct positions
-      const middlePlaceholder = Array.from(placeholders).find(
-        p => p.parentElement?.classList.contains('middle')
+      const middlePlaceholder = Array.from(placeholders).find(p =>
+        p.parentElement?.classList.contains('middle')
       );
-      const bottomPlaceholder = Array.from(placeholders).find(
-        p => p.parentElement?.classList.contains('bottom')
+      const bottomPlaceholder = Array.from(placeholders).find(p =>
+        p.parentElement?.classList.contains('bottom')
       );
 
       expect(middlePlaceholder).not.toBeNull();

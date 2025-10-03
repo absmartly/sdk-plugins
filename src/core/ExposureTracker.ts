@@ -69,9 +69,12 @@ export class ExposureTracker {
     // elements would appear in other variants. We use container-based invisible elements
     // positioned exactly where the element would be, using CSS positioning.
     moveElements.forEach((_targetParents, selector) => {
-
       // Collect all move changes for this element across ALL variants
-      const allMovesForElement: Array<{ targetSelector: string; position: string; variantIndex: number }> = [];
+      const allMovesForElement: Array<{
+        targetSelector: string;
+        position: string;
+        variantIndex: number;
+      }> = [];
 
       allVariantsChanges.forEach((variantChanges, variantIndex) => {
         const moveChange = variantChanges.find(
@@ -82,7 +85,7 @@ export class ExposureTracker {
           allMovesForElement.push({
             targetSelector: moveChange.targetSelector,
             position: moveChange.position || 'lastChild',
-            variantIndex
+            variantIndex,
           });
         }
       });
@@ -111,7 +114,7 @@ export class ExposureTracker {
         viewportSelectors.add(selector);
 
         // For ALL variant moves, create placeholders at those positions
-        allMovesForElement.forEach((move) => {
+        allMovesForElement.forEach(move => {
           this.createContainerPlaceholder(
             experimentName,
             selector,
