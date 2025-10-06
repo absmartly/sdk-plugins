@@ -950,4 +950,150 @@ describe('DOMChangesPluginLite', () => {
       expect(duration).toBeLessThan(50);
     });
   });
+
+  describe('Style Persistence', () => {
+    it('should call watchElement when persistStyle is true', async () => {
+      document.body.innerHTML = '<button class="cta">Click me</button>';
+
+      const styleChange: DOMChange = {
+        selector: '.cta',
+        type: 'style',
+        value: { backgroundColor: 'red' },
+        persistStyle: true,
+      };
+
+      const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
+      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+
+      const plugin = new DOMChangesPluginLite({ context, autoApply: false, spa: false });
+      const watchElementSpy = jest.spyOn(plugin, 'watchElement');
+
+      await plugin.ready();
+      await plugin.applyChanges();
+
+      expect(watchElementSpy).toHaveBeenCalled();
+      expect((plugin as any).persistenceObserver).not.toBeNull();
+    });
+
+    it('should NOT call watchElement when persistStyle is false and spa is false', async () => {
+      document.body.innerHTML = '<button class="cta">Click me</button>';
+
+      const styleChange: DOMChange = {
+        selector: '.cta',
+        type: 'style',
+        value: { backgroundColor: 'red' },
+        persistStyle: false,
+      };
+
+      const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
+      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+
+      const plugin = new DOMChangesPluginLite({ context, autoApply: false, spa: false });
+      const watchElementSpy = jest.spyOn(plugin, 'watchElement');
+
+      await plugin.ready();
+      await plugin.applyChanges();
+
+      expect(watchElementSpy).not.toHaveBeenCalled();
+      expect((plugin as any).persistenceObserver).toBeNull();
+    });
+
+    it('should call watchElement automatically when spa mode is enabled', async () => {
+      document.body.innerHTML = '<button class="cta">Click me</button>';
+
+      const styleChange: DOMChange = {
+        selector: '.cta',
+        type: 'style',
+        value: { backgroundColor: 'red' },
+        // No persistStyle flag, but spa: true should auto-enable it
+      };
+
+      const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
+      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+
+      const plugin = new DOMChangesPluginLite({ context, autoApply: false, spa: true });
+      const watchElementSpy = jest.spyOn(plugin, 'watchElement');
+
+      await plugin.ready();
+      await plugin.applyChanges();
+
+      expect(watchElementSpy).toHaveBeenCalled();
+      expect((plugin as any).persistenceObserver).not.toBeNull();
+    });
+
+    it('should store change in appliedStyleChanges for watched elements', async () => {
+      document.body.innerHTML = '<button class="cta">Click me</button>';
+
+      const styleChange: DOMChange = {
+        selector: '.cta',
+        type: 'style',
+        value: { backgroundColor: 'red' },
+        persistStyle: true,
+      };
+
+      const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
+      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+
+      const plugin = new DOMChangesPluginLite({ context, autoApply: false, spa: false });
+      await plugin.ready();
+      await plugin.applyChanges();
+
+      const appliedChanges = (plugin as any).appliedStyleChanges.get('style_test');
+      expect(appliedChanges).toContain(styleChange);
+    });
+
+    it('should use element.matches() for selector matching (not exact element reference)', () => {
+      const plugin = new DOMChangesPluginLite({ context: MockContextFactory.create() });
+
+      // Test checkStyleOverwritten directly
+      const element = document.createElement('button');
+      element.className = 'cta';
+      element.style.backgroundColor = 'blue';
+
+      const checkStyleOverwritten = (plugin as any).checkStyleOverwritten.bind(plugin);
+
+      // Should detect overwritten style
+      expect(checkStyleOverwritten(element, { backgroundColor: 'red' })).toBe(true);
+
+      // Should detect correct style
+      expect(checkStyleOverwritten(element, { backgroundColor: 'blue' })).toBe(false);
+    });
+
+    it('should detect when !important flag is missing', () => {
+      const plugin = new DOMChangesPluginLite({ context: MockContextFactory.create() });
+
+      const element = document.createElement('button');
+      element.style.setProperty('background-color', 'red'); // No !important
+
+      const checkStyleOverwritten = (plugin as any).checkStyleOverwritten.bind(plugin);
+
+      // Should detect missing !important
+      expect(checkStyleOverwritten(element, { backgroundColor: 'red !important' })).toBe(true);
+    });
+
+    it('should track elements in watchedElements WeakMap', async () => {
+      document.body.innerHTML = '<button class="cta">Click me</button>';
+
+      const styleChange: DOMChange = {
+        selector: '.cta',
+        type: 'style',
+        value: { backgroundColor: 'red' },
+        persistStyle: true,
+      };
+
+      const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
+      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+
+      const plugin = new DOMChangesPluginLite({ context, autoApply: false, spa: false });
+      await plugin.ready();
+      await plugin.applyChanges();
+
+      const button = document.querySelector('.cta')!;
+      const watchedElements = (plugin as any).watchedElements;
+      const experiments = watchedElements.get(button);
+
+      expect(experiments).toBeDefined();
+      expect(experiments.has('style_test')).toBe(true);
+    });
+  });
 });
