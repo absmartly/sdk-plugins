@@ -22,8 +22,7 @@ export class DOMChangesPluginLite {
   protected persistenceObserver: MutationObserver | null = null;
   protected reapplyingElements: Set<Element> = new Set();
   protected reapplyLogThrottle: Map<string, number> = new Map();
-  protected appliedStyleChanges: Map<string, Array<{ change: DOMChange; elements: Element[] }>> =
-    new Map();
+  protected appliedStyleChanges: Map<string, DOMChange[]> = new Map();
   protected antiFlickerTimeout: number | null = null;
   protected antiFlickerStyleId = 'absmartly-antiflicker';
 
@@ -631,13 +630,8 @@ export class DOMChangesPluginLite {
       this.appliedStyleChanges.set(experimentName, []);
     }
     const changes = this.appliedStyleChanges.get(experimentName)!;
-    const existing = changes.find(c => c.change === change);
-    if (existing) {
-      if (!existing.elements.includes(element)) {
-        existing.elements.push(element);
-      }
-    } else {
-      changes.push({ change, elements: [element] });
+    if (!changes.includes(change)) {
+      changes.push(change);
     }
 
     if (!this.persistenceObserver) {
@@ -673,8 +667,8 @@ export class DOMChangesPluginLite {
             const appliedChanges = this.appliedStyleChanges.get(experimentName);
 
             if (appliedChanges) {
-              appliedChanges.forEach(({ change, elements }) => {
-                if (change.type === 'style' && elements.includes(element)) {
+              appliedChanges.forEach(change => {
+                if (change.type === 'style' && element.matches(change.selector)) {
                   const needsReapply = this.checkStyleOverwritten(
                     element as HTMLElement,
                     change.value as Record<string, string>
