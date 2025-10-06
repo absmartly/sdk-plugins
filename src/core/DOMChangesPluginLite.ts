@@ -734,7 +734,16 @@ export class DOMChangesPluginLite {
       const currentValue = element.style.getPropertyValue(cssProp);
       const currentPriority = element.style.getPropertyPriority(cssProp);
 
-      if (currentValue !== value || (value.includes('!important') && !currentPriority)) {
+      // Create a temporary element to normalize the expected value
+      const temp = document.createElement('div');
+      temp.style.setProperty(cssProp, String(value));
+      const normalizedExpected = temp.style.getPropertyValue(cssProp);
+      
+      // Compare normalized values
+      const normalizedCurrent = currentValue.trim();
+      
+      // Check if value changed OR if !important flag is missing when required
+      if (normalizedCurrent !== normalizedExpected || (value.includes('!important') && !currentPriority)) {
         return true;
       }
     }
