@@ -630,20 +630,22 @@ export class DOMChangesPluginLite {
       this.appliedStyleChanges.set(experimentName, []);
     }
     const changes = this.appliedStyleChanges.get(experimentName)!;
-    if (!changes.includes(change)) {
+    const isNewWatch = !changes.includes(change);
+    if (isNewWatch) {
       changes.push(change);
+
+      // Only log when actually adding a new watch, not on every reapply
+      if (this.config.debug) {
+        logDebug('[ABsmartly] Watching element for style persistence', {
+          experimentName,
+          selector: change.selector,
+          element: element.tagName,
+        });
+      }
     }
 
     if (!this.persistenceObserver) {
       this.setupPersistenceObserver();
-    }
-
-    if (this.config.debug) {
-      logDebug('[ABsmartly] Watching element for style persistence', {
-        experimentName,
-        selector: change.selector,
-        element: element.tagName,
-      });
     }
   }
 
@@ -671,12 +673,22 @@ export class DOMChangesPluginLite {
         const experiments = this.watchedElements.get(element);
 
         if (experiments) {
+          // Throttle mutation detection logs to once per second per element
           if (this.config.debug) {
-            logDebug('[ABsmartly] Style mutation detected on watched element', {
-              element: element.tagName,
-              selector: (element as HTMLElement).getAttribute('name') || element.className,
-              oldValue: mutation.oldValue,
-            });
+            const elementKey = `mutation:${element.tagName}:${
+              (element as HTMLElement).getAttribute('name') || element.className
+            }`;
+            const now = Date.now();
+            const lastLogged = this.reapplyLogThrottle.get(elementKey) || 0;
+
+            if (now - lastLogged > 1000) {
+              logDebug('[ABsmartly] Style mutation detected on watched element', {
+                element: element.tagName,
+                selector: (element as HTMLElement).getAttribute('name') || element.className,
+                oldValue: mutation.oldValue,
+              });
+              this.reapplyLogThrottle.set(elementKey, now);
+            }
           }
 
           experiments.forEach(experimentName => {

@@ -131,13 +131,20 @@ export class DOMManipulatorLite {
           this.pendingManager.removePending(change.selector, experimentName, change.observerRoot);
         }
 
-        logChangeApplication(
-          experimentName,
-          change.selector,
-          change.type,
-          appliedElements.length,
-          true
+        // Throttle logs during style persistence reapplies (animations can trigger many times per second)
+        const isReapplying = appliedElements.some(el =>
+          (this.plugin as any).reapplyingElements?.has(el)
         );
+
+        if (!isReapplying) {
+          logChangeApplication(
+            experimentName,
+            change.selector,
+            change.type,
+            appliedElements.length,
+            true
+          );
+        }
         return true;
       }
 
