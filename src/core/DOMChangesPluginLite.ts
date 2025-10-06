@@ -637,6 +637,14 @@ export class DOMChangesPluginLite {
     if (!this.persistenceObserver) {
       this.setupPersistenceObserver();
     }
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] Watching element for style persistence', {
+        experimentName,
+        selector: change.selector,
+        element: element.tagName,
+      });
+    }
   }
 
   unwatchElement(element: Element, experimentName: string): void {
@@ -663,6 +671,14 @@ export class DOMChangesPluginLite {
         const experiments = this.watchedElements.get(element);
 
         if (experiments) {
+          if (this.config.debug) {
+            logDebug('[ABsmartly] Style mutation detected on watched element', {
+              element: element.tagName,
+              selector: (element as HTMLElement).getAttribute('name') || element.className,
+              oldValue: mutation.oldValue,
+            });
+          }
+
           experiments.forEach(experimentName => {
             const appliedChanges = this.appliedStyleChanges.get(experimentName);
 
@@ -708,6 +724,11 @@ export class DOMChangesPluginLite {
                     setTimeout(() => {
                       this.reapplyingElements.delete(element);
                     }, 0);
+                  } else if (this.config.debug) {
+                    logDebug('[ABsmartly] Style mutation detected but no reapply needed', {
+                      experimentName,
+                      selector: change.selector,
+                    });
                   }
                 }
               });
@@ -723,6 +744,10 @@ export class DOMChangesPluginLite {
       subtree: true,
       attributeOldValue: true,
     });
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] Style persistence observer setup complete');
+    }
   }
 
   private checkStyleOverwritten(

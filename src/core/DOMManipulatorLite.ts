@@ -317,7 +317,7 @@ export class DOMManipulatorLite {
 
   private applyChangeToSpecificElement(
     change: DOMChange,
-    _experimentName: string,
+    experimentName: string,
     element: HTMLElement
   ): boolean {
     try {
@@ -351,6 +351,11 @@ export class DOMManipulatorLite {
             return false;
           }
         }
+      }
+
+      // Watch for style persistence if explicitly enabled OR if SPA mode is on
+      if (change.type === 'style' && (change.persistStyle || (this.plugin as any).config?.spa)) {
+        this.plugin.watchElement(element, experimentName, change);
       }
 
       return true;
