@@ -693,6 +693,16 @@ export class DOMChangesPluginLite {
                         }
                       );
                       this.reapplyLogThrottle.set(logKey, now);
+
+                      // Cleanup old throttle entries to prevent memory leak
+                      if (this.reapplyLogThrottle.size > 100) {
+                        const oldestAllowed = now - 60000; // 1 minute
+                        for (const [key, time] of this.reapplyLogThrottle.entries()) {
+                          if (time < oldestAllowed) {
+                            this.reapplyLogThrottle.delete(key);
+                          }
+                        }
+                      }
                     }
 
                     setTimeout(() => {
