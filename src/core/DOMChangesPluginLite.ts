@@ -673,7 +673,7 @@ export class DOMChangesPluginLite {
         const experiments = this.watchedElements.get(element);
 
         if (experiments) {
-          // Throttle mutation detection logs to once per second per element
+          // Throttle mutation detection logs to once per 5 seconds per element
           if (this.config.debug) {
             const elementKey = `mutation:${element.tagName}:${
               (element as HTMLElement).getAttribute('name') || element.className
@@ -681,7 +681,7 @@ export class DOMChangesPluginLite {
             const now = Date.now();
             const lastLogged = this.reapplyLogThrottle.get(elementKey) || 0;
 
-            if (now - lastLogged > 1000) {
+            if (now - lastLogged > 5000) {
               logDebug('[ABsmartly] Style mutation detected on watched element', {
                 element: element.tagName,
                 selector: (element as HTMLElement).getAttribute('name') || element.className,
