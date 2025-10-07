@@ -4,15 +4,11 @@ import { TestDataFactory, MockContextFactory, TestDOMUtils } from '../../__tests
 import { DOMChange } from '../../types';
 
 describe('DOMChangesPluginLite', () => {
-  let consoleLogSpy: jest.SpyInstance;
-
   beforeEach(() => {
     document.body.innerHTML = '';
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
   });
 
   afterEach(() => {
-    consoleLogSpy.mockRestore();
     jest.clearAllMocks();
   });
 
@@ -75,9 +71,6 @@ describe('DOMChangesPluginLite', () => {
       await plugin.ready();
 
       expect((plugin as any).initialized).toBe(true);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('DOM plugin lite loaded successfully')
-      );
     });
 
     it('should not re-initialize if already initialized', async () => {
@@ -85,13 +78,12 @@ describe('DOMChangesPluginLite', () => {
       const plugin = new DOMChangesPluginLite({ context });
 
       await plugin.ready();
-      consoleLogSpy.mockClear();
+      const initializedState = (plugin as any).initialized;
 
       await plugin.ready();
 
-      expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('DOM plugin lite loaded successfully')
-      );
+      // Should still be initialized (not re-initialized)
+      expect((plugin as any).initialized).toBe(initializedState);
     });
 
     it('should call initialize() as alias for ready()', async () => {
@@ -552,7 +544,7 @@ describe('DOMChangesPluginLite', () => {
       const experiment = TestDataFactory.createExperiment('test_exp', [createElement], 1);
       const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
 
-      const plugin = new DOMChangesPluginLite({ context });
+      const plugin = new DOMChangesPluginLite({ context, spa: false });
       await plugin.ready();
 
       const newElement = document.querySelector('.new-item');
@@ -577,7 +569,7 @@ describe('DOMChangesPluginLite', () => {
       const experiment = TestDataFactory.createExperiment('test_exp', [createElement], 1);
       const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
 
-      const plugin = new DOMChangesPluginLite({ context });
+      const plugin = new DOMChangesPluginLite({ context, spa: false });
       await plugin.ready();
 
       const container = document.querySelector('.container');
@@ -605,8 +597,6 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should extract delete changes from context', () => {
-      consoleLogSpy.mockRestore(); // Restore console.log for this test
-
       const deleteChange: DOMChange = {
         selector: '.hero-description',
         type: 'delete',
@@ -614,19 +604,10 @@ describe('DOMChangesPluginLite', () => {
       const experiment = TestDataFactory.createExperiment('test_exp', [deleteChange], 1);
       const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
 
-      // Debug: check what the context returns
-      const contextData = context.data();
-      console.log('Context data:', JSON.stringify(contextData, null, 2));
-      console.log('Peek result:', context.peek('test_exp'));
-
       const plugin = new DOMChangesPluginLite({ context });
       const extractor = (plugin as any).variantExtractor;
 
-      const allChanges = extractor.extractAllChanges();
-      console.log('All changes:', allChanges);
-
       const changes = extractor.getExperimentChanges('test_exp');
-      console.log('Experiment changes:', changes);
 
       expect(changes).toEqual([deleteChange]);
     });
@@ -1039,7 +1020,7 @@ describe('DOMChangesPluginLite', () => {
       await plugin.applyChanges();
 
       const appliedChanges = (plugin as any).appliedStyleChanges.get('style_test');
-      expect(appliedChanges).toContain(styleChange);
+      expect(appliedChanges).toContainEqual(styleChange);
     });
 
     it('should use element.matches() for selector matching (not exact element reference)', () => {

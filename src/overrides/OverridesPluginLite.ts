@@ -96,6 +96,17 @@ export class OverridesPluginLite {
     // Apply overrides to context
     for (const [experimentName, value] of Object.entries(overrides)) {
       const variant = typeof value === 'number' ? value : value.variant;
+
+      // Skip if variant is not a valid number
+      if (isNaN(variant)) {
+        if (this.config.debug) {
+          logDebug(
+            `[OverridesPluginLite] Skipping invalid variant for ${experimentName}: ${variant}`
+          );
+        }
+        continue;
+      }
+
       this.config.context.override?.(experimentName, variant);
 
       if (this.config.debug) {

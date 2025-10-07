@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPluginLite } from '../core/DOMChangesPluginLite';
 import { OverridesPlugin } from '../overrides/OverridesPlugin';
+import * as debugModule from '../utils/debug';
 
 // Mock fetch globally
 global.fetch = jest.fn();
@@ -166,14 +167,14 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
                 variant: 0,
                 name: 'Control',
                 config: JSON.stringify({
-                  dom_changes: [{ selector: '.api-test', type: 'text', value: 'API Control' }],
+                  __dom_changes: [{ selector: '.api-test', type: 'text', value: 'API Control' }],
                 }),
               },
               {
                 variant: 1,
                 name: 'Treatment',
                 config: JSON.stringify({
-                  dom_changes: [
+                  __dom_changes: [
                     { selector: '.api-test', type: 'text', value: 'API Treatment' },
                     { selector: '.api-test', type: 'style', value: { color: 'red' } },
                   ],
@@ -185,6 +186,8 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => apiResponse,
       });
 
@@ -193,12 +196,14 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
+        cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.initialize();
 
       // Verify API was called
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.com/v1/experiments?ids=22846'
+        'https://demo-2.absmartly.com/v1/experiments?ids=22846',
+        expect.any(Object)
       );
 
       // Mock peek to return configured variants
@@ -281,6 +286,8 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => devResponse,
       });
 
@@ -288,12 +295,14 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       overridesPlugin = new OverridesPlugin({
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
+        cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.initialize();
 
       // Verify SDK dev endpoint was called
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.io/context?environment=staging'
+        'https://demo-2.absmartly.io/v1/context?environment=staging',
+        expect.any(Object)
       );
 
       // Mock peek for dev experiment
@@ -325,10 +334,12 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Set mixed overrides
       cookieStore['absmartly_overrides'] =
-        'devEnv=development|running_experiment:1;dev_experiment:0,1;api_experiment:2,2,30000';
+        'devEnv=development|running_experiment:1,dev_experiment:0.1,api_experiment:2.2.30000';
 
       // Mock API response (fetched first)
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({
           experiments: [
             {
@@ -342,7 +353,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
                 {
                   variant: 2,
                   config: JSON.stringify({
-                    dom_changes: [
+                    __dom_changes: [
                       {
                         selector: '.api-test',
                         type: 'html',
@@ -359,6 +370,8 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Mock dev SDK response (fetched second)
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({
           experiments: {
             dev_experiment: {
@@ -384,16 +397,19 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
+        cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.initialize();
 
       // Verify both endpoints were called
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.io/context?environment=development'
+        'https://demo-2.absmartly.io/v1/context?environment=development',
+        expect.any(Object)
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.com/v1/experiments?ids=30000'
+        'https://demo-2.absmartly.com/v1/experiments?ids=30000',
+        expect.any(Object)
       );
 
       // Mock peek for all experiments
@@ -454,7 +470,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
               {
                 variant: 0,
                 config: JSON.stringify({
-                  dom_changes: [
+                  __dom_changes: [
                     { selector: '.updated', type: 'text', value: 'Updated Control from API' },
                   ],
                 }),
@@ -462,7 +478,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
               {
                 variant: 1,
                 config: JSON.stringify({
-                  dom_changes: [
+                  __dom_changes: [
                     { selector: '.updated', type: 'text', value: 'Updated Treatment from API' },
                     {
                       selector: '.updated',
@@ -478,6 +494,8 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => apiResponse,
       });
 
@@ -489,6 +507,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
+        cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.initialize();
 
@@ -563,17 +582,18 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       // Mock fetch failure
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
+        cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.initialize();
 
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(logDebugSpy).toHaveBeenCalled();
 
       // DOM plugin should still work with existing experiments
       mockContext.peek.mockImplementation((expName: string) => {
@@ -592,7 +612,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       const element = document.querySelector('.running-test');
       expect(element?.textContent).toBe('Running Control');
 
-      consoleSpy.mockRestore();
+      logDebugSpy.mockRestore();
     });
 
     it('should handle malformed API response gracefully', async () => {
@@ -600,6 +620,8 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Mock malformed response
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({ invalid: 'response' }),
       });
 
@@ -607,6 +629,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       overridesPlugin = new OverridesPlugin({
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
+        cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.initialize();
 

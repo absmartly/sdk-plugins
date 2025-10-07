@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { VariantExtractor } from '../VariantExtractor';
 import { ABsmartlyContext, ContextData } from '../../types';
+import * as debugModule from '../../utils/debug';
 
 describe('VariantExtractor', () => {
   let variantExtractor: VariantExtractor;
@@ -513,8 +514,7 @@ describe('VariantExtractor', () => {
 
     it('should handle JSON parse errors', () => {
       // Mock logDebug since the code uses that, not console.error directly
-      const logDebugModule = require('../../utils/debug');
-      const logDebugSpy = jest.spyOn(logDebugModule, 'logDebug').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       const contextData: ContextData = {
         experiments: [
@@ -573,8 +573,7 @@ describe('VariantExtractor', () => {
   describe('debug mode', () => {
     it('should log debug messages when enabled', () => {
       // Mock logDebug since the code uses that, not console.warn directly
-      const logDebugModule = require('../../utils/debug');
-      const logDebugSpy = jest.spyOn(logDebugModule, 'logDebug').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       const debugExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', true);
 
@@ -921,8 +920,7 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle context.data() throwing an error', () => {
-      const logDebugModule = require('../../utils/debug');
-      const logDebugSpy = jest.spyOn(logDebugModule, 'logDebug').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       (mockContext.data as jest.Mock).mockImplementation(() => {
         throw new Error('Context data error');

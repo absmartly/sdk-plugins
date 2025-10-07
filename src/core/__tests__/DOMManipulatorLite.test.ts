@@ -11,7 +11,7 @@ describe('DOMManipulatorLite', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     const context = MockContextFactory.create([]);
-    plugin = new DOMChangesPluginLite({ context });
+    plugin = new DOMChangesPluginLite({ context, spa: false });
     manipulator = (plugin as any).domManipulator;
   });
 

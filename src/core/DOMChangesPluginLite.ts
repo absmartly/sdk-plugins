@@ -106,7 +106,7 @@ export class DOMChangesPluginLite {
       const duration = performance.now() - startTime;
       logPerformance('Plugin initialization', duration);
 
-      console.log(
+      logDebug(
         `[ABsmartly] DOM plugin lite loaded successfully (v${DOMChangesPluginLite.VERSION})`
       );
 
@@ -260,33 +260,47 @@ export class DOMChangesPluginLite {
         currentURL
       );
 
-      // Extract changes and apply global defaults
+      // Extract changes for user's variant and apply global defaults
       const changes = this.extractChangesFromData(variantData, globalDefaults);
-
-      if (!changes || changes.length === 0) {
-        continue;
-      }
-
-      const stats = { total: changes.length, success: 0, pending: 0 };
-
-      logDebug(`[ABsmartly] Processing experiment '${expName}' (variant ${currentVariant}):`, {
-        urlMatches: shouldApplyVisualChanges,
-        changeCount: changes.length,
-        changes: changes.map(c => ({
-          type: c.type,
-          selector: c.selector,
-          trigger: c.trigger_on_view ? 'viewport' : 'immediate',
-        })),
-      });
 
       // Get all variant changes for cross-variant tracking (SRM prevention)
       const allVariantChanges = this.extractAllVariantChanges(expName);
 
+      // Check if ANY variant has ANY changes (not just user's variant)
+      // This is critical for SRM prevention - we must track if ANY variant has changes
+      const hasAnyChangesInAnyVariant = allVariantChanges.some(
+        variantChanges => variantChanges && variantChanges.length > 0
+      );
+
+      if (!hasAnyChangesInAnyVariant) {
+        // If NO variant has ANY changes, skip the entire experiment
+        if (this.config.debug) {
+          logDebug(`[ABsmartly] Skipping experiment '${expName}' - no variants have changes`);
+        }
+        continue;
+      }
+
+      const stats = { total: changes?.length || 0, success: 0, pending: 0 };
+
+      if (this.config.debug) {
+        logDebug(`[ABsmartly] Processing experiment '${expName}' (variant ${currentVariant}):`, {
+          urlMatches: shouldApplyVisualChanges,
+          changeCount: changes?.length || 0,
+          userVariantHasChanges: (changes?.length || 0) > 0,
+          changes:
+            changes?.map(c => ({
+              type: c.type,
+              selector: c.selector,
+              trigger: c.trigger_on_view ? 'viewport' : 'immediate',
+            })) || [],
+        });
+      }
+
       let hasImmediateTrigger = false;
       let hasViewportTrigger = false;
 
-      // Apply visual changes only if URL matches for user's variant
-      if (shouldApplyVisualChanges) {
+      // Apply visual changes only if URL matches for user's variant AND user has changes
+      if (shouldApplyVisualChanges && changes && changes.length > 0) {
         for (const change of changes) {
           const success = this.domManipulator.applyChange(change, expName);
 
@@ -316,8 +330,9 @@ export class DOMChangesPluginLite {
             }
           }
         }
-      } else {
-        // URL doesn't match for user's variant, but check if any changes have viewport trigger
+      } else if (changes && changes.length > 0) {
+        // URL doesn't match for user's variant OR user has no changes
+        // Check if user's changes have viewport trigger (if they exist)
         // We still need to set up tracking for SRM prevention
         for (const change of changes) {
           if (change.trigger_on_view) {
@@ -327,28 +342,52 @@ export class DOMChangesPluginLite {
           }
         }
         logDebug(
-          `[ABsmartly] Experiment '${expName}' variant ${currentVariant} doesn't match URL filter, but setting up tracking for SRM prevention`
+          `[ABsmartly] Experiment '${expName}' variant ${currentVariant} doesn't match URL filter or has no changes, but setting up tracking for SRM prevention`
         );
       }
 
-      // CRITICAL: Always register experiment for tracking if ANY variant matches URL
+      // For SRM prevention: Check trigger types across ALL variants (not just user's variant)
+      // If ANY variant has changes with viewport or immediate triggers, we need to track
+      let hasAnyViewportTriggerInAnyVariant = hasViewportTrigger;
+      let hasAnyImmediateTriggerInAnyVariant = hasImmediateTrigger;
+
+      if (!hasViewportTrigger || !hasImmediateTrigger) {
+        for (const variantChanges of allVariantChanges) {
+          if (variantChanges && variantChanges.length > 0) {
+            for (const change of variantChanges) {
+              if (change.trigger_on_view) {
+                hasAnyViewportTriggerInAnyVariant = true;
+              } else {
+                hasAnyImmediateTriggerInAnyVariant = true;
+              }
+
+              // Early exit if we found both types
+              if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
+                break;
+              }
+            }
+          }
+          if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
+            break;
+          }
+        }
+      }
+
+      // CRITICAL: Always register experiment for tracking if ANY variant has ANY trigger type
       // This prevents SRM even when user's variant doesn't match URL filter
-      if (hasViewportTrigger || hasImmediateTrigger) {
+      if (hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant) {
         this.exposureTracker.registerExperiment(
           expName,
           currentVariant || 0,
-          changes,
+          changes || [],
           allVariantChanges
         );
       }
 
-      // Trigger immediate exposure if changes were applied (or would have been) and no viewport tracking
-      if (hasImmediateTrigger && !hasViewportTrigger) {
-        await this.config.context.ready();
-        this.config.context.treatment(expName);
-        this.exposedExperiments.add(expName);
-        logDebug(`Triggered immediate exposure for experiment: ${expName}`);
-      }
+      // Note: We do NOT call treatment() here anymore to avoid duplicate calls.
+      // The ExposureTracker.registerExperiment() will call triggerExposure() internally
+      // when hasImmediateTrigger is true (see ExposureTracker line 169-174).
+      // This prevents double treatment() calls that were causing test failures.
 
       experimentStats.set(expName, stats);
       logExperimentSummary(expName, stats.total, stats.success, stats.pending);

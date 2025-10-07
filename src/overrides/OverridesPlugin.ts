@@ -353,12 +353,16 @@ export class OverridesPlugin extends OverridesPluginLite {
 
           const decodedName = decodeURIComponent(name);
           const parts = values.split('.');
+          const variant = parseInt(parts[0], 10);
+
+          // Skip if variant is not a valid number
+          if (isNaN(variant)) continue;
 
           if (parts.length === 1) {
-            overrides[decodedName] = parseInt(parts[0], 10);
+            overrides[decodedName] = variant;
           } else {
             overrides[decodedName] = {
-              variant: parseInt(parts[0], 10),
+              variant,
               env: parts[1] ? parseInt(parts[1], 10) : undefined,
               id: parts[2] ? parseInt(parts[2], 10) : undefined,
             };

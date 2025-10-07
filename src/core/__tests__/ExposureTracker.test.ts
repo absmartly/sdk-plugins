@@ -457,9 +457,9 @@ describe('ExposureTracker', () => {
       // Check if treatment was called (should be immediate trigger)
       expect(treatmentMock).toHaveBeenCalledWith('exp1');
 
-      // After triggering, experiment should be cleaned up and removed
-      // isTriggered returns false because the experiment is no longer tracked
-      expect(tracker.isTriggered('exp1')).toBe(false);
+      // After triggering, experiment should be cleaned up but still marked as triggered
+      // isTriggered returns true so tests can verify the experiment was triggered
+      expect(tracker.isTriggered('exp1')).toBe(true);
       expect(tracker.needsViewportTracking('exp1')).toBe(false);
     });
 

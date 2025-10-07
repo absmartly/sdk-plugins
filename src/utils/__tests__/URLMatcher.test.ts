@@ -8,9 +8,7 @@ describe('URLMatcher', () => {
     });
 
     it('matches wildcard patterns with *', () => {
-      expect(URLMatcher.matches('/products/*', 'https://example.com/products/any/path')).toBe(
-        true
-      );
+      expect(URLMatcher.matches('/products/*', 'https://example.com/products/any/path')).toBe(true);
       expect(URLMatcher.matches('/*', 'https://example.com/')).toBe(true);
       expect(URLMatcher.matches('/products/*', 'https://example.com/shop')).toBe(false);
     });
@@ -35,9 +33,7 @@ describe('URLMatcher', () => {
 
     it('matches wildcards in paths', () => {
       expect(URLMatcher.matches('/*/page', 'https://example.com/section/page')).toBe(true);
-      expect(URLMatcher.matches('/products/*', 'https://www.example.com/products/123')).toBe(
-        true
-      );
+      expect(URLMatcher.matches('/products/*', 'https://www.example.com/products/123')).toBe(true);
       expect(URLMatcher.matches('/admin/*', 'https://test.com/page')).toBe(false);
     });
 
@@ -187,9 +183,7 @@ describe('URLMatcher', () => {
           matchType: 'path' as const,
         };
 
-        expect(URLMatcher.matches(filter, 'https://example.com/products/123?color=red')).toBe(
-          true
-        );
+        expect(URLMatcher.matches(filter, 'https://example.com/products/123?color=red')).toBe(true);
       });
     });
 
@@ -306,9 +300,7 @@ describe('URLMatcher', () => {
         };
 
         expect(URLMatcher.matches(filter, 'https://example.com/page#section-1')).toBe(true);
-        expect(URLMatcher.matches(filter, 'https://example.com/page#section-comments')).toBe(
-          true
-        );
+        expect(URLMatcher.matches(filter, 'https://example.com/page#section-comments')).toBe(true);
         expect(URLMatcher.matches(filter, 'https://example.com/page#other')).toBe(false);
       });
 
@@ -344,9 +336,7 @@ describe('URLMatcher', () => {
       const filter = '/products/*';
 
       expect(URLMatcher.matches(filter, 'https://shop.example.com/products/shoes')).toBe(true);
-      expect(URLMatcher.matches(filter, 'https://shop.example.com/products/shoes/nike')).toBe(
-        true
-      );
+      expect(URLMatcher.matches(filter, 'https://shop.example.com/products/shoes/nike')).toBe(true);
       expect(URLMatcher.matches(filter, 'https://shop.example.com/cart')).toBe(false);
     });
 
@@ -379,11 +369,12 @@ describe('URLMatcher', () => {
       };
 
       expect(
-        URLMatcher.matches(filter, 'https://example.com/landing?utm_source=email&utm_campaign=promo')
+        URLMatcher.matches(
+          filter,
+          'https://example.com/landing?utm_source=email&utm_campaign=promo'
+        )
       ).toBe(true);
-      expect(URLMatcher.matches(filter, 'https://example.com/other?utm_source=social')).toBe(
-        false
-      );
+      expect(URLMatcher.matches(filter, 'https://example.com/other?utm_source=social')).toBe(false);
     });
 
     it('SPA sections: Hash-based filtering', () => {

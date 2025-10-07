@@ -24,8 +24,12 @@ export class URLMatcher {
     }
 
     // Check inclusions
-    if (!config.include || config.include.length === 0) {
-      return true; // No filter = match all
+    if (!config.include) {
+      return true; // No include property = match all
+    }
+
+    if (config.include.length === 0) {
+      return false; // Empty include array = match nothing (explicit "include nothing")
     }
 
     return this.matchesPatterns(config.include, urlPart, config.mode);
@@ -108,17 +112,22 @@ export class URLMatcher {
     }
   }
 
-  private static normalizeFilter(filter: URLFilter): Required<URLFilterConfig> {
+  private static normalizeFilter(filter: URLFilter): URLFilterConfig {
     if (typeof filter === 'string') {
       return { include: [filter], exclude: [], mode: 'simple', matchType: 'path' };
     }
 
     if (Array.isArray(filter)) {
-      return { include: filter, exclude: [], mode: 'simple', matchType: 'path' };
+      return {
+        include: filter.length > 0 ? filter : undefined,
+        exclude: [],
+        mode: 'simple',
+        matchType: 'path',
+      };
     }
 
     return {
-      include: filter.include || [],
+      include: filter.include,
       exclude: filter.exclude || [],
       mode: filter.mode || 'simple',
       matchType: filter.matchType || 'path',

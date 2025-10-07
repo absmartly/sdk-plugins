@@ -160,17 +160,16 @@ export class ExposureTracker {
       );
     }
 
-    // Set up viewport observers
-    if (hasViewportTrigger) {
-      this.observeSelectors(experimentName, tracking.allPossibleSelectors);
-    }
-
     // Trigger immediately if needed
     if (hasImmediateTrigger) {
       // Don't await here to avoid blocking the tracking setup
       this.triggerExposure(experimentName).catch(error => {
         logDebug(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
       });
+    } else if (hasViewportTrigger) {
+      // Only set up viewport observers if there's NO immediate trigger
+      // If there's an immediate trigger, the experiment will be triggered and cleaned up right away
+      this.observeSelectors(experimentName, tracking.allPossibleSelectors);
     }
   }
 
@@ -456,8 +455,12 @@ export class ExposureTracker {
       }
     });
 
-    // Remove experiment
-    this.experiments.delete(experimentName);
+    // Don't delete the experiment - keep it in the map so isTriggered() can still return true
+    // Just clear the selectors since we don't need to track them anymore
+    const experiment = this.experiments.get(experimentName);
+    if (experiment) {
+      experiment.allPossibleSelectors.clear();
+    }
 
     // Clean up mutation observer if no experiments left
     if (this.experiments.size === 0 && this.mutationObserver) {

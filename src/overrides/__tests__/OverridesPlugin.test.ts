@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { OverridesPlugin } from '../OverridesPlugin';
 import { OverridesPluginConfig } from '../types';
+import * as debugModule from '../../utils/debug';
 
 // Mock fetch globally
 global.fetch = jest.fn();
@@ -90,7 +91,7 @@ describe('OverridesPlugin', () => {
     it('should throw error if context is not provided', () => {
       expect(() => {
         new OverridesPlugin({} as OverridesPluginConfig);
-      }).toThrow('[OverridesPlugin] Context is required');
+      }).toThrow('Context is required');
     });
 
     it('should throw error if SDK endpoint cannot be determined', () => {
@@ -172,7 +173,8 @@ describe('OverridesPlugin', () => {
       expect(mockContext.override).toHaveBeenCalledWith('exp1', 1);
       expect(mockContext.override).toHaveBeenCalledWith('exp2', 0);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.io/context?environment=staging'
+        'https://demo-2.absmartly.io/v1/context?environment=staging',
+        expect.any(Object)
       );
     });
 
@@ -279,7 +281,8 @@ describe('OverridesPlugin', () => {
       expect(mockContext.override).toHaveBeenCalledWith('exp1', 1);
       expect(mockContext.override).toHaveBeenCalledWith('exp2', 0);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.io/context?environment=staging'
+        'https://demo-2.absmartly.io/v1/context?environment=staging',
+        expect.any(Object)
       );
     });
 
@@ -417,13 +420,13 @@ describe('OverridesPlugin', () => {
                 variant: 0,
                 name: 'Control',
                 config:
-                  '{"dom_changes":[{"selector":".api-test","type":"style","value":{"background":"blue"}}]}',
+                  '{"__dom_changes":[{"selector":".api-test","type":"style","value":{"background":"blue"}}]}',
               },
               {
                 variant: 1,
                 name: 'Treatment',
                 config:
-                  '{"dom_changes":[{"selector":".api-test","type":"style","value":{"background":"red"}}]}',
+                  '{"__dom_changes":[{"selector":".api-test","type":"style","value":{"background":"red"}}]}',
               },
             ],
           },
@@ -437,7 +440,7 @@ describe('OverridesPlugin', () => {
                 variant: 0,
                 name: 'Control',
                 config:
-                  '{"dom_changes":[{"selector":".api-test2","type":"text","value":"API Control"}]}',
+                  '{"__dom_changes":[{"selector":".api-test2","type":"text","value":"API Control"}]}',
               },
             ],
           },
@@ -445,6 +448,8 @@ describe('OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => apiResponse,
       });
 
@@ -452,7 +457,8 @@ describe('OverridesPlugin', () => {
 
       // Check fetch was called with correct URL
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.com/v1/experiments?ids=22846,22847'
+        'https://demo-2.absmartly.com/v1/experiments?ids=22846,22847',
+        expect.any(Object)
       );
 
       // Check overrides were applied
@@ -490,7 +496,8 @@ describe('OverridesPlugin', () => {
 
       // Should convert .io to .com for API endpoint
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.com/v1/experiments?ids=12345'
+        'https://demo-2.absmartly.com/v1/experiments?ids=12345',
+        expect.any(Object)
       );
     });
 
@@ -500,16 +507,16 @@ describe('OverridesPlugin', () => {
       // Mock fetch error
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       await plugin.initialize();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logDebugSpy).toHaveBeenCalledWith(
         '[OverridesPlugin] Failed to fetch experiments from API:',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      logDebugSpy.mockRestore();
     });
   });
 
@@ -559,6 +566,8 @@ describe('OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => devResponse,
       });
 
@@ -566,7 +575,8 @@ describe('OverridesPlugin', () => {
 
       // Check fetch was called with correct URL
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.io/context?environment=development'
+        'https://demo-2.absmartly.io/v1/context?environment=development',
+        expect.any(Object)
       );
 
       // Check overrides were applied
@@ -587,16 +597,16 @@ describe('OverridesPlugin', () => {
 
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('SDK error'));
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
       await plugin.initialize();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logDebugSpy).toHaveBeenCalledWith(
         '[OverridesPlugin] Failed to fetch experiments from dev SDK:',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      logDebugSpy.mockRestore();
     });
   });
 
@@ -625,7 +635,7 @@ describe('OverridesPlugin', () => {
               {
                 variant: 1,
                 name: 'Treatment A',
-                config: '{"dom_changes":[{"selector":"h1","type":"text","value":"New Title"}]}',
+                config: '{"__dom_changes":[{"selector":"h1","type":"text","value":"New Title"}]}',
               },
               { variant: 2, name: 'Treatment B', config: '{}' },
             ],
@@ -634,6 +644,8 @@ describe('OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => apiResponse,
       });
 
@@ -674,13 +686,13 @@ describe('OverridesPlugin', () => {
                 variant: 0,
                 name: 'Control',
                 config:
-                  '{"dom_changes":[{"selector":".updated","type":"text","value":"Updated Control"}]}',
+                  '{"__dom_changes":[{"selector":".updated","type":"text","value":"Updated Control"}]}',
               },
               {
                 variant: 1,
                 name: 'Treatment',
                 config:
-                  '{"dom_changes":[{"selector":".updated","type":"text","value":"Updated Treatment"}]}',
+                  '{"__dom_changes":[{"selector":".updated","type":"text","value":"Updated Treatment"}]}',
               },
             ],
           },
@@ -688,6 +700,8 @@ describe('OverridesPlugin', () => {
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => apiResponse,
       });
 
@@ -712,6 +726,8 @@ describe('OverridesPlugin', () => {
 
       // Mock API response (fetched first)
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({
           experiments: [
             {
@@ -722,7 +738,7 @@ describe('OverridesPlugin', () => {
                 { variant: 1, config: '{}' },
                 {
                   variant: 2,
-                  config: '{"dom_changes":[{"selector":".api","type":"text","value":"API"}]}',
+                  config: '{"__dom_changes":[{"selector":".api","type":"text","value":"API"}]}',
                 },
               ],
             },
@@ -732,6 +748,8 @@ describe('OverridesPlugin', () => {
 
       // Mock dev SDK response (fetched second)
       (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({
           experiments: {
             dev_exp: {
@@ -757,10 +775,12 @@ describe('OverridesPlugin', () => {
       // Check both fetch calls were made
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.io/context?environment=dev'
+        'https://demo-2.absmartly.io/v1/context?environment=dev',
+        expect.any(Object)
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://demo-2.absmartly.com/v1/experiments?ids=40000'
+        'https://demo-2.absmartly.com/v1/experiments?ids=40000',
+        expect.any(Object)
       );
 
       // Check all experiments are in context

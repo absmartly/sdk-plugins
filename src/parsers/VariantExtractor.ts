@@ -298,7 +298,8 @@ export class VariantExtractor {
     const obj = change as Record<string, unknown>;
 
     // Check required fields
-    if (!obj.selector || !obj.type) {
+    // Note: selector can be empty string for 'create' and 'styleRules' types
+    if (obj.selector === undefined || obj.selector === null || !obj.type) {
       return false;
     }
 
@@ -478,19 +479,25 @@ export class VariantExtractor {
   anyVariantMatchesURL(experimentName: string, url: string = window.location.href): boolean {
     const variantsData = this.getAllVariantsData(experimentName);
 
+    let hasAnyURLFilter = false;
+
     for (const [, data] of variantsData) {
       // Check if this variant has URL filter in wrapped format
       if (data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data) {
         const config = data as DOMChangesConfig;
-        if (config.urlFilter && URLMatcher.matches(config.urlFilter, url)) {
-          return true; // At least one variant matches this URL
+        if (config.urlFilter) {
+          hasAnyURLFilter = true;
+          if (URLMatcher.matches(config.urlFilter, url)) {
+            return true; // At least one variant matches this URL
+          }
         }
-      } else {
-        // Legacy array format has no URL filter, so it matches all URLs
-        return true;
       }
+      // Note: Legacy array format or wrapped format without urlFilter doesn't affect matching
+      // We only check URL filters that exist
     }
 
-    return false;
+    // If NO variant has a URL filter, match all URLs (legacy behavior)
+    // If at least one variant has a URL filter, we checked them all above
+    return !hasAnyURLFilter;
   }
 }
