@@ -12,6 +12,15 @@ export type ChangeType =
 
 export type DOMChangeValue = string | number | boolean | Record<string, string> | undefined;
 
+// URL filtering types
+export interface URLFilterConfig {
+  include?: string[];
+  exclude?: string[];
+  mode?: 'simple' | 'regex';
+}
+
+export type URLFilter = string | string[] | URLFilterConfig;
+
 export interface StyleRuleStates {
   normal?: Record<string, string>;
   hover?: Record<string, string>;
@@ -50,6 +59,21 @@ export interface DOMChange {
   // For exposure tracking
   trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport
 }
+
+// New format for __dom_changes with URL filtering and global defaults
+export interface DOMChangesConfig {
+  changes: DOMChange[];
+  urlFilter?: URLFilter;
+
+  // Global defaults that can be overridden per-change
+  waitForElement?: boolean;
+  persistStyle?: boolean;
+  important?: boolean;
+  observerRoot?: string;
+}
+
+// Union type supporting both legacy array format and new config format
+export type DOMChangesData = DOMChange[] | DOMChangesConfig;
 
 export interface InjectionData {
   headStart?: string;

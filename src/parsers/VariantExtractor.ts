@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { DOMChange, ContextData, ABsmartlyContext, ExperimentData } from '../types';
+import {
+  DOMChange,
+  ContextData,
+  ABsmartlyContext,
+  ExperimentData,
+  DOMChangesData,
+  DOMChangesConfig,
+} from '../types';
 import { logDebug } from '../utils/debug';
+import { URLMatcher } from '../utils/URLMatcher';
 
 export class VariantExtractor {
   private context: ABsmartlyContext;
@@ -182,7 +190,8 @@ export class VariantExtractor {
       }
 
       if (changesData) {
-        const changes = this.parseChanges(changesData);
+        // Extract changes - handles both legacy array and new wrapped format
+        const changes = this.extractChangesFromData(changesData);
         if (changes && changes.length > 0) {
           variantChanges.set(i, changes);
         }
@@ -190,6 +199,34 @@ export class VariantExtractor {
     }
 
     return variantChanges;
+  }
+
+  /**
+   * Extract changes from DOMChangesData (handles both legacy array and new wrapped format)
+   */
+  private extractChangesFromData(data: unknown): DOMChange[] | null {
+    if (!data) {
+      return null;
+    }
+
+    // If it's a string, try to parse it as JSON first
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (error) {
+        logDebug('[ABsmartly] Failed to parse DOM changes JSON:', error);
+        return null;
+      }
+    }
+
+    // Check if it's the new wrapped format (DOMChangesConfig)
+    if (data && typeof data === 'object' && !Array.isArray(data) && 'changes' in data) {
+      const config = data as DOMChangesConfig;
+      return this.parseChanges(config.changes);
+    }
+
+    // Legacy array format
+    return this.parseChanges(data);
   }
 
   // Get changes for the current variant of a specific experiment
@@ -364,5 +401,96 @@ export class VariantExtractor {
       }
       return null;
     }
+  }
+
+  /**
+   * Get the raw DOMChangesData for all variants of an experiment (includes URL filters and metadata)
+   * This is needed for URL filtering logic
+   */
+  getAllVariantsData(experimentName: string): Map<number, DOMChangesData> {
+    const variantsData = new Map<number, DOMChangesData>();
+
+    try {
+      const contextData = this.context.data() as ContextData;
+
+      if (!contextData?.experiments) {
+        return variantsData;
+      }
+
+      const experiment = contextData.experiments.find(exp => exp.name === experimentName);
+
+      if (!experiment?.variants) {
+        return variantsData;
+      }
+
+      for (let i = 0; i < experiment.variants.length; i++) {
+        const variant = experiment.variants[i];
+        if (!variant) continue;
+
+        let changesData = null;
+
+        if (this.dataSource === 'variable') {
+          // First check variant.variables
+          if (variant.variables && variant.variables[this.dataFieldName]) {
+            changesData = variant.variables[this.dataFieldName];
+          }
+          // Then check variant.config
+          else if (variant.config) {
+            try {
+              const config =
+                typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
+
+              if (config && config[this.dataFieldName]) {
+                changesData = config[this.dataFieldName];
+              }
+            } catch (e) {
+              logDebug('[VariantExtractor] Failed to parse variant.config:', e);
+            }
+          }
+        }
+
+        if (changesData) {
+          // Parse JSON string if needed
+          if (typeof changesData === 'string') {
+            try {
+              changesData = JSON.parse(changesData);
+            } catch (error) {
+              logDebug('[ABsmartly] Failed to parse DOM changes JSON:', error);
+              continue;
+            }
+          }
+
+          // Store the raw data (could be array or wrapped format)
+          variantsData.set(i, changesData as DOMChangesData);
+        }
+      }
+    } catch (error) {
+      logDebug('[ABsmartly] Error getting all variants data:', error);
+    }
+
+    return variantsData;
+  }
+
+  /**
+   * Check if any variant of an experiment has changes that match the current URL
+   * This is critical for SRM prevention - if ANY variant matches URL, ALL variants must be tracked
+   */
+  anyVariantMatchesURL(experimentName: string, url: string = window.location.href): boolean {
+    const variantsData = this.getAllVariantsData(experimentName);
+
+    for (const [, data] of variantsData) {
+      // Check if this variant has URL filter in wrapped format
+      if (data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data) {
+        const config = data as DOMChangesConfig;
+        if (config.urlFilter && URLMatcher.matches(config.urlFilter, url)) {
+          return true; // At least one variant matches this URL
+        }
+      } else {
+        // Legacy array format has no URL filter, so it matches all URLs
+        return true;
+      }
+    }
+
+    return false;
   }
 }

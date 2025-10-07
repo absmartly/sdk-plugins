@@ -1,10 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { PluginConfig, DOMChange, EventCallback, EventCallbackData } from '../types';
+import {
+  PluginConfig,
+  DOMChange,
+  EventCallback,
+  EventCallbackData,
+  DOMChangesData,
+  DOMChangesConfig,
+} from '../types';
 import { DOMManipulatorLite } from './DOMManipulatorLite';
 import { VariantExtractor } from '../parsers/VariantExtractor';
 import { StyleSheetManager } from './StyleSheetManager';
 import { ExposureTracker } from './ExposureTracker';
 import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
+import { URLMatcher } from '../utils/URLMatcher';
 
 export class DOMChangesPluginLite {
   public static readonly VERSION: string = '1.0.0-lite';
@@ -82,6 +90,7 @@ export class DOMChangesPluginLite {
     try {
       if (this.config.spa) {
         this.setupMutationObserver();
+        this.setupURLChangeListener();
       }
 
       if (this.config.autoApply) {
@@ -129,17 +138,81 @@ export class DOMChangesPluginLite {
     this.mutationObserver = observer;
   }
 
+  /**
+   * Set up URL change listener for SPA mode
+   * Re-evaluates URL filters when URL changes and applies/removes changes accordingly
+   */
+  private setupURLChangeListener(): void {
+    const handleURLChange = async () => {
+      const newURL = window.location.href;
+      logDebug('[ABsmartly] URL changed, re-evaluating experiments:', newURL);
+
+      // Remove all current changes
+      await this.removeAllChanges();
+
+      // Re-apply changes with new URL
+      await this.applyChanges();
+    };
+
+    // Listen to popstate (back/forward navigation)
+    window.addEventListener('popstate', handleURLChange);
+
+    // Intercept pushState and replaceState
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function (...args) {
+      originalPushState.apply(history, args);
+      handleURLChange();
+    };
+
+    history.replaceState = function (...args) {
+      originalReplaceState.apply(history, args);
+      handleURLChange();
+    };
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] URL change listener set up for SPA mode');
+    }
+  }
+
+  /**
+   * Remove all currently applied changes
+   * Used when URL changes in SPA mode
+   */
+  private async removeAllChanges(): Promise<void> {
+    // Clear exposed experiments - ExposureTracker will re-register on next applyChanges
+    this.exposedExperiments.clear();
+
+    // Clear style managers - StyleSheetManager doesn't have a remove method
+    // The stylesheets will be reused or cleared on next applyChanges
+    this.styleManagers.clear();
+
+    // Clear applied style changes
+    this.appliedStyleChanges.clear();
+
+    // Clear variant extractor cache to force re-extraction
+    this.variantExtractor.clearCache();
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] All change tracking cleared for URL change');
+    }
+  }
+
   async applyChanges(experimentName?: string): Promise<void> {
     const startTime = performance.now();
+    const currentURL = window.location.href;
 
     logDebug('Starting to apply changes', {
       specificExperiment: experimentName || 'all',
+      url: currentURL,
       action: 'apply_start',
     });
 
     if (this.config.debug) {
       logDebug('[ABsmartly] === DOM Changes Application Starting ===');
       logDebug('[ABsmartly] Target:', experimentName || 'all experiments');
+      logDebug('[ABsmartly] Current URL:', currentURL);
       logDebug('[ABsmartly] Context ready:', true);
     }
 
@@ -152,110 +225,114 @@ export class DOMChangesPluginLite {
 
     this.variantExtractor.clearCache();
 
-    let changesMap: Map<string, DOMChange[]>;
-
-    if (experimentName) {
-      const changes = this.variantExtractor.getExperimentChanges(experimentName);
-      changesMap = new Map(changes ? [[experimentName, changes]] : []);
-
-      if (this.config.debug) {
-        const variant = this.config.context.peek(experimentName);
-        logDebug(`[ABsmartly] Single experiment '${experimentName}':`, {
-          variant,
-          hasChanges: !!changes,
-          changeCount: changes?.length || 0,
-        });
-      }
-    } else {
-      const allVariants = this.variantExtractor.extractAllChanges();
-      changesMap = new Map();
-
-      logDebug(
-        '[ABsmartly] All available experiments with DOM changes:',
-        Array.from(allVariants.keys())
-      );
-
-      for (const [expName, variantMap] of allVariants) {
-        const currentVariant = this.config.context.peek(expName);
-
-        logDebug(`[ABsmartly] Experiment '${expName}':`, {
-          assignedVariant: currentVariant || 0,
-          availableVariants: Array.from(variantMap.keys()),
-        });
-
-        if (currentVariant) {
-          const changes = variantMap.get(currentVariant);
-          if (changes && changes.length > 0) {
-            changesMap.set(expName, changes);
-            logDebug(
-              `[ABsmartly]   -> Will apply ${changes.length} changes for variant ${currentVariant}`
-            );
-          } else {
-            logDebug(`[ABsmartly]   -> No changes found for variant ${currentVariant}`);
-          }
-        } else {
-          logDebug(`[ABsmartly]   -> No variant assigned (control or not in experiment)`);
-        }
-      }
-    }
+    // Get all experiments with their data
+    const allExperiments = this.getAllExperimentsData();
 
     let totalApplied = 0;
     const experimentStats = new Map<string, { total: number; success: number; pending: number }>();
 
-    logDebug('[ABsmartly] Experiments to process:', Array.from(changesMap.keys()));
-    logDebug('[ABsmartly] Total experiments with changes:', changesMap.size);
+    logDebug('[ABsmartly] Experiments to process:', Array.from(allExperiments.keys()));
+    logDebug('[ABsmartly] Total experiments with changes:', allExperiments.size);
 
-    for (const [expName, changes] of changesMap) {
+    for (const [expName, experimentData] of allExperiments) {
+      // Skip if filtering by specific experiment
+      if (experimentName && expName !== experimentName) {
+        continue;
+      }
+
+      const currentVariant = this.config.context.peek(expName);
+      const { variantData, urlFilter, globalDefaults } = experimentData;
+
+      // Check if ANY variant matches the current URL
+      const anyVariantMatchesURL = this.variantExtractor.anyVariantMatchesURL(expName, currentURL);
+
+      if (!anyVariantMatchesURL) {
+        logDebug(
+          `[ABsmartly] Skipping experiment '${expName}' - no variant matches URL: ${currentURL}`
+        );
+        continue;
+      }
+
+      // Determine if we should apply visual changes for the user's variant
+      const shouldApplyVisualChanges = this.shouldApplyVisualChanges(
+        variantData,
+        urlFilter,
+        currentURL
+      );
+
+      // Extract changes and apply global defaults
+      const changes = this.extractChangesFromData(variantData, globalDefaults);
+
+      if (!changes || changes.length === 0) {
+        continue;
+      }
+
       const stats = { total: changes.length, success: 0, pending: 0 };
 
-      logDebug(
-        `[ABsmartly] Processing experiment '${expName}' with ${changes.length} changes:`,
-        changes.map(c => ({
+      logDebug(`[ABsmartly] Processing experiment '${expName}' (variant ${currentVariant}):`, {
+        urlMatches: shouldApplyVisualChanges,
+        changeCount: changes.length,
+        changes: changes.map(c => ({
           type: c.type,
           selector: c.selector,
           trigger: c.trigger_on_view ? 'viewport' : 'immediate',
-        }))
-      );
+        })),
+      });
 
-      const currentVariant = this.config.context.peek(expName);
-      const allVariantChanges = this.variantExtractor.getAllVariantChanges(expName);
+      // Get all variant changes for cross-variant tracking (SRM prevention)
+      const allVariantChanges = this.extractAllVariantChanges(expName);
 
       let hasImmediateTrigger = false;
       let hasViewportTrigger = false;
 
-      for (const change of changes) {
-        // Always call applyChange and let DOMManipulator handle the logic
-        // It will register pending changes with PendingChangeManager when needed
-        const success = this.domManipulator.applyChange(change, expName);
+      // Apply visual changes only if URL matches for user's variant
+      if (shouldApplyVisualChanges) {
+        for (const change of changes) {
+          const success = this.domManipulator.applyChange(change, expName);
 
-        if (success) {
-          totalApplied++;
-          stats.success++;
+          if (success) {
+            totalApplied++;
+            stats.success++;
 
+            if (change.trigger_on_view) {
+              hasViewportTrigger = true;
+            } else {
+              hasImmediateTrigger = true;
+            }
+          } else if (change.type !== 'create' && change.type !== 'styleRules') {
+            // Track pending changes for stats
+            try {
+              const elements = document.querySelectorAll(change.selector);
+              if (elements.length === 0 && (this.config.spa || change.waitForElement)) {
+                stats.pending++;
+                if (change.trigger_on_view) {
+                  hasViewportTrigger = true;
+                }
+              }
+            } catch (error) {
+              if (this.config.debug) {
+                logDebug(`[ABsmartly] Invalid selector: ${change.selector}`, error);
+              }
+            }
+          }
+        }
+      } else {
+        // URL doesn't match for user's variant, but check if any changes have viewport trigger
+        // We still need to set up tracking for SRM prevention
+        for (const change of changes) {
           if (change.trigger_on_view) {
             hasViewportTrigger = true;
           } else {
             hasImmediateTrigger = true;
           }
-        } else if (change.type !== 'create' && change.type !== 'styleRules') {
-          // Track pending changes for stats (but DOMManipulator already handles retries)
-          try {
-            const elements = document.querySelectorAll(change.selector);
-            if (elements.length === 0 && (this.config.spa || change.waitForElement)) {
-              stats.pending++;
-              if (change.trigger_on_view) {
-                hasViewportTrigger = true;
-              }
-            }
-          } catch (error) {
-            // Invalid selector, ignore
-            if (this.config.debug) {
-              logDebug(`[ABsmartly] Invalid selector: ${change.selector}`, error);
-            }
-          }
         }
+        logDebug(
+          `[ABsmartly] Experiment '${expName}' variant ${currentVariant} doesn't match URL filter, but setting up tracking for SRM prevention`
+        );
       }
 
+      // CRITICAL: Always register experiment for tracking if ANY variant matches URL
+      // This prevents SRM even when user's variant doesn't match URL filter
       if (hasViewportTrigger || hasImmediateTrigger) {
         this.exposureTracker.registerExperiment(
           expName,
@@ -265,6 +342,7 @@ export class DOMChangesPluginLite {
         );
       }
 
+      // Trigger immediate exposure if changes were applied (or would have been) and no viewport tracking
       if (hasImmediateTrigger && !hasViewportTrigger) {
         await this.config.context.ready();
         this.config.context.treatment(expName);
@@ -305,6 +383,162 @@ export class DOMChangesPluginLite {
     }
 
     this.emit('changes-applied', { count: totalApplied, experimentName });
+  }
+
+  /**
+   * Get all experiments with their variant data and metadata
+   */
+  private getAllExperimentsData(): Map<
+    string,
+    {
+      variantData: DOMChangesData;
+      urlFilter: any;
+      globalDefaults: Partial<DOMChangesConfig>;
+    }
+  > {
+    const experiments = new Map();
+    const allVariants = this.variantExtractor.extractAllChanges();
+
+    for (const [expName] of allVariants) {
+      const currentVariant = this.config.context.peek(expName);
+      if (currentVariant === undefined || currentVariant === null) {
+        continue;
+      }
+
+      const variantsData = this.variantExtractor.getAllVariantsData(expName);
+      const variantData = variantsData.get(currentVariant);
+
+      if (!variantData) {
+        continue;
+      }
+
+      // Extract URL filter and global defaults if using wrapped format
+      let urlFilter = null;
+      let globalDefaults = {};
+
+      if (
+        variantData &&
+        typeof variantData === 'object' &&
+        !Array.isArray(variantData) &&
+        'changes' in variantData
+      ) {
+        const config = variantData as DOMChangesConfig;
+        urlFilter = config.urlFilter;
+        globalDefaults = {
+          waitForElement: config.waitForElement,
+          persistStyle: config.persistStyle,
+          important: config.important,
+          observerRoot: config.observerRoot,
+        };
+      }
+
+      experiments.set(expName, { variantData, urlFilter, globalDefaults });
+    }
+
+    return experiments;
+  }
+
+  /**
+   * Extract changes from DOMChangesData and apply global defaults
+   */
+  private extractChangesFromData(
+    data: DOMChangesData,
+    globalDefaults: Partial<DOMChangesConfig>
+  ): DOMChange[] | null {
+    let changes: DOMChange[] | null = null;
+
+    // Extract changes array
+    if (Array.isArray(data)) {
+      changes = data;
+    } else if (data && typeof data === 'object' && 'changes' in data) {
+      changes = (data as DOMChangesConfig).changes;
+    }
+
+    if (!changes || changes.length === 0) {
+      return null;
+    }
+
+    // Apply global defaults to each change
+    return changes.map(change => ({
+      ...change,
+      waitForElement: change.waitForElement ?? globalDefaults.waitForElement,
+      persistStyle: change.persistStyle ?? globalDefaults.persistStyle,
+      important: change.important ?? globalDefaults.important,
+      observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
+    }));
+  }
+
+  /**
+   * Extract all variant changes for cross-variant tracking
+   */
+  private extractAllVariantChanges(experimentName: string): DOMChange[][] {
+    const allVariantChanges = this.variantExtractor.getAllVariantChanges(experimentName);
+    const variantsData = this.variantExtractor.getAllVariantsData(experimentName);
+
+    // Apply global defaults to each variant's changes
+    const processedVariants: DOMChange[][] = [];
+
+    for (let i = 0; i < allVariantChanges.length; i++) {
+      const variantChanges = allVariantChanges[i];
+      const variantData = variantsData.get(i);
+
+      if (!variantChanges || variantChanges.length === 0) {
+        processedVariants.push([]);
+        continue;
+      }
+
+      // Extract global defaults if using wrapped format
+      let globalDefaults: Partial<DOMChangesConfig> = {};
+      if (
+        variantData &&
+        typeof variantData === 'object' &&
+        !Array.isArray(variantData) &&
+        'changes' in variantData
+      ) {
+        const config = variantData as DOMChangesConfig;
+        globalDefaults = {
+          waitForElement: config.waitForElement,
+          persistStyle: config.persistStyle,
+          important: config.important,
+          observerRoot: config.observerRoot,
+        };
+      }
+
+      // Apply global defaults
+      const processedChanges = variantChanges.map(change => ({
+        ...change,
+        waitForElement: change.waitForElement ?? globalDefaults.waitForElement,
+        persistStyle: change.persistStyle ?? globalDefaults.persistStyle,
+        important: change.important ?? globalDefaults.important,
+        observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
+      }));
+
+      processedVariants.push(processedChanges);
+    }
+
+    return processedVariants;
+  }
+
+  /**
+   * Determine if visual changes should be applied based on URL filter
+   */
+  private shouldApplyVisualChanges(
+    variantData: DOMChangesData,
+    urlFilter: any,
+    url: string
+  ): boolean {
+    // Legacy array format has no URL filter - always apply
+    if (Array.isArray(variantData)) {
+      return true;
+    }
+
+    // Wrapped format without URL filter - always apply
+    if (!urlFilter) {
+      return true;
+    }
+
+    // Check URL filter
+    return URLMatcher.matches(urlFilter, url);
   }
 
   hasChanges(experimentName: string): boolean {
@@ -605,7 +839,9 @@ export class DOMChangesPluginLite {
       }, transitionDuration);
 
       if (this.config.debug) {
-        logDebug(`[ABsmartly] Anti-flicker fading in with transition: ${this.config.hideTransition}`);
+        logDebug(
+          `[ABsmartly] Anti-flicker fading in with transition: ${this.config.hideTransition}`
+        );
       }
     } else {
       // Instant reveal: just remove the style
