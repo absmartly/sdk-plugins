@@ -67,7 +67,7 @@ Match a single URL pattern using wildcards:
 
 ```json
 {
-  "urlFilter": "https://example.com/products/*",
+  "urlFilter": "/products/*",
   "changes": [...]
 }
 ```
@@ -76,12 +76,13 @@ Match a single URL pattern using wildcards:
 - `*` matches any characters (zero or more)
 - `?` matches exactly one character
 
-**Examples:**
-- `https://example.com/products/*` → All product pages
-- `https://example.com/products/*/details` → Product detail pages
-- `*/checkout` → Checkout on any domain
-- `*example.com*` → Any URL containing example.com
-- `https://example.com/page?` → page1, page2, etc.
+**Examples (default matchType is "path"):**
+- `/products/*` → All product pages (any domain)
+- `/products/*/details` → Product detail pages
+- `/checkout` → Checkout page
+- `/page?` → page1, page2, etc.
+
+**Note:** By default, patterns match against the path only (ignoring domain). This allows the same experiment to work across dev/staging/prod environments. To match the complete URL including domain, use `matchType: "full-url"` (see Match Type Options below).
 
 ### 2. Multiple Patterns (Array)
 
@@ -90,9 +91,9 @@ Match any of several patterns:
 ```json
 {
   "urlFilter": [
-    "https://example.com/products/*",
-    "https://example.com/shop/*",
-    "*/checkout"
+    "/products/*",
+    "/shop/*",
+    "/checkout"
   ],
   "changes": [...]
 }
@@ -107,13 +108,10 @@ For complex scenarios with exclusions:
 ```json
 {
   "urlFilter": {
-    "include": [
-      "https://example.com/*",
-      "https://example.net/*"
-    ],
+    "include": ["/*"],
     "exclude": [
-      "https://example.com/admin/*",
-      "https://example.com/internal/*"
+      "/admin/*",
+      "/internal/*"
     ],
     "mode": "simple"
   },
@@ -125,8 +123,135 @@ For complex scenarios with exclusions:
 - `include` (optional): Array of patterns to match. If empty/omitted, matches all URLs.
 - `exclude` (optional): Array of patterns to exclude. Takes precedence over include.
 - `mode` (optional): `"simple"` (default) or `"regex"`
+- `matchType` (optional): `"path"` (default), `"full-url"`, `"domain"`, `"query"`, or `"hash"`
 
 **Exclude takes precedence**: If a URL matches both include and exclude, it's excluded.
+
+### Match Type Options
+
+The `matchType` parameter controls which part of the URL is matched against your patterns. This is useful for different targeting strategies:
+
+#### `"path"` (default) - Path + Hash
+Matches just the pathname and hash fragment (e.g., `/products/123#reviews`).
+
+**Use when:**
+- You want the same experiment across all domains (dev/staging/prod)
+- Domain doesn't matter, only the page path
+- Most common use case
+
+**Example:**
+```json
+{
+  "urlFilter": {
+    "include": ["/products/*"],
+    "matchType": "path"
+  },
+  "changes": [...]
+}
+```
+
+Matches:
+- ✅ `https://example.com/products/123`
+- ✅ `https://shop.example.com/products/123`
+- ✅ `http://localhost:3000/products/123`
+- ❌ `https://example.com/shop/123`
+
+#### `"full-url"` - Complete URL
+Matches the complete URL including protocol, domain, path, query, and hash.
+
+**Use when:**
+- You need exact URL matching including query parameters
+- Different experiments for different domains
+- Protocol matters (http vs https)
+
+**Example:**
+```json
+{
+  "urlFilter": {
+    "include": ["https://shop.example.com/products/*"],
+    "matchType": "full-url"
+  },
+  "changes": [...]
+}
+```
+
+Matches:
+- ✅ `https://shop.example.com/products/123?color=red`
+- ❌ `http://shop.example.com/products/123` (wrong protocol)
+- ❌ `https://www.example.com/products/123` (wrong subdomain)
+
+#### `"domain"` - Domain Only
+Matches just the hostname (e.g., `shop.example.com`).
+
+**Use when:**
+- Targeting specific subdomains
+- Multi-domain campaigns
+- A/B testing different domains
+
+**Example:**
+```json
+{
+  "urlFilter": {
+    "include": ["shop.example.com", "*.example.net"],
+    "matchType": "domain"
+  },
+  "changes": [...]
+}
+```
+
+Matches:
+- ✅ `https://shop.example.com/any/path`
+- ✅ `http://shop.example.com/other`
+- ✅ `https://www.example.net/page`
+- ❌ `https://www.example.com/page`
+
+#### `"query"` - Query Parameters Only
+Matches just the query string (e.g., `?utm_source=email&id=123`).
+
+**Use when:**
+- UTM parameter tracking
+- Campaign-specific experiments
+- Testing based on URL parameters
+
+**Example:**
+```json
+{
+  "urlFilter": {
+    "include": ["*utm_source=email*"],
+    "matchType": "query"
+  },
+  "changes": [...]
+}
+```
+
+Matches:
+- ✅ `https://example.com/page?utm_source=email`
+- ✅ `https://other.com/page?utm_source=email&id=123`
+- ❌ `https://example.com/page?utm_source=social`
+
+#### `"hash"` - Hash Fragment Only
+Matches just the hash fragment (e.g., `#section-about`).
+
+**Use when:**
+- SPA hash-based routing
+- Specific page sections
+- Single-page application states
+
+**Example:**
+```json
+{
+  "urlFilter": {
+    "include": ["#section-*"],
+    "matchType": "hash"
+  },
+  "changes": [...]
+}
+```
+
+Matches:
+- ✅ `https://example.com/page#section-about`
+- ✅ `https://other.com/other#section-contact`
+- ❌ `https://example.com/page#top`
 
 ### 4. Regex Mode
 
@@ -414,14 +539,28 @@ Invalid patterns are logged and skipped (fail-safe).
 
 You can test URL patterns using the browser console:
 ```javascript
-// Simple pattern
-URLMatcher.matches('https://example.com/*', 'https://example.com/products/123')
+// Simple path pattern (default)
+URLMatcher.matches('/products/*', 'https://example.com/products/123')
+// true
+
+// Full URL matching
+URLMatcher.matches({
+  include: ['https://shop.example.com/products/*'],
+  matchType: 'full-url'
+}, 'https://shop.example.com/products/123')
+// true
+
+// Domain matching
+URLMatcher.matches({
+  include: ['*.example.com'],
+  matchType: 'domain'
+}, 'https://shop.example.com/any/path')
 // true
 
 // With exclude
 URLMatcher.matches({
-  include: ['https://example.com/*'],
-  exclude: ['https://example.com/admin/*']
+  include: ['/*'],
+  exclude: ['/admin/*']
 }, 'https://example.com/products/123')
 // true
 ```
@@ -440,16 +579,21 @@ URLMatcher.matches({
 │ ○ Apply on all pages                    │
 │ ● Target specific URLs                  │
 │                                          │
+│ Match Type:                              │
+│ ⦿ Path only (default)                   │
+│ ○ Full URL   ○ Domain   ○ Query  ○ Hash │
+│                                          │
 │ Mode: ⦿ Simple patterns  ○ Regex        │
 │                                          │
 │ Include patterns:                       │
-│ [https://example.com/products/*    ] [+]│
-│ [https://example.com/shop/*        ] [×]│
+│ [/products/*                       ] [+]│
+│ [/shop/*                           ] [×]│
 │                                          │
 │ Exclude patterns: (optional)            │
-│ [https://example.com/admin/*       ] [+]│
+│ [/admin/*                          ] [+]│
 │                                          │
 │ 💡 Tips:                                │
+│ • Path only: Works across all domains   │
 │ • Use * to match any characters         │
 │ • Use ? to match one character          │
 │ • Click + to add more patterns          │
@@ -475,14 +619,47 @@ URLMatcher.matches({
 
 ### 3. Pattern Examples Helper
 
-Add a "Show examples" button that displays:
+Add a "Show examples" button that displays context-aware examples based on selected matchType:
+
+**Path mode (default):**
 ```
 Common Patterns:
-• All product pages: https://example.com/products/*
-• Exact page: https://example.com/checkout
+• All product pages: /products/*
+• Exact page: /checkout
 • Multiple paths: /products/* or /shop/*
-• Any domain: */checkout
-• ID-based URLs: https://example.com/items/*/details
+• ID-based URLs: /items/*/details
+```
+
+**Full URL mode:**
+```
+Common Patterns:
+• Specific domain: https://shop.example.com/products/*
+• With protocol: https://example.com/checkout
+• Exact URL: https://example.com/page?id=123
+```
+
+**Domain mode:**
+```
+Common Patterns:
+• Exact domain: shop.example.com
+• All subdomains: *.example.com
+• Multiple domains: example.com or example.net
+```
+
+**Query mode:**
+```
+Common Patterns:
+• UTM source: *utm_source=email*
+• Any query params: ?*
+• Specific param: *id=123*
+```
+
+**Hash mode:**
+```
+Common Patterns:
+• Exact hash: #section-about
+• Hash prefix: #section-*
+• Any hash: #*
 ```
 
 ### 4. Format Toggle
@@ -511,6 +688,7 @@ interface URLFilterConfig {
   include?: string[];
   exclude?: string[];
   mode?: 'simple' | 'regex';
+  matchType?: 'full-url' | 'path' | 'domain' | 'query' | 'hash';
 }
 
 // DOM Changes Config

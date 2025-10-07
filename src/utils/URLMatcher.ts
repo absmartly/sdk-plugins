@@ -2,6 +2,7 @@ export interface URLFilterConfig {
   include?: string[];
   exclude?: string[];
   mode?: 'simple' | 'regex';
+  matchType?: 'full-url' | 'path' | 'domain' | 'query' | 'hash';
 }
 
 export type URLFilter = string | string[] | URLFilterConfig;
@@ -14,8 +15,11 @@ export class URLMatcher {
     // Normalize filter to URLFilterConfig
     const config = this.normalizeFilter(filter);
 
+    // Extract the part of URL to match based on matchType
+    const urlPart = this.extractURLPart(url, config.matchType);
+
     // Check exclusions first
-    if (config.exclude && this.matchesPatterns(config.exclude, url, config.mode)) {
+    if (config.exclude && this.matchesPatterns(config.exclude, urlPart, config.mode)) {
       return false;
     }
 
@@ -24,7 +28,48 @@ export class URLMatcher {
       return true; // No filter = match all
     }
 
-    return this.matchesPatterns(config.include, url, config.mode);
+    return this.matchesPatterns(config.include, urlPart, config.mode);
+  }
+
+  /**
+   * Extract the relevant part of the URL based on matchType
+   */
+  private static extractURLPart(
+    url: string,
+    matchType: 'full-url' | 'path' | 'domain' | 'query' | 'hash' = 'path'
+  ): string {
+    try {
+      const urlObj = new URL(url);
+
+      switch (matchType) {
+        case 'full-url':
+          // Complete URL including protocol, domain, path, query, and hash
+          return urlObj.href;
+
+        case 'path':
+          // Path + hash (default behavior - most common use case)
+          return urlObj.pathname + urlObj.hash;
+
+        case 'domain':
+          // Just the hostname (e.g., 'example.com' or 'www.example.com')
+          return urlObj.hostname;
+
+        case 'query':
+          // Just query parameters (e.g., '?id=123&ref=home')
+          return urlObj.search;
+
+        case 'hash':
+          // Just hash fragment (e.g., '#section')
+          return urlObj.hash;
+
+        default:
+          return urlObj.pathname + urlObj.hash;
+      }
+    } catch (error) {
+      // If URL parsing fails, return original string
+      console.error(`[ABsmartly] Failed to parse URL: ${url}`, error);
+      return url;
+    }
   }
 
   private static matchesPatterns(
@@ -65,17 +110,18 @@ export class URLMatcher {
 
   private static normalizeFilter(filter: URLFilter): Required<URLFilterConfig> {
     if (typeof filter === 'string') {
-      return { include: [filter], exclude: [], mode: 'simple' };
+      return { include: [filter], exclude: [], mode: 'simple', matchType: 'path' };
     }
 
     if (Array.isArray(filter)) {
-      return { include: filter, exclude: [], mode: 'simple' };
+      return { include: filter, exclude: [], mode: 'simple', matchType: 'path' };
     }
 
     return {
       include: filter.include || [],
       exclude: filter.exclude || [],
       mode: filter.mode || 'simple',
+      matchType: filter.matchType || 'path',
     };
   }
 }
