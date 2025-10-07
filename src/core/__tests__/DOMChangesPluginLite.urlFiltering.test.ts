@@ -920,4 +920,245 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       expect(document.querySelector('.product')?.textContent).toBe('Product');
     });
   });
+
+  describe('SPA Mode - URL Change Detection', () => {
+    let originalPushState: any;
+    let originalReplaceState: any;
+
+    beforeEach(() => {
+      // Save original history methods
+      originalPushState = history.pushState;
+      originalReplaceState = history.replaceState;
+
+      // Mock history methods to actually update window.location
+      history.pushState = jest.fn((_data, _title, url) => {
+        if (url) {
+          window.location = { href: url } as any;
+        }
+      });
+
+      history.replaceState = jest.fn((_data, _title, url) => {
+        if (url) {
+          window.location = { href: url } as any;
+        }
+      });
+    });
+
+    afterEach(() => {
+      // Restore original history methods
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+
+      if (plugin) {
+        plugin.destroy();
+      }
+    });
+
+    it('should intercept and handle history.pushState() in SPA mode', async () => {
+      // Create experiment that only applies on /products
+      const experiment = createExperimentWithURLFilters({
+        experimentName: 'spa_test',
+        variants: [
+          {
+            urlFilter: '/products',
+            changes: [{ selector: '.content', type: 'text', value: 'Products Page' }],
+          },
+        ],
+      });
+
+      setTestURL('https://example.com/');
+      const { mockContext } = createTreatmentTracker([experiment], { spa_test: 0 });
+      document.body.innerHTML = '<div class="content">Home</div>';
+
+      // Spy on pushState before plugin initialization
+      const pushStateSpy = jest.spyOn(history, 'pushState');
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.initialize();
+
+      // Initially on home page - should NOT apply changes
+      expect(document.querySelector('.content')?.textContent).toBe('Home');
+
+      // Navigate to /products using pushState
+      history.pushState({}, '', 'https://example.com/products');
+
+      // Wait for URL change handler to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Should now apply changes
+      expect(document.querySelector('.content')?.textContent).toBe('Products Page');
+      expect(pushStateSpy).toHaveBeenCalled();
+    });
+
+    it('should intercept and handle history.replaceState() in SPA mode', async () => {
+      const experiment = createExperimentWithURLFilters({
+        experimentName: 'spa_replace_test',
+        variants: [
+          {
+            urlFilter: '/checkout',
+            changes: [{ selector: '.content', type: 'text', value: 'Checkout Page' }],
+          },
+        ],
+      });
+
+      setTestURL('https://example.com/cart');
+      const { mockContext } = createTreatmentTracker([experiment], { spa_replace_test: 0 });
+      document.body.innerHTML = '<div class="content">Cart</div>';
+
+      // Spy on replaceState before plugin initialization
+      const replaceStateSpy = jest.spyOn(history, 'replaceState');
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.initialize();
+
+      // Initially on cart page - should NOT apply changes
+      expect(document.querySelector('.content')?.textContent).toBe('Cart');
+
+      // Replace URL with checkout
+      history.replaceState({}, '', 'https://example.com/checkout');
+
+      // Wait for URL change handler to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Should now apply changes
+      expect(document.querySelector('.content')?.textContent).toBe('Checkout Page');
+      expect(replaceStateSpy).toHaveBeenCalled();
+    });
+
+    it('should handle popstate events in SPA mode', async () => {
+      const experiment = createExperimentWithURLFilters({
+        experimentName: 'spa_popstate_test',
+        variants: [
+          {
+            urlFilter: '/about',
+            changes: [{ selector: '.content', type: 'text', value: 'About Page' }],
+          },
+        ],
+      });
+
+      setTestURL('https://example.com/about');
+      const { mockContext } = createTreatmentTracker([experiment], { spa_popstate_test: 0 });
+      document.body.innerHTML = '<div class="content">About</div>';
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.initialize();
+
+      // Should apply changes on /about
+      expect(document.querySelector('.content')?.textContent).toBe('About Page');
+
+      // Navigate away from /about
+      setTestURL('https://example.com/home');
+
+      // Reset HTML to simulate page navigation where original content is restored
+      document.body.innerHTML = '<div class="content">About</div>';
+
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      // Wait for URL change handler to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Changes should NOT be applied (we're on /home now)
+      expect(document.querySelector('.content')?.textContent).toBe('About');
+
+      // Navigate back to /about
+      setTestURL('https://example.com/about');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      // Wait for URL change handler to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Changes should be re-applied
+      expect(document.querySelector('.content')?.textContent).toBe('About Page');
+    });
+
+    it('should NOT intercept history methods when SPA mode is disabled', async () => {
+      const experiment = createExperimentWithURLFilters({
+        experimentName: 'no_spa_test',
+        variants: [
+          {
+            urlFilter: '/products',
+            changes: [{ selector: '.content', type: 'text', value: 'Products Page' }],
+          },
+        ],
+      });
+
+      setTestURL('https://example.com/');
+      const { mockContext } = createTreatmentTracker([experiment], { no_spa_test: 0 });
+      document.body.innerHTML = '<div class="content">Home</div>';
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+      await plugin.initialize();
+
+      // Initially on home page - should NOT apply changes
+      expect(document.querySelector('.content')?.textContent).toBe('Home');
+
+      // Navigate to /products using pushState
+      history.pushState({}, '', 'https://example.com/products');
+
+      // Wait a bit
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Should NOT apply changes because SPA mode is disabled
+      expect(document.querySelector('.content')?.textContent).toBe('Home');
+    });
+
+    it('should remove previous changes and apply new changes on URL change', async () => {
+      const experiment = createExperimentWithURLFilters({
+        experimentName: 'spa_multi_page_test',
+        variants: [
+          {
+            urlFilter: {
+              include: ['/products', '/checkout'],
+            },
+            changes: [
+              { selector: '.product', type: 'text', value: 'Product Content' },
+              { selector: '.checkout', type: 'text', value: 'Checkout Content' },
+            ],
+          },
+        ],
+      });
+
+      setTestURL('https://example.com/products');
+      const { mockContext } = createTreatmentTracker([experiment], { spa_multi_page_test: 0 });
+      document.body.innerHTML = `
+        <div class="product">Products</div>
+        <div class="checkout">Checkout</div>
+      `;
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.initialize();
+
+      // On /products - should apply changes
+      expect(document.querySelector('.product')?.textContent).toBe('Product Content');
+      expect(document.querySelector('.checkout')?.textContent).toBe('Checkout Content');
+
+      // Navigate to /about (not in filter)
+      setTestURL('https://example.com/about');
+      history.pushState({}, '', 'https://example.com/about');
+
+      // Wait for URL change handler to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Reset content for test
+      document.body.innerHTML = `
+        <div class="product">Products</div>
+        <div class="checkout">Checkout</div>
+      `;
+
+      // Changes should NOT be applied on /about
+      expect(document.querySelector('.product')?.textContent).toBe('Products');
+      expect(document.querySelector('.checkout')?.textContent).toBe('Checkout');
+
+      // Navigate back to /checkout (in filter)
+      setTestURL('https://example.com/checkout');
+      history.pushState({}, '', 'https://example.com/checkout');
+
+      // Wait for URL change handler to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Changes should be re-applied on /checkout
+      expect(document.querySelector('.product')?.textContent).toBe('Product Content');
+      expect(document.querySelector('.checkout')?.textContent).toBe('Checkout Content');
+    });
+  });
 });
