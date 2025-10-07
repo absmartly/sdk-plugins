@@ -664,11 +664,347 @@ new DOMChangesPlugin({
 }
 ```
 
+## URL Filtering
+
+Target experiments to specific pages or URL patterns using the `urlFilter` property. This enables precise control over where experiments run without code changes.
+
+### Basic URL Filtering
+
+Wrap your DOM changes in a configuration object with `urlFilter`:
+
+```javascript
+{
+  urlFilter: '/products',  // Simple path match
+  changes: [
+    {
+      selector: '.product-title',
+      type: 'style',
+      value: { color: 'red' }
+    }
+  ]
+}
+```
+
+### URL Filter Configuration
+
+```javascript
+{
+  urlFilter: {
+    include: ['/checkout', '/cart'],     // Run on these URLs
+    exclude: ['/checkout/success'],      // But NOT on these
+    mode: 'simple',                      // 'simple' or 'regex'
+    matchType: 'path'                    // 'full-url', 'path', 'domain', 'query', 'hash'
+  },
+  changes: [ /* ... */ ]
+}
+```
+
+### Match Types
+
+**`path` (default)** - Match against pathname + hash:
+```javascript
+// URL: https://example.com/products/shoes#new
+// Matches: "/products/shoes#new"
+{
+  urlFilter: { include: ['/products/*'], matchType: 'path' },
+  changes: [ /* ... */ ]
+}
+```
+
+**`full-url`** - Match complete URL including protocol and domain:
+```javascript
+// URL: https://example.com/products
+// Matches: "https://example.com/products"
+{
+  urlFilter: { include: ['https://example.com/products'], matchType: 'full-url' },
+  changes: [ /* ... */ ]
+}
+```
+
+**`domain`** - Match only the hostname:
+```javascript
+// URL: https://shop.example.com/products
+// Matches: "shop.example.com"
+{
+  urlFilter: { include: ['shop.example.com'], matchType: 'domain' },
+  changes: [ /* ... */ ]
+}
+```
+
+**`query`** - Match only query parameters:
+```javascript
+// URL: https://example.com/products?category=shoes
+// Matches: "?category=shoes"
+{
+  urlFilter: { include: ['*category=shoes*'], matchType: 'query' },
+  changes: [ /* ... */ ]
+}
+```
+
+**`hash`** - Match only hash fragment:
+```javascript
+// URL: https://example.com/page#section-1
+// Matches: "#section-1"
+{
+  urlFilter: { include: ['#section-*'], matchType: 'hash' },
+  changes: [ /* ... */ ]
+}
+```
+
+### Pattern Matching Modes
+
+**Simple Mode (default)** - Glob-style wildcards:
+```javascript
+{
+  urlFilter: {
+    include: [
+      '/products/*',           // All product pages
+      '/checkout*',            // Checkout and checkout/*
+      '/about',                // Exact match
+      '*/special-offer'        // Any path ending with /special-offer
+    ],
+    mode: 'simple'
+  },
+  changes: [ /* ... */ ]
+}
+```
+
+**Simple Mode Wildcards:**
+- `*` = Match any characters (0 or more)
+- `?` = Match single character
+- No wildcards = Exact match
+
+**Regex Mode** - Full regex power:
+```javascript
+{
+  urlFilter: {
+    include: [
+      '^/products/(shoes|bags)',     // Products in specific categories
+      '/checkout/(step-[1-3])',      // Checkout steps 1-3 only
+      '\\?utm_source=email'          // URLs with email traffic
+    ],
+    mode: 'regex'
+  },
+  changes: [ /* ... */ ]
+}
+```
+
+### Include and Exclude Logic
+
+**Include only:**
+```javascript
+{
+  urlFilter: { include: ['/products/*'] },
+  changes: [ /* ... */ ]
+}
+// ✅ Runs on: /products/shoes, /products/bags
+// ❌ Skips:  /about, /checkout
+```
+
+**Include with exclusions:**
+```javascript
+{
+  urlFilter: {
+    include: ['/products/*'],
+    exclude: ['/products/admin', '/products/*/edit']
+  },
+  changes: [ /* ... */ ]
+}
+// ✅ Runs on: /products/shoes, /products/bags
+// ❌ Skips:  /products/admin, /products/shoes/edit
+```
+
+**Exclude only (match all except):**
+```javascript
+{
+  urlFilter: { exclude: ['/admin/*', '/api/*'] },
+  changes: [ /* ... */ ]
+}
+// ✅ Runs on: /products, /checkout, /about
+// ❌ Skips:  /admin/users, /api/data
+```
+
+**No filter (match all):**
+```javascript
+{
+  urlFilter: {},  // or omit urlFilter entirely
+  changes: [ /* ... */ ]
+}
+// ✅ Runs on all pages
+```
+
+**Match nothing (disable experiment):**
+```javascript
+{
+  urlFilter: { include: [] },  // Empty array = explicit "match nothing"
+  changes: [ /* ... */ ]
+}
+// ❌ Never runs (useful for temporary disabling)
+```
+
+### SRM Prevention with URL Filters
+
+**Critical:** When using `urlFilter`, the plugin implements **Sample Ratio Mismatch (SRM) prevention** by tracking ALL variants, not just the current variant:
+
+```javascript
+// Variant 0 (Control): No URL filter
+{
+  changes: [
+    { selector: '.hero', type: 'text', value: 'Welcome' }
+  ]
+}
+
+// Variant 1: Only runs on /products
+{
+  urlFilter: '/products',
+  changes: [
+    { selector: '.hero', type: 'text', value: 'Shop Now' }
+  ]
+}
+```
+
+**Without SRM prevention:**
+- Users on `/products` → Tracked in both variants ✅
+- Users on `/about` → Only tracked in variant 0 ❌
+- **Result:** Biased sample sizes!
+
+**With SRM prevention (automatic):**
+- Users on `/products` → Tracked in both variants ✅
+- Users on `/about` → Tracked in both variants ✅
+- **Result:** Unbiased sample sizes! ✅
+
+The plugin checks if **ANY variant** matches the current URL. If ANY variant matches, ALL variants are tracked for that user, ensuring fair sample distribution.
+
+### URL Change Detection (SPA Mode)
+
+In SPA mode (`spa: true`), the plugin automatically detects URL changes and re-evaluates experiments:
+
+```javascript
+new DOMChangesPlugin({
+  context: context,
+  spa: true,  // Enable URL change detection
+  autoApply: true
+});
+```
+
+**What it tracks:**
+- ✅ `history.pushState()` - Client-side navigation
+- ✅ `history.replaceState()` - URL updates
+- ✅ `popstate` events - Browser back/forward buttons
+
+**What happens on URL change:**
+1. Remove all currently applied DOM changes
+2. Re-evaluate URL filters with the new URL
+3. Apply changes for experiments matching the new URL
+4. Re-track exposure for newly applied experiments
+
+**Example flow:**
+```
+User lands on:     /products        → Apply product page experiments
+User navigates to: /checkout        → Remove product experiments, apply checkout experiments
+User goes back:    /products        → Remove checkout experiments, re-apply product experiments
+```
+
+**Without SPA mode:**
+- URL changes are NOT detected
+- Experiments applied on initial page load remain active
+- New experiments on the new URL are NOT applied
+- Use `spa: false` only for static sites without client-side routing
+
+### Complete Examples
+
+**E-commerce experiment on specific pages:**
+```javascript
+{
+  urlFilter: {
+    include: ['/products/*', '/collections/*'],
+    exclude: ['/products/admin', '*/edit'],
+    matchType: 'path',
+    mode: 'simple'
+  },
+  changes: [
+    {
+      selector: '.add-to-cart-button',
+      type: 'style',
+      value: { backgroundColor: '#ff6b6b', color: 'white' },
+      trigger_on_view: true
+    }
+  ]
+}
+```
+
+**Blog post experiment with regex:**
+```javascript
+{
+  urlFilter: {
+    include: ['^/blog/20(24|25)'],  // Only 2024-2025 blog posts
+    mode: 'regex',
+    matchType: 'path'
+  },
+  changes: [
+    {
+      selector: '.blog-cta',
+      type: 'text',
+      value: 'Subscribe to our newsletter!'
+    }
+  ]
+}
+```
+
+**Landing page experiment with UTM parameters:**
+```javascript
+{
+  urlFilter: {
+    include: ['*utm_campaign=summer*'],
+    matchType: 'query'
+  },
+  changes: [
+    {
+      selector: '.hero-banner',
+      type: 'html',
+      value: '<h1>Summer Sale - 50% Off!</h1>'
+    }
+  ]
+}
+```
+
+**Homepage only (exact match):**
+```javascript
+{
+  urlFilter: '/',  // Shorthand for { include: ['/'] }
+  changes: [
+    {
+      selector: '.hero-title',
+      type: 'text',
+      value: 'Limited Time Offer!'
+    }
+  ]
+}
+```
+
+**Multiple pages (array shorthand):**
+```javascript
+{
+  urlFilter: ['/pricing', '/features'],  // Shorthand for { include: [...] }
+  changes: [ /* ... */ ]
+}
+```
+
 ## SPA Mode (React/Vue/Angular Support)
 
-Enable `spa: true` for Single Page Applications. This automatically activates two critical features:
+Enable `spa: true` for Single Page Applications. This automatically activates three critical features:
 
-### 1. Wait for Element (Lazy-Loaded Content)
+### 1. URL Change Detection
+
+Automatically detects client-side navigation and re-evaluates experiments:
+
+- Intercepts `history.pushState()` and `history.replaceState()`
+- Listens to `popstate` events (browser back/forward)
+- Re-applies appropriate experiments when URL changes
+
+See [URL Change Detection](#url-change-detection-spa-mode) above for details.
+
+### 2. Wait for Element (Lazy-Loaded Content)
 
 Automatically waits for elements that don't exist yet in the DOM:
 
@@ -684,7 +1020,7 @@ Automatically waits for elements that don't exist yet in the DOM:
 **Without SPA mode:** Change skipped if element doesn't exist
 **With SPA mode:** Observes DOM and applies when element appears
 
-### 2. Style Persistence (Framework Conflicts)
+### 3. Style Persistence (Framework Conflicts)
 
 Automatically re-applies styles when frameworks overwrite them:
 
