@@ -211,6 +211,7 @@ export class DOMChangesPluginLite {
    */
   private async applyInjectionsAndChanges(): Promise<void> {
     const startTime = performance.now();
+    const currentURL = window.location.href;
 
     try {
       await this.config.context.ready();
@@ -224,7 +225,7 @@ export class DOMChangesPluginLite {
 
     // Apply injections and DOM changes in parallel for minimal flickering
     await Promise.all([
-      this.applyHTMLInjections(allInjectHTML),
+      this.applyHTMLInjections(allInjectHTML, currentURL),
       this.applyChanges()
     ]);
 
@@ -233,7 +234,8 @@ export class DOMChangesPluginLite {
 
     if (this.config.debug) {
       logDebug('[ABsmartly] HTML injections and DOM changes applied in parallel', {
-        duration: `${duration.toFixed(2)}ms`
+        duration: `${duration.toFixed(2)}ms`,
+        currentURL
       });
     }
   }
@@ -242,7 +244,8 @@ export class DOMChangesPluginLite {
    * Apply HTML injections from all variants
    */
   private async applyHTMLInjections(
-    allInjectHTML: Map<string, Map<number, any>>
+    allInjectHTML: Map<string, Map<number, any>>,
+    currentUrl: string = window.location.href
   ): Promise<void> {
     if (allInjectHTML.size === 0) {
       if (this.config.debug) {
@@ -251,13 +254,14 @@ export class DOMChangesPluginLite {
       return;
     }
 
-    const injectionsByLocation = this.htmlInjector.collectInjections(allInjectHTML);
+    const injectionsByLocation = this.htmlInjector.collectInjections(allInjectHTML, currentUrl);
     this.htmlInjector.inject(injectionsByLocation);
 
     if (this.config.debug) {
       logDebug('[ABsmartly] HTML injections complete', {
         experimentsWithInjections: allInjectHTML.size,
-        totalLocations: injectionsByLocation.size
+        totalLocations: injectionsByLocation.size,
+        currentUrl
       });
     }
   }

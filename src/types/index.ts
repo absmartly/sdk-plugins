@@ -91,7 +91,12 @@ export interface InjectionItem {
   location: InjectionLocation;
 }
 
-export type RawInjectionData = Record<string, string>;
+export type RawInjectionData = Record<string, string | URLFilter>;
+
+export interface InjectionDataWithFilter {
+  data: RawInjectionData;
+  urlFilter?: URLFilter;
+}
 
 export interface ElementState {
   selector: string;

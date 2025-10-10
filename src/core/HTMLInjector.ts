@@ -1,5 +1,6 @@
-import { InjectionItem, InjectionLocation, RawInjectionData } from '../types';
+import { InjectionItem, InjectionLocation, InjectionDataWithFilter } from '../types';
 import { logDebug } from '../utils/debug';
+import { URLMatcher } from '../utils/URLMatcher';
 
 export class HTMLInjector {
   private debug: boolean;
@@ -35,12 +36,43 @@ export class HTMLInjector {
   }
 
   collectInjections(
-    allInjectHTML: Map<string, Map<number, RawInjectionData>>
+    allInjectHTML: Map<string, Map<number, InjectionDataWithFilter>>,
+    currentUrl: string = window.location.href
   ): Map<InjectionLocation, InjectionItem[]> {
     const injectionsByLocation = new Map<InjectionLocation, InjectionItem[]>();
 
     for (const [experimentName, variantMap] of allInjectHTML) {
-      for (const [variantIndex, rawData] of variantMap) {
+      for (const [variantIndex, dataWithFilter] of variantMap) {
+        if (!dataWithFilter || typeof dataWithFilter !== 'object') {
+          if (this.debug) {
+            logDebug(
+              `[HTMLInjector] Invalid injection data for ${experimentName} variant ${variantIndex}:`,
+              dataWithFilter
+            );
+          }
+          continue;
+        }
+
+        // Check URL filter if present
+        if (dataWithFilter.urlFilter) {
+          const matches = URLMatcher.matches(dataWithFilter.urlFilter, currentUrl);
+
+          if (!matches) {
+            if (this.debug) {
+              logDebug(
+                `[HTMLInjector] Skipping ${experimentName} variant ${variantIndex} - URL filter doesn't match:`,
+                {
+                  currentUrl,
+                  urlFilter: dataWithFilter.urlFilter,
+                }
+              );
+            }
+            continue;
+          }
+        }
+
+        const rawData = dataWithFilter.data;
+
         if (!rawData || typeof rawData !== 'object') {
           if (this.debug) {
             logDebug(

@@ -7,6 +7,7 @@ import {
   DOMChangesData,
   DOMChangesConfig,
   RawInjectionData,
+  InjectionDataWithFilter,
 } from '../types';
 import { logDebug } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
@@ -506,8 +507,8 @@ export class VariantExtractor {
    * Extract __inject_html from all variants for all experiments
    * Only extracts from variant.variables (not from config)
    */
-  extractAllInjectHTML(): Map<string, Map<number, RawInjectionData>> {
-    const allInjectHTML = new Map<string, Map<number, RawInjectionData>>();
+  extractAllInjectHTML(): Map<string, Map<number, InjectionDataWithFilter>> {
+    const allInjectHTML = new Map<string, Map<number, InjectionDataWithFilter>>();
 
     try {
       const contextData = this.context.data() as ContextData;
@@ -543,8 +544,10 @@ export class VariantExtractor {
    * Extract __inject_html for a single experiment
    * Only from variant.variables (not from config)
    */
-  private extractInjectHTMLForExperiment(experiment: ExperimentData): Map<number, RawInjectionData> {
-    const variantInjections = new Map<number, RawInjectionData>();
+  private extractInjectHTMLForExperiment(
+    experiment: ExperimentData
+  ): Map<number, InjectionDataWithFilter> {
+    const variantInjections = new Map<number, InjectionDataWithFilter>();
 
     if (!experiment.variants) {
       return variantInjections;
@@ -558,12 +561,24 @@ export class VariantExtractor {
         const injectionData = variant.variables.__inject_html;
 
         if (typeof injectionData === 'object' && !Array.isArray(injectionData)) {
-          variantInjections.set(i, injectionData as RawInjectionData);
+          // Extract urlFilter if present
+          const { urlFilter, ...rawData } = injectionData as Record<string, any>;
+
+          // Create InjectionDataWithFilter
+          const dataWithFilter: InjectionDataWithFilter = {
+            data: rawData as RawInjectionData,
+            urlFilter: urlFilter || undefined,
+          };
+
+          variantInjections.set(i, dataWithFilter);
 
           if (this.debug) {
             logDebug(
               `[VariantExtractor] Found __inject_html in ${experiment.name} variant ${i}:`,
-              Object.keys(injectionData)
+              {
+                keys: Object.keys(rawData),
+                hasUrlFilter: !!urlFilter,
+              }
             );
           }
         } else if (this.debug) {

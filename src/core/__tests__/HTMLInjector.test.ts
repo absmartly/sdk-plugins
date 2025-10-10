@@ -1,5 +1,5 @@
 import { HTMLInjector } from '../HTMLInjector';
-import { InjectionLocation, RawInjectionData } from '../../types';
+import { InjectionLocation, InjectionDataWithFilter } from '../../types';
 
 describe('HTMLInjector', () => {
   let injector: HTMLInjector;
@@ -90,9 +90,11 @@ describe('HTMLInjector', () => {
             [
               0,
               {
-                headStart: '<script>console.log("test")</script>',
-                bodyEnd: '<div>footer</div>',
-              } as RawInjectionData,
+                data: {
+                  headStart: '<script>console.log("test")</script>',
+                  bodyEnd: '<div>footer</div>',
+                },
+              } as InjectionDataWithFilter,
             ],
           ]),
         ],
@@ -118,10 +120,12 @@ describe('HTMLInjector', () => {
             [
               0,
               {
-                headStart: '<script>console.log("default")</script>',
-                headStart15: '<script>console.log("high priority")</script>',
-                headStart5: '<script>console.log("medium priority")</script>',
-              } as RawInjectionData,
+                data: {
+                  headStart: '<script>console.log("default")</script>',
+                  headStart15: '<script>console.log("high priority")</script>',
+                  headStart5: '<script>console.log("medium priority")</script>',
+                },
+              } as InjectionDataWithFilter,
             ],
           ]),
         ],
@@ -143,13 +147,13 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, { headStart: '<script>exp1</script>' } as RawInjectionData],
+            [0, { data: { headStart: '<script>exp1</script>' } } as InjectionDataWithFilter],
           ]),
         ],
         [
           'exp2',
           new Map([
-            [0, { headStart: '<script>exp2</script>' } as RawInjectionData],
+            [0, { data: { headStart: '<script>exp2</script>' } } as InjectionDataWithFilter],
           ]),
         ],
       ]);
@@ -164,8 +168,8 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, { headStart: '<script>variant0</script>' } as RawInjectionData],
-            [1, { headStart: '<script>variant1</script>' } as RawInjectionData],
+            [0, { data: { headStart: '<script>variant0</script>' } } as InjectionDataWithFilter],
+            [1, { data: { headStart: '<script>variant1</script>' } } as InjectionDataWithFilter],
           ]),
         ],
       ]);
@@ -188,7 +192,7 @@ describe('HTMLInjector', () => {
           new Map([
             [0, null as any],
             [1, 'invalid' as any],
-            [2, { headStart: '<script>valid</script>' } as RawInjectionData],
+            [2, { data: { headStart: '<script>valid</script>' } } as InjectionDataWithFilter],
           ]),
         ],
       ]);
@@ -206,8 +210,10 @@ describe('HTMLInjector', () => {
             [
               0,
               {
-                headStart: 123,
-                bodyEnd: '<div>valid</div>',
+                data: {
+                  headStart: 123,
+                  bodyEnd: '<div>valid</div>',
+                },
               } as any,
             ],
           ]),
@@ -228,9 +234,11 @@ describe('HTMLInjector', () => {
             [
               0,
               {
-                headStart10: '<script>first</script>',
-                headStart: '<script>second</script>',
-              } as RawInjectionData,
+                data: {
+                  headStart10: '<script>first</script>',
+                  headStart: '<script>second</script>',
+                },
+              } as InjectionDataWithFilter,
             ],
           ]),
         ],
@@ -240,8 +248,10 @@ describe('HTMLInjector', () => {
             [
               0,
               {
-                headStart10: '<script>third</script>',
-              } as RawInjectionData,
+                data: {
+                  headStart10: '<script>third</script>',
+                },
+              } as InjectionDataWithFilter,
             ],
           ]),
         ],

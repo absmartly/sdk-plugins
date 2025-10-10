@@ -490,4 +490,301 @@ describe('HTML Injection Integration', () => {
       expect(document.querySelectorAll('[data-absmartly-injection]')).toHaveLength(0);
     });
   });
+
+  describe('URL filtering', () => {
+    beforeEach(() => {
+      // Set a known URL for testing
+      Object.defineProperty(window, 'location', {
+        value: { href: 'https://example.com/products' },
+        writable: true,
+      });
+    });
+
+    it('should inject when URL matches filter', async () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>matched</script>',
+                    urlFilter: {
+                      include: ['/products'],
+                      mode: 'simple',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      const injected = document.head.querySelector('[data-absmartly-injection]');
+      expect(injected).toBeTruthy();
+      expect(injected?.innerHTML).toBe('<script>matched</script>');
+    });
+
+    it('should NOT inject when URL does not match filter', async () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>should-not-inject</script>',
+                    urlFilter: {
+                      include: ['/checkout'],
+                      mode: 'simple',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      expect(document.querySelectorAll('[data-absmartly-injection]')).toHaveLength(0);
+    });
+
+    it('should inject when URL matches exclude pattern', async () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>excluded</script>',
+                    urlFilter: {
+                      exclude: ['/checkout'],
+                      mode: 'simple',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      const injected = document.head.querySelector('[data-absmartly-injection]');
+      expect(injected).toBeTruthy();
+      expect(injected?.innerHTML).toBe('<script>excluded</script>');
+    });
+
+    it('should NOT inject when URL matches exclude pattern', async () => {
+      // Change URL to /checkout
+      Object.defineProperty(window, 'location', {
+        value: { href: 'https://example.com/checkout' },
+        writable: true,
+      });
+
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>should-not-inject</script>',
+                    urlFilter: {
+                      exclude: ['/checkout'],
+                      mode: 'simple',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      expect(document.querySelectorAll('[data-absmartly-injection]')).toHaveLength(0);
+    });
+
+    it('should handle multiple experiments with different URL filters', async () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>exp1-products</script>',
+                    urlFilter: {
+                      include: ['/products'],
+                      mode: 'simple',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          {
+            name: 'exp2',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>exp2-checkout</script>',
+                    urlFilter: {
+                      include: ['/checkout'],
+                      mode: 'simple',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      // Only exp1 should be injected (URL is /products)
+      const injected = document.head.querySelectorAll('[data-absmartly-injection]');
+      expect(injected).toHaveLength(1);
+      expect(injected[0].innerHTML).toBe('<script>exp1-products</script>');
+    });
+
+    it('should inject when no urlFilter is specified (legacy behavior)', async () => {
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>no-filter</script>',
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      const injected = document.head.querySelector('[data-absmartly-injection]');
+      expect(injected).toBeTruthy();
+      expect(injected?.innerHTML).toBe('<script>no-filter</script>');
+    });
+
+    it('should support regex URL matching', async () => {
+      // Set URL to /products/123
+      Object.defineProperty(window, 'location', {
+        value: { href: 'https://example.com/products/123' },
+        writable: true,
+      });
+
+      const contextData: ContextData = {
+        experiments: [
+          {
+            name: 'exp1',
+            variants: [
+              {
+                variables: {
+                  __inject_html: {
+                    headStart: '<script>regex-matched</script>',
+                    urlFilter: {
+                      include: ['^/products/\\d+$'],
+                      mode: 'regex',
+                      matchType: 'path',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      (mockContext.peek as jest.Mock).mockReturnValue(0);
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        autoApply: true,
+      });
+
+      await plugin.ready();
+
+      const injected = document.head.querySelector('[data-absmartly-injection]');
+      expect(injected).toBeTruthy();
+      expect(injected?.innerHTML).toBe('<script>regex-matched</script>');
+    });
+  });
 });
