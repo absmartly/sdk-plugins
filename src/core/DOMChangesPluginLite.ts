@@ -11,6 +11,7 @@ import { DOMManipulatorLite } from './DOMManipulatorLite';
 import { VariantExtractor } from '../parsers/VariantExtractor';
 import { StyleSheetManager } from './StyleSheetManager';
 import { ExposureTracker } from './ExposureTracker';
+import { HTMLInjector } from './HTMLInjector';
 import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
 
@@ -21,6 +22,7 @@ export class DOMChangesPluginLite {
   protected domManipulator: DOMManipulatorLite;
   protected variantExtractor: VariantExtractor;
   protected exposureTracker: ExposureTracker;
+  protected htmlInjector: HTMLInjector;
   protected mutationObserver: MutationObserver | null = null;
   protected exposedExperiments: Set<string> = new Set();
   protected eventListeners: Map<string, EventCallback[]> = new Map();
@@ -67,6 +69,7 @@ export class DOMChangesPluginLite {
       this.config.debug
     );
     this.exposureTracker = new ExposureTracker(this.config.context, this.config.debug);
+    this.htmlInjector = new HTMLInjector(this.config.debug);
   }
 
   async ready(): Promise<void> {
@@ -94,7 +97,8 @@ export class DOMChangesPluginLite {
       }
 
       if (this.config.autoApply) {
-        await this.applyChanges();
+        // Apply HTML injections and DOM changes in parallel to minimize flickering
+        await this.applyInjectionsAndChanges();
       }
 
       this.initialized = true;
@@ -150,8 +154,8 @@ export class DOMChangesPluginLite {
       // Remove all current changes
       await this.removeAllChanges();
 
-      // Re-apply changes with new URL
-      await this.applyChanges();
+      // Re-apply changes and injections with new URL (in parallel)
+      await this.applyInjectionsAndChanges();
     };
 
     // Listen to popstate (back/forward navigation)
@@ -191,11 +195,70 @@ export class DOMChangesPluginLite {
     // Clear applied style changes
     this.appliedStyleChanges.clear();
 
+    // Clear HTML injections
+    this.htmlInjector.destroy();
+
     // Clear variant extractor cache to force re-extraction
     this.variantExtractor.clearCache();
 
     if (this.config.debug) {
       logDebug('[ABsmartly] All change tracking cleared for URL change');
+    }
+  }
+
+  /**
+   * Apply HTML injections and DOM changes in parallel to minimize flickering
+   */
+  private async applyInjectionsAndChanges(): Promise<void> {
+    const startTime = performance.now();
+
+    try {
+      await this.config.context.ready();
+    } catch (error) {
+      logDebug('[ABsmartly] Failed to wait for context ready:', error);
+      return;
+    }
+
+    // Extract both __inject_html and __dom_changes in parallel
+    const allInjectHTML = this.variantExtractor.extractAllInjectHTML();
+
+    // Apply injections and DOM changes in parallel for minimal flickering
+    await Promise.all([
+      this.applyHTMLInjections(allInjectHTML),
+      this.applyChanges()
+    ]);
+
+    const duration = performance.now() - startTime;
+    logPerformance('Apply injections and changes (parallel)', duration);
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] HTML injections and DOM changes applied in parallel', {
+        duration: `${duration.toFixed(2)}ms`
+      });
+    }
+  }
+
+  /**
+   * Apply HTML injections from all variants
+   */
+  private async applyHTMLInjections(
+    allInjectHTML: Map<string, Map<number, any>>
+  ): Promise<void> {
+    if (allInjectHTML.size === 0) {
+      if (this.config.debug) {
+        logDebug('[ABsmartly] No HTML injections found');
+      }
+      return;
+    }
+
+    const injectionsByLocation = this.htmlInjector.collectInjections(allInjectHTML);
+    this.htmlInjector.inject(injectionsByLocation);
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] HTML injections complete', {
+        experimentsWithInjections: allInjectHTML.size,
+        totalLocations: injectionsByLocation.size
+      });
     }
   }
 
@@ -688,13 +751,14 @@ export class DOMChangesPluginLite {
     }
     this.variantExtractor.clearCache();
     if (this.config.autoApply) {
-      this.applyChanges();
+      this.applyInjectionsAndChanges();
     }
   }
 
   destroy(): void {
     this.domManipulator.destroy();
     this.exposureTracker.destroy();
+    this.htmlInjector.destroy();
 
     this.styleManagers.forEach(manager => manager.destroy());
     this.styleManagers.clear();

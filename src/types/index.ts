@@ -83,6 +83,16 @@ export interface InjectionData {
   bodyEnd?: string;
 }
 
+export type InjectionLocation = 'headStart' | 'headEnd' | 'bodyStart' | 'bodyEnd';
+
+export interface InjectionItem {
+  code: string;
+  priority: number;
+  location: InjectionLocation;
+}
+
+export type RawInjectionData = Record<string, string>;
+
 export interface ElementState {
   selector: string;
   type: string;

@@ -6,6 +6,7 @@ import {
   ExperimentData,
   DOMChangesData,
   DOMChangesConfig,
+  RawInjectionData,
 } from '../types';
 import { logDebug } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
@@ -499,5 +500,81 @@ export class VariantExtractor {
     // If NO variant has a URL filter, match all URLs (legacy behavior)
     // If at least one variant has a URL filter, we checked them all above
     return !hasAnyURLFilter;
+  }
+
+  /**
+   * Extract __inject_html from all variants for all experiments
+   * Only extracts from variant.variables (not from config)
+   */
+  extractAllInjectHTML(): Map<string, Map<number, RawInjectionData>> {
+    const allInjectHTML = new Map<string, Map<number, RawInjectionData>>();
+
+    try {
+      const contextData = this.context.data() as ContextData;
+
+      if (this.debug) {
+        logDebug('[ABsmartly VariantExtractor] Extracting __inject_html from context');
+      }
+
+      if (contextData?.experiments) {
+        for (const experiment of contextData.experiments) {
+          const variantInjections = this.extractInjectHTMLForExperiment(experiment);
+          if (variantInjections.size > 0) {
+            allInjectHTML.set(experiment.name, variantInjections);
+            if (this.debug) {
+              logDebug(
+                `[ABsmartly VariantExtractor] Experiment '${experiment.name}' has HTML injections:`,
+                {
+                  variantsWithInjections: Array.from(variantInjections.keys()),
+                }
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      logDebug('[ABsmartly] Error extracting __inject_html:', error);
+    }
+
+    return allInjectHTML;
+  }
+
+  /**
+   * Extract __inject_html for a single experiment
+   * Only from variant.variables (not from config)
+   */
+  private extractInjectHTMLForExperiment(experiment: ExperimentData): Map<number, RawInjectionData> {
+    const variantInjections = new Map<number, RawInjectionData>();
+
+    if (!experiment.variants) {
+      return variantInjections;
+    }
+
+    for (let i = 0; i < experiment.variants.length; i++) {
+      const variant = experiment.variants[i];
+      if (!variant) continue;
+
+      if (variant.variables && variant.variables.__inject_html) {
+        const injectionData = variant.variables.__inject_html;
+
+        if (typeof injectionData === 'object' && !Array.isArray(injectionData)) {
+          variantInjections.set(i, injectionData as RawInjectionData);
+
+          if (this.debug) {
+            logDebug(
+              `[VariantExtractor] Found __inject_html in ${experiment.name} variant ${i}:`,
+              Object.keys(injectionData)
+            );
+          }
+        } else if (this.debug) {
+          logDebug(
+            `[VariantExtractor] Invalid __inject_html format in ${experiment.name} variant ${i}`,
+            injectionData
+          );
+        }
+      }
+    }
+
+    return variantInjections;
   }
 }
