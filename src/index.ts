@@ -33,5 +33,15 @@ export {
   isLocalStorageAvailable,
 } from './cookies/cookieUtils';
 
+// Export override utilities
+export {
+  getQueryStringOverrides,
+  parseOverrideCookie,
+  getCookieOverrides as getOverrideCookie,
+  serializeOverrides,
+  persistOverridesToCookie,
+} from './overrides/overridesUtils';
+export type { SimpleOverride, OverrideOptions } from './overrides/overridesUtils';
+
 // Default export for UMD builds (backward compatibility)
 export default DOMChangesPluginLite;
