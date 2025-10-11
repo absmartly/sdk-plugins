@@ -1,5 +1,12 @@
 import type { Context } from '@absmartly/javascript-sdk';
 import { logDebug } from '../utils/debug';
+import {
+  getCookie,
+  setCookie as setCookieUtil,
+  deleteCookie as deleteCookieUtil,
+  generateUniqueId,
+  isLocalStorageAvailable,
+} from './cookieUtils';
 
 export interface CookiePluginOptions {
   context?: Context;
@@ -64,61 +71,25 @@ export class CookiePlugin {
     }
   }
 
-  private getCookie(name: string): string | null {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      const cookieValue = parts.pop()?.split(';').shift();
-      return cookieValue || null;
-    }
-    return null;
-  }
-
   private setCookie(name: string, value: string, days?: number): boolean {
-    try {
-      const date = new Date();
-      const expiryDays = days !== undefined ? days : this.cookieExpiryDays;
-      date.setTime(date.getTime() + expiryDays * 24 * 60 * 60 * 1000);
-      const expires = `expires=${date.toUTCString()}`;
-
-      let cookieString = `${name}=${value};${expires};path=${this.cookiePath}`;
-
-      if (this.cookieDomain && this.cookieDomain !== 'localhost') {
-        cookieString += `;domain=${this.cookieDomain}`;
-      }
-
-      cookieString += `;SameSite=${this.sameSite}`;
-
-      if (this.secure) {
-        cookieString += ';Secure';
-      }
-
-      document.cookie = cookieString;
+    const expiryDays = days !== undefined ? days : this.cookieExpiryDays;
+    const success = setCookieUtil(name, value, expiryDays, {
+      domain: this.cookieDomain,
+      path: this.cookiePath,
+      sameSite: this.sameSite,
+      secure: this.secure,
+    });
+    if (success) {
       this.debugLog(`Set cookie ${name}:`, value);
-      return true;
-    } catch (e) {
-      logDebug(`[CookiePlugin] Unable to set cookie ${name}:`, e);
-      return false;
     }
+    return success;
   }
 
   private deleteCookie(name: string): void {
-    this.setCookie(name, '', -1);
-  }
-
-  private isLocalStorageAvailable(): boolean {
-    try {
-      const test = '__localStorage_test__';
-      localStorage.setItem(test, test);
-      localStorage.removeItem(test);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  private generateFastUniqueID(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    deleteCookieUtil(name, {
+      domain: this.cookieDomain,
+      path: this.cookiePath,
+    });
   }
 
   public getUnitId(): string | null {
@@ -127,12 +98,12 @@ export class CookiePlugin {
     }
 
     const cookiesEnabled = navigator.cookieEnabled;
-    const localStorageAvailable = this.isLocalStorageAvailable();
+    const localStorageAvailable = isLocalStorageAvailable();
 
     let unitId = null;
 
     if (cookiesEnabled) {
-      unitId = this.getCookie(this.unitIdCookieName) || this.getCookie(this.publicIdCookieName);
+      unitId = getCookie(this.unitIdCookieName) || getCookie(this.publicIdCookieName);
     }
 
     if (!unitId && localStorageAvailable) {
@@ -150,7 +121,7 @@ export class CookiePlugin {
     this.unitId = unitId;
 
     const cookiesEnabled = navigator.cookieEnabled;
-    const localStorageAvailable = this.isLocalStorageAvailable();
+    const localStorageAvailable = isLocalStorageAvailable();
 
     if (cookiesEnabled) {
       this.setCookie(this.unitIdCookieName, unitId);
@@ -168,7 +139,7 @@ export class CookiePlugin {
   }
 
   public generateAndSetUnitId(): string {
-    const unitId = this.generateFastUniqueID();
+    const unitId = generateUniqueId();
     this.setUnitId(unitId);
     return unitId;
   }
@@ -186,7 +157,7 @@ export class CookiePlugin {
       return false;
     }
 
-    const expiryCookie = this.getCookie(this.expiryCookieName);
+    const expiryCookie = getCookie(this.expiryCookieName);
     if (!expiryCookie) {
       return false;
     }
@@ -250,7 +221,7 @@ export class CookiePlugin {
     };
 
     const cookiesEnabled = navigator.cookieEnabled;
-    const localStorageAvailable = this.isLocalStorageAvailable();
+    const localStorageAvailable = isLocalStorageAvailable();
 
     if (localStorageAvailable) {
       try {
@@ -270,7 +241,7 @@ export class CookiePlugin {
   public getStoredUtmParams(): Record<string, string> | null {
     let stored = null;
 
-    const localStorageAvailable = this.isLocalStorageAvailable();
+    const localStorageAvailable = isLocalStorageAvailable();
     const cookiesEnabled = navigator.cookieEnabled;
 
     if (localStorageAvailable) {
@@ -282,7 +253,7 @@ export class CookiePlugin {
     }
 
     if (!stored && cookiesEnabled) {
-      stored = this.getCookie(this.utmCookieName);
+      stored = getCookie(this.utmCookieName);
     }
 
     if (stored) {
@@ -325,7 +296,7 @@ export class CookiePlugin {
     this.deleteCookie(this.expiryCookieName);
     this.deleteCookie(this.utmCookieName);
 
-    const localStorageAvailable = this.isLocalStorageAvailable();
+    const localStorageAvailable = isLocalStorageAvailable();
     if (localStorageAvailable) {
       localStorage.removeItem('abs_id');
       localStorage.removeItem(this.utmCookieName);
@@ -374,11 +345,11 @@ export class CookiePlugin {
 
     const unitId = this.getUnitId();
     const cookiesEnabled = navigator.cookieEnabled;
-    const localStorageAvailable = this.isLocalStorageAvailable();
+    const localStorageAvailable = isLocalStorageAvailable();
 
     if (!unitId) {
       if (cookiesEnabled || localStorageAvailable) {
-        const expiryCookie = this.getCookie(this.expiryCookieName);
+        const expiryCookie = getCookie(this.expiryCookieName);
         this.debugLog(
           expiryCookie
             ? 'No existing ID but expiry cookie exists - need worker call'
@@ -406,12 +377,12 @@ export class CookiePlugin {
     const referrerUrl = document.referrer;
     const isExternalReferrer =
       referrerUrl && !referrerUrl.includes(this.cookieDomain.replace('.', ''));
-    const acceptsStorage = navigator.cookieEnabled || this.isLocalStorageAvailable();
+    const acceptsStorage = navigator.cookieEnabled || isLocalStorageAvailable();
     const hasCookies = !!(
-      this.getCookie(this.unitIdCookieName) ||
-      this.getCookie(this.publicIdCookieName) ||
-      this.getCookie(this.expiryCookieName) ||
-      (this.isLocalStorageAvailable() && localStorage.getItem('abs_id'))
+      getCookie(this.unitIdCookieName) ||
+      getCookie(this.publicIdCookieName) ||
+      getCookie(this.expiryCookieName) ||
+      (isLocalStorageAvailable() && localStorage.getItem('abs_id'))
     );
     const isFirstVisit = acceptsStorage && !hasCookies;
 
@@ -420,7 +391,7 @@ export class CookiePlugin {
         referrer_url: referrerUrl || '',
         landing_url: window.location.href,
         accepts_cookies: navigator.cookieEnabled,
-        accepts_storage: this.isLocalStorageAvailable(),
+        accepts_storage: isLocalStorageAvailable(),
         has_utm: hasUtmParams,
       };
 

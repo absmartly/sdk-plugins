@@ -8,6 +8,7 @@ import { WebVitalsPlugin } from './vitals/WebVitalsPlugin';
 export * from './types';
 export * from './overrides/types';
 export type { CookiePluginOptions } from './cookies/CookiePlugin';
+export type { CookieOptions } from './cookies/cookieUtils';
 export type { WebVitalsPluginOptions, Metric } from './vitals/WebVitalsPlugin';
 
 // Export the plugin classes
@@ -21,6 +22,16 @@ export {
   CookiePlugin,
   WebVitalsPlugin,
 };
+
+// Export cookie utilities
+export {
+  getCookie,
+  setCookie,
+  deleteCookie,
+  generateUniqueId,
+  generateUUID,
+  isLocalStorageAvailable,
+} from './cookies/cookieUtils';
 
 // Default export for UMD builds (backward compatibility)
 export default DOMChangesPluginLite;
