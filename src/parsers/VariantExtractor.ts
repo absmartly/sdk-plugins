@@ -573,13 +573,10 @@ export class VariantExtractor {
           variantInjections.set(i, dataWithFilter);
 
           if (this.debug) {
-            logDebug(
-              `[VariantExtractor] Found __inject_html in ${experiment.name} variant ${i}:`,
-              {
-                keys: Object.keys(rawData),
-                hasUrlFilter: !!urlFilter,
-              }
-            );
+            logDebug(`[VariantExtractor] Found __inject_html in ${experiment.name} variant ${i}:`, {
+              keys: Object.keys(rawData),
+              hasUrlFilter: !!urlFilter,
+            });
           }
         } else if (this.debug) {
           logDebug(

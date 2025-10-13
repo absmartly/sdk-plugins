@@ -164,3 +164,52 @@ export function persistOverridesToCookie(
   const cookieValue = serializeOverrides(overrides);
   document.cookie = `${cookieName}=${encodeURIComponent(cookieValue)};path=/;max-age=${maxAge}`;
 }
+
+/**
+ * Get experiment overrides from query string or cookie
+ * Returns normalized Record<string, number> for use with SDK createContext
+ *
+ * @param cookieName - Name of the cookie to read/write (default: 'absmartly_overrides')
+ * @param queryPrefix - Prefix for query string parameters (default: '_exp_')
+ * @param searchParams - Optional URLSearchParams instance (defaults to window.location.search)
+ * @returns Normalized overrides as Record<string, number>
+ */
+export function getOverrides(
+  cookieName: string = 'absmartly_overrides',
+  queryPrefix: string = '_exp_',
+  searchParams?: URLSearchParams
+): Record<string, number> {
+  // Try query string first
+  const queryOverrides = getQueryStringOverrides(queryPrefix, searchParams);
+
+  if (Object.keys(queryOverrides).length > 0) {
+    // Persist query overrides to cookie
+    persistOverridesToCookie(queryOverrides, {
+      cookieName,
+      maxAge: 86400, // 1 day
+    });
+
+    // Normalize to Record<string, number>
+    return normalizeOverrides(queryOverrides);
+  }
+
+  // Fall back to cookie
+  const cookieOverrides = getCookieOverrides(cookieName);
+  return normalizeOverrides(cookieOverrides);
+}
+
+/**
+ * Normalize overrides to simple Record<string, number>
+ * Extracts just the variant number from SimpleOverride objects
+ */
+function normalizeOverrides(
+  overrides: Record<string, number | SimpleOverride>
+): Record<string, number> {
+  const normalized: Record<string, number> = {};
+
+  for (const [key, value] of Object.entries(overrides)) {
+    normalized[key] = typeof value === 'number' ? value : value.variant;
+  }
+
+  return normalized;
+}

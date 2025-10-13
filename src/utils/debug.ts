@@ -4,7 +4,8 @@
 declare const __DEBUG__: boolean;
 
 // Build-time debug flag - true in development, false in production
-export const DEBUG = typeof __DEBUG__ !== 'undefined' ? __DEBUG__ : false;
+// TEMPORARILY HARDCODED TO TRUE FOR DEBUGGING
+export const DEBUG = typeof __DEBUG__ !== 'undefined' ? __DEBUG__ : true;
 
 export interface LogContext {
   experimentName?: string;

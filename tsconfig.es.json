@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "ES2015",
+    "module": "ES2020",
     "outDir": "./es",
     "declaration": false
   }

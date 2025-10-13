@@ -32,6 +32,17 @@ export class DOMManipulatorLite {
       return false;
     }
 
+    const isReapplying = !!(this.plugin as any).reapplyingElements && Array.from((this.plugin as any).reapplyingElements).length > 0;
+    if (this.debug) {
+      logDebug(`[DOM-APPLY] ${isReapplying ? 'RE-APPLYING' : 'APPLYING'} change`, {
+        experimentName,
+        selector: change.selector,
+        type: change.type,
+        timestamp: Date.now(),
+        callStack: new Error().stack?.split('\n').slice(2, 4).join('\n'),
+      });
+    }
+
     try {
       if (change.type === 'styleRules') {
         return this.applyStyleRules(change, experimentName);
@@ -81,7 +92,40 @@ export class DOMManipulatorLite {
       }
 
       elements.forEach(element => {
+        if (this.debug && change.type === 'style') {
+          const oldStyles: Record<string, string> = {};
+          if (change.value && typeof change.value === 'object') {
+            Object.keys(change.value).forEach(prop => {
+              const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+              oldStyles[cssProp] = (element as HTMLElement).style.getPropertyValue(cssProp);
+            });
+          }
+          logDebug(`[DOM-BEFORE-APPLY] Element styles before change`, {
+            experimentName,
+            selector: change.selector,
+            element: element.tagName,
+            oldStyles,
+            newStyles: change.value,
+          });
+        }
+
         this.applyChangeToElement(element, change);
+
+        if (this.debug && change.type === 'style') {
+          const appliedStyles: Record<string, string> = {};
+          if (change.value && typeof change.value === 'object') {
+            Object.keys(change.value).forEach(prop => {
+              const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+              appliedStyles[cssProp] = (element as HTMLElement).style.getPropertyValue(cssProp);
+            });
+          }
+          logDebug(`[DOM-AFTER-APPLY] Element styles after change`, {
+            experimentName,
+            selector: change.selector,
+            element: element.tagName,
+            appliedStyles,
+          });
+        }
 
         if (change.type === 'javascript') {
           if (change.value) {
@@ -118,9 +162,21 @@ export class DOMManipulatorLite {
           appliedElements.push(element);
         }
 
-        // Watch for style persistence if explicitly enabled OR if SPA mode is on
-        if (change.type === 'style' && (change.persistStyle || (this.plugin as any).config?.spa)) {
+        // Watch element for React hydration recovery (ALL types) OR style persistence (styles only)
+        const shouldWatch =
+          (change.type === 'style' && change.persistStyle) || // Explicit style persistence
+          (this.plugin as any).config?.spa; // SPA mode watches ALL types for hydration recovery
+
+        if (shouldWatch) {
           this.plugin.watchElement(element, experimentName, change);
+        } else if (change.type === 'style' && this.debug) {
+          logDebug(`[WATCH-SKIP] NOT watching element - persistStyle and SPA both disabled`, {
+            experimentName,
+            selector: change.selector,
+            element: element.tagName,
+            persistStyle: change.persistStyle,
+            spaMode: (this.plugin as any).config?.spa,
+          });
         }
       });
 
@@ -360,8 +416,12 @@ export class DOMManipulatorLite {
         }
       }
 
-      // Watch for style persistence if explicitly enabled OR if SPA mode is on
-      if (change.type === 'style' && (change.persistStyle || (this.plugin as any).config?.spa)) {
+      // Watch element for React hydration recovery (ALL types) OR style persistence (styles only)
+      const shouldWatch =
+        (change.type === 'style' && change.persistStyle) || // Explicit style persistence
+        (this.plugin as any).config?.spa; // SPA mode watches ALL types for hydration recovery
+
+      if (shouldWatch) {
         this.plugin.watchElement(element, experimentName, change);
       }
 

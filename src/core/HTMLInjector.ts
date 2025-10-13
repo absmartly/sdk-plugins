@@ -140,9 +140,8 @@ export class HTMLInjector {
       // For headStart and bodyStart, we insert at the beginning (firstChild)
       // Each insertion pushes previous ones down, so we need to reverse
       // to maintain priority order (higher priority = earlier in DOM)
-      const orderedItems = location === 'headStart' || location === 'bodyStart'
-        ? [...items].reverse()
-        : items;
+      const orderedItems =
+        location === 'headStart' || location === 'bodyStart' ? [...items].reverse() : items;
 
       for (const item of orderedItems) {
         this.injectAtLocation(location, item.code);

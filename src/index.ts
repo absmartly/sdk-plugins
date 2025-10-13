@@ -37,9 +37,10 @@ export {
 export {
   getQueryStringOverrides,
   parseOverrideCookie,
-  getCookieOverrides as getOverrideCookie,
+  getCookieOverrides,
   serializeOverrides,
   persistOverridesToCookie,
+  getOverrides,
 } from './overrides/overridesUtils';
 export type { SimpleOverride, OverrideOptions } from './overrides/overridesUtils';
 

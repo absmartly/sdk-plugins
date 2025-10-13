@@ -7,5 +7,6 @@ export {
   getCookieOverrides,
   serializeOverrides,
   persistOverridesToCookie,
+  getOverrides,
 } from './overridesUtils';
 export type { SimpleOverride, OverrideOptions } from './overridesUtils';

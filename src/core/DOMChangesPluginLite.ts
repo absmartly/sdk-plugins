@@ -32,7 +32,7 @@ export class DOMChangesPluginLite {
   protected persistenceObserver: MutationObserver | null = null;
   protected reapplyingElements: Set<Element> = new Set();
   protected reapplyLogThrottle: Map<string, number> = new Map();
-  protected appliedStyleChanges: Map<string, DOMChange[]> = new Map();
+  protected appliedChanges: Map<string, DOMChange[]> = new Map();
   protected antiFlickerTimeout: number | null = null;
   protected antiFlickerStyleId = 'absmartly-antiflicker';
 
@@ -128,10 +128,46 @@ export class DOMChangesPluginLite {
   }
 
   private setupMutationObserver(): void {
-    const observer = new MutationObserver(() => {
-      // Check for pending changes that might now be applicable
-      // Note: We don't have a centralized pending changes store in lite version,
-      // the PendingChangeManager handles this internally
+    const observer = new MutationObserver((mutations) => {
+      // Re-apply ALL changes to elements that were replaced by React (hydration mismatch)
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList') {
+          // Check if any added nodes match our applied change selectors
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+
+              // Check all experiments with applied changes (not just style changes)
+              this.appliedChanges.forEach((changes, experimentName) => {
+                changes.forEach(change => {
+                  try {
+                    // Check if this new element or any of its descendants match the selector
+                    const matchingElements = element.matches(change.selector)
+                      ? [element]
+                      : Array.from(element.querySelectorAll(change.selector));
+
+                    matchingElements.forEach(matchingEl => {
+                      if (this.config.debug) {
+                        logDebug('[SPA-REAPPLY] Re-applying change to newly added element (React hydration recovery)', {
+                          experimentName,
+                          selector: change.selector,
+                          element: matchingEl.tagName,
+                          changeType: change.type,
+                        });
+                      }
+
+                      // Re-apply the change to the new element (ALL types: style, class, attribute, html, text, etc.)
+                      this.domManipulator.applyChange(change, experimentName);
+                    });
+                  } catch (e) {
+                    // Invalid selector, skip
+                  }
+                });
+              });
+            }
+          });
+        }
+      });
     });
 
     observer.observe(document.body, {
@@ -192,8 +228,8 @@ export class DOMChangesPluginLite {
     // The stylesheets will be reused or cleared on next applyChanges
     this.styleManagers.clear();
 
-    // Clear applied style changes
-    this.appliedStyleChanges.clear();
+    // Clear applied changes
+    this.appliedChanges.clear();
 
     // Clear HTML injections
     this.htmlInjector.destroy();
@@ -224,10 +260,7 @@ export class DOMChangesPluginLite {
     const allInjectHTML = this.variantExtractor.extractAllInjectHTML();
 
     // Apply injections and DOM changes in parallel for minimal flickering
-    await Promise.all([
-      this.applyHTMLInjections(allInjectHTML, currentURL),
-      this.applyChanges()
-    ]);
+    await Promise.all([this.applyHTMLInjections(allInjectHTML, currentURL), this.applyChanges()]);
 
     const duration = performance.now() - startTime;
     logPerformance('Apply injections and changes (parallel)', duration);
@@ -235,7 +268,7 @@ export class DOMChangesPluginLite {
     if (this.config.debug) {
       logDebug('[ABsmartly] HTML injections and DOM changes applied in parallel', {
         duration: `${duration.toFixed(2)}ms`,
-        currentURL
+        currentURL,
       });
     }
   }
@@ -261,7 +294,7 @@ export class DOMChangesPluginLite {
       logDebug('[ABsmartly] HTML injections complete', {
         experimentsWithInjections: allInjectHTML.size,
         totalLocations: injectionsByLocation.size,
-        currentUrl
+        currentUrl,
       });
     }
   }
@@ -790,7 +823,7 @@ export class DOMChangesPluginLite {
     this.eventListeners.clear();
     this.exposedExperiments.clear();
     this.watchedElements = new WeakMap();
-    this.appliedStyleChanges.clear();
+    this.appliedChanges.clear();
     this.reapplyingElements.clear();
     this.reapplyLogThrottle.clear();
 
@@ -968,21 +1001,32 @@ export class DOMChangesPluginLite {
     }
     experiments.add(experimentName);
 
-    // Store the applied style change for this experiment
-    if (!this.appliedStyleChanges.has(experimentName)) {
-      this.appliedStyleChanges.set(experimentName, []);
+    // Store the applied change for this experiment (ALL types: style, class, attribute, html, text, etc.)
+    if (!this.appliedChanges.has(experimentName)) {
+      this.appliedChanges.set(experimentName, []);
     }
-    const changes = this.appliedStyleChanges.get(experimentName)!;
+    const changes = this.appliedChanges.get(experimentName)!;
     const isNewWatch = !changes.includes(change);
     if (isNewWatch) {
       changes.push(change);
 
       // Only log when actually adding a new watch, not on every reapply
       if (this.config.debug) {
-        logDebug('[ABsmartly] Watching element for style persistence', {
+        const currentStyles: Record<string, string> = {};
+        if (change.value && typeof change.value === 'object') {
+          Object.keys(change.value).forEach(prop => {
+            const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+            currentStyles[cssProp] = (element as HTMLElement).style.getPropertyValue(cssProp);
+          });
+        }
+        logDebug('[WATCH-ELEMENT] Started watching element for persistence/hydration recovery', {
           experimentName,
           selector: change.selector,
           element: element.tagName,
+          changeType: change.type,
+          value: change.value,
+          currentStyles: change.type === 'style' ? currentStyles : undefined,
+          timestamp: Date.now(),
         });
       }
     }
@@ -1005,11 +1049,34 @@ export class DOMChangesPluginLite {
   private setupPersistenceObserver(): void {
     if (this.persistenceObserver) return;
 
+    if (this.config.debug) {
+      logDebug('[PERSISTENCE-OBSERVER] Setting up persistence observer', {
+        timestamp: Date.now(),
+        watchedElementsCount: this.watchedElements ? 'has WeakMap' : 'no WeakMap',
+      });
+    }
+
     this.persistenceObserver = new MutationObserver(mutations => {
+      if (this.config.debug) {
+        logDebug('[MUTATION-DETECTED] Persistence observer detected mutations', {
+          mutationCount: mutations.length,
+          timestamp: Date.now(),
+          mutations: mutations.map(m => ({
+            target: (m.target as Element).tagName,
+            oldValue: m.oldValue?.substring(0, 100),
+          })),
+        });
+      }
+
       mutations.forEach(mutation => {
         const element = mutation.target as Element;
 
         if (this.reapplyingElements.has(element)) {
+          if (this.config.debug) {
+            logDebug('[MUTATION-SKIP] Skipping mutation - currently reapplying', {
+              element: element.tagName,
+            });
+          }
           return;
         }
 
@@ -1025,21 +1092,26 @@ export class DOMChangesPluginLite {
             const lastLogged = this.reapplyLogThrottle.get(elementKey) || 0;
 
             if (now - lastLogged > 5000) {
-              logDebug('[ABsmartly] Style mutation detected on watched element', {
+              logDebug('[MUTATION-ON-WATCHED] Style mutation detected on watched element', {
                 element: element.tagName,
                 selector: (element as HTMLElement).getAttribute('name') || element.className,
                 oldValue: mutation.oldValue,
+                newValue: (element as HTMLElement).getAttribute('style'),
+                experiments: Array.from(experiments),
               });
               this.reapplyLogThrottle.set(elementKey, now);
             }
           }
 
           experiments.forEach(experimentName => {
-            const appliedChanges = this.appliedStyleChanges.get(experimentName);
+            const appliedChanges = this.appliedChanges.get(experimentName);
 
             if (appliedChanges) {
               appliedChanges.forEach(change => {
-                if (change.type === 'style' && element.matches(change.selector)) {
+                // Skip the .matches() check - we already know this element should have this change
+                // because we added it to watchedElements when we applied it successfully.
+                // The .matches() check fails for complex selectors with parent relationships (e.g., "div > p")
+                if (change.type === 'style') {
                   const needsReapply = this.checkStyleOverwritten(
                     element as HTMLElement,
                     change.value as Record<string, string>
@@ -1048,18 +1120,18 @@ export class DOMChangesPluginLite {
                   if (needsReapply) {
                     this.reapplyingElements.add(element);
 
-                    this.domManipulator.applyChange(change, experimentName);
-
                     const logKey = `${experimentName}-${change.selector}`;
                     const now = Date.now();
                     const lastLogged = this.reapplyLogThrottle.get(logKey) || 0;
 
                     if (this.config.debug && now - lastLogged > 5000) {
                       logDebug(
-                        'Reapplied style after mutation (React/framework conflict detected)',
+                        '[REAPPLY-TRIGGERED] Reapplying style after mutation (React/framework conflict detected)',
                         {
                           experimentName,
                           selector: change.selector,
+                          element: element.tagName,
+                          timestamp: now,
                           note: 'This happens when the page framework (React/Vue/etc) fights with DOM changes',
                         }
                       );
@@ -1076,11 +1148,13 @@ export class DOMChangesPluginLite {
                       }
                     }
 
+                    this.domManipulator.applyChange(change, experimentName);
+
                     setTimeout(() => {
                       this.reapplyingElements.delete(element);
                     }, 0);
                   } else if (this.config.debug) {
-                    logDebug('[ABsmartly] Style mutation detected but no reapply needed', {
+                    logDebug('[MUTATION-NO-REAPPLY] Style mutation detected but no reapply needed', {
                       experimentName,
                       selector: change.selector,
                     });
@@ -1101,7 +1175,13 @@ export class DOMChangesPluginLite {
     });
 
     if (this.config.debug) {
-      logDebug('[ABsmartly] Style persistence observer setup complete');
+      logDebug('[PERSISTENCE-OBSERVER] Setup complete - now observing style mutations', {
+        target: 'document.body',
+        attributeFilter: ['style'],
+        subtree: true,
+        attributeOldValue: true,
+        timestamp: Date.now(),
+      });
     }
   }
 

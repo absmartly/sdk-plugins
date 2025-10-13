@@ -7,7 +7,6 @@ export interface WebVitalsPluginOptions {
   debug?: boolean;
   trackWebVitals?: boolean;
   trackPageMetrics?: boolean;
-  webVitalsUrl?: string;
   autoTrack?: boolean;
 }
 
@@ -25,19 +24,24 @@ export class WebVitalsPlugin {
   private debug: boolean;
   private trackWebVitals: boolean;
   private trackPageMetrics: boolean;
-  private webVitalsUrl: string;
   private autoTrack: boolean;
   private webVitalsLoaded: boolean = false;
   private metricsTracked: boolean = false;
+  private webVitalsPromise?: Promise<void>;
 
   constructor(options: WebVitalsPluginOptions = {}) {
     this.context = options.context;
     this.debug = options.debug || false;
     this.trackWebVitals = options.trackWebVitals !== false;
     this.trackPageMetrics = options.trackPageMetrics !== false;
-    this.webVitalsUrl =
-      options.webVitalsUrl || 'https://unpkg.com/web-vitals@4/dist/web-vitals.iife.js';
     this.autoTrack = options.autoTrack !== false;
+
+    // ✨ OPTIMIZATION: Start loading web-vitals library immediately in constructor
+    // This allows the HTTP request to happen in parallel with other initialization
+    if (typeof window !== 'undefined' && this.trackWebVitals) {
+      this.webVitalsPromise = this.loadWebVitalsLibrary();
+      this.debugLog('Started pre-loading web-vitals library');
+    }
   }
 
   private debugLog(...args: unknown[]): void {
@@ -51,25 +55,22 @@ export class WebVitalsPlugin {
     this.debugLog('Context set for WebVitalsPlugin');
   }
 
-  private async loadWebVitalsLibrary(): Promise<void> {
+  private async loadWebVitalsLibrary(): Promise<any> {
     if (this.webVitalsLoaded || typeof window === 'undefined') {
-      return;
+      return null;
     }
 
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = this.webVitalsUrl;
-      script.onload = () => {
-        this.webVitalsLoaded = true;
-        this.debugLog('Web Vitals library loaded');
-        resolve();
-      };
-      script.onerror = error => {
-        logDebug('[WebVitalsPlugin] Failed to load Web Vitals library:', error);
-        reject(error);
-      };
-      document.head.appendChild(script);
-    });
+    try {
+      // ✨ OPTIMIZATION: Import from bundled package instead of CDN
+      // Much faster and more reliable than script tag injection
+      const webVitals = await import('web-vitals');
+      this.webVitalsLoaded = true;
+      this.debugLog('Web Vitals library loaded from bundle');
+      return webVitals;
+    } catch (error) {
+      logDebug('[WebVitalsPlugin] Failed to load Web Vitals library:', error);
+      throw error;
+    }
   }
 
   public async trackWebVitalsMetrics(context?: Context): Promise<void> {
@@ -84,10 +85,16 @@ export class WebVitalsPlugin {
     }
 
     try {
-      await this.loadWebVitalsLibrary();
+      // ✨ OPTIMIZATION: Use pre-loaded promise from constructor
+      // If the promise exists, it's already loading in the background
+      let webVitals: any;
+      if (this.webVitalsPromise) {
+        webVitals = await this.webVitalsPromise;
+      } else {
+        // Fallback: Load now if not started in constructor
+        webVitals = await this.loadWebVitalsLibrary();
+      }
 
-      // Check if webVitals is available
-      const webVitals = (window as any).webVitals;
       if (!webVitals) {
         logDebug('[WebVitalsPlugin] Web Vitals library not available');
         return;
@@ -265,12 +272,14 @@ export class WebVitalsPlugin {
     }
 
     if (this.autoTrack) {
-      // Start tracking web vitals
+      // ✨ OPTIMIZATION: Don't await - let tracking start in background
+      // context.track() can be called before context.ready()
       if (this.trackWebVitals) {
-        await this.trackWebVitalsMetrics();
+        // Start tracking (don't await - runs in parallel)
+        this.trackWebVitalsMetrics();
       }
 
-      // Start tracking page metrics
+      // Start tracking page metrics (also doesn't need to wait)
       if (this.trackPageMetrics) {
         this.trackPageMetricsData();
       }

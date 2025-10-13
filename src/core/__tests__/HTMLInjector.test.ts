@@ -1,6 +1,12 @@
 import { HTMLInjector } from '../HTMLInjector';
 import { InjectionLocation, InjectionDataWithFilter } from '../../types';
 
+interface InjectionItem {
+  code: string;
+  priority: number;
+  location: InjectionLocation;
+}
+
 // Mock the DEBUG constant
 let mockDebugEnabled = false;
 
@@ -14,6 +20,7 @@ jest.mock('../../utils/debug', () => {
     },
     logDebug: jest.fn((...args: unknown[]) => {
       if (mockDebugEnabled) {
+        // eslint-disable-next-line no-console
         console.log(...args);
       }
     }),
@@ -242,8 +249,8 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, null as any],
-            [1, 'invalid' as any],
+            [0, null as unknown as InjectionDataWithFilter],
+            [1, 'invalid' as unknown as InjectionDataWithFilter],
             [2, { data: { headStart: '<script>valid</script>' } } as InjectionDataWithFilter],
           ]),
         ],
@@ -266,7 +273,7 @@ describe('HTMLInjector', () => {
                   headStart: 123,
                   bodyEnd: '<div>valid</div>',
                 },
-              } as any,
+              } as unknown as InjectionDataWithFilter,
             ],
           ]),
         ],
@@ -321,11 +328,8 @@ describe('HTMLInjector', () => {
 
   describe('inject', () => {
     it('should inject at headStart', () => {
-      const injections = new Map<InjectionLocation, any>([
-        [
-          'headStart',
-          [{ code: '<script>test</script>', priority: 0, location: 'headStart' }],
-        ],
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
+        ['headStart', [{ code: '<script>test</script>', priority: 0, location: 'headStart' }]],
       ]);
 
       injector.inject(injections);
@@ -337,7 +341,7 @@ describe('HTMLInjector', () => {
     });
 
     it('should inject at headEnd', () => {
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         [
           'headEnd',
           [{ code: '<style>body { margin: 0; }</style>', priority: 0, location: 'headEnd' }],
@@ -353,11 +357,8 @@ describe('HTMLInjector', () => {
     });
 
     it('should inject at bodyStart', () => {
-      const injections = new Map<InjectionLocation, any>([
-        [
-          'bodyStart',
-          [{ code: '<div>header</div>', priority: 0, location: 'bodyStart' }],
-        ],
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
+        ['bodyStart', [{ code: '<div>header</div>', priority: 0, location: 'bodyStart' }]],
       ]);
 
       injector.inject(injections);
@@ -369,11 +370,8 @@ describe('HTMLInjector', () => {
     });
 
     it('should inject at bodyEnd', () => {
-      const injections = new Map<InjectionLocation, any>([
-        [
-          'bodyEnd',
-          [{ code: '<div>footer</div>', priority: 0, location: 'bodyEnd' }],
-        ],
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
+        ['bodyEnd', [{ code: '<div>footer</div>', priority: 0, location: 'bodyEnd' }]],
       ]);
 
       injector.inject(injections);
@@ -385,7 +383,7 @@ describe('HTMLInjector', () => {
     });
 
     it('should inject multiple items in priority order', () => {
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         [
           'headStart',
           [
@@ -408,8 +406,11 @@ describe('HTMLInjector', () => {
     });
 
     it('should inject at all four locations', () => {
-      const injections = new Map<InjectionLocation, any>([
-        ['headStart', [{ code: '<script>head-start</script>', priority: 0, location: 'headStart' }]],
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
+        [
+          'headStart',
+          [{ code: '<script>head-start</script>', priority: 0, location: 'headStart' }],
+        ],
         ['headEnd', [{ code: '<script>head-end</script>', priority: 0, location: 'headEnd' }]],
         ['bodyStart', [{ code: '<div>body-start</div>', priority: 0, location: 'bodyStart' }]],
         ['bodyEnd', [{ code: '<div>body-end</div>', priority: 0, location: 'bodyEnd' }]],
@@ -424,7 +425,7 @@ describe('HTMLInjector', () => {
 
   describe('destroy', () => {
     it('should remove all injected elements', () => {
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headStart', [{ code: '<script>test</script>', priority: 0, location: 'headStart' }]],
         ['bodyEnd', [{ code: '<div>footer</div>', priority: 0, location: 'bodyEnd' }]],
       ]);
@@ -439,7 +440,7 @@ describe('HTMLInjector', () => {
     });
 
     it('should clear injected IDs', () => {
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headStart', [{ code: '<script>test</script>', priority: 0, location: 'headStart' }]],
       ]);
 
@@ -454,10 +455,16 @@ describe('HTMLInjector', () => {
 
   describe('edge cases', () => {
     it('should handle script tags with special characters', () => {
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         [
           'headStart',
-          [{ code: '<script>alert("test\'s <tag>");</script>', priority: 0, location: 'headStart' }],
+          [
+            {
+              code: '<script>alert("test\'s <tag>");</script>',
+              priority: 0,
+              location: 'headStart',
+            },
+          ],
         ],
       ]);
 
@@ -468,7 +475,7 @@ describe('HTMLInjector', () => {
     });
 
     it('should handle empty code', () => {
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headStart', [{ code: '', priority: 0, location: 'headStart' }]],
       ]);
 
@@ -486,7 +493,7 @@ describe('HTMLInjector', () => {
         </div>
       `;
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['bodyStart', [{ code: complexHTML, priority: 0, location: 'bodyStart' }]],
       ]);
 
@@ -563,7 +570,7 @@ describe('HTMLInjector', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const allInjectHTML = new Map([
-        ['exp1', new Map([[0, null as any]])],
+        ['exp1', new Map([[0, null as unknown as InjectionDataWithFilter]])],
       ]);
 
       injector.collectInjections(allInjectHTML);
@@ -589,7 +596,7 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: 123,
                 },
-              } as any,
+              } as unknown as InjectionDataWithFilter,
             ],
           ]),
         ],
@@ -598,7 +605,9 @@ describe('HTMLInjector', () => {
       injector.collectInjections(allInjectHTML);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[HTMLInjector] Skipping non-string injection code for key headStart:'),
+        expect.stringContaining(
+          '[HTMLInjector] Skipping non-string injection code for key headStart:'
+        ),
         123
       );
 
@@ -608,7 +617,7 @@ describe('HTMLInjector', () => {
     it('should log debug messages when injecting', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headStart', [{ code: '<script>test</script>', priority: 0, location: 'headStart' }]],
       ]);
 
@@ -648,7 +657,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headStart', [{ code: '<script>test</script>', priority: 0, location: 'headStart' }]],
       ]);
 
@@ -671,7 +680,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headEnd', [{ code: '<script>test</script>', priority: 0, location: 'headEnd' }]],
       ]);
 
@@ -694,7 +703,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['bodyStart', [{ code: '<div>test</div>', priority: 0, location: 'bodyStart' }]],
       ]);
 
@@ -717,7 +726,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['bodyEnd', [{ code: '<div>test</div>', priority: 0, location: 'bodyEnd' }]],
       ]);
 
@@ -746,7 +755,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headStart', [{ code: '<script>test</script>', priority: 0, location: 'headStart' }]],
       ]);
 
@@ -780,7 +789,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['bodyStart', [{ code: '<div>test</div>', priority: 0, location: 'bodyStart' }]],
       ]);
 
@@ -813,7 +822,7 @@ describe('HTMLInjector', () => {
         throw new Error('Test error');
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headEnd', [{ code: '<script>test</script>', priority: 0, location: 'headEnd' }]],
       ]);
 
@@ -836,8 +845,8 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, { data: null } as any],
-            [1, { data: 'invalid string' } as any],
+            [0, { data: null } as unknown as InjectionDataWithFilter],
+            [1, { data: 'invalid string' } as unknown as InjectionDataWithFilter],
             [2, { data: { headStart: '<script>valid</script>' } } as InjectionDataWithFilter],
           ]),
         ],
@@ -856,7 +865,7 @@ describe('HTMLInjector', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const allInjectHTML = new Map([
-        ['exp1', new Map([[0, { data: null } as any]])],
+        ['exp1', new Map([[0, { data: null } as unknown as InjectionDataWithFilter]])],
       ]);
 
       injector.collectInjections(allInjectHTML);
@@ -883,7 +892,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['headEnd', [{ code: '<script>test</script>', priority: 0, location: 'headEnd' }]],
       ]);
 
@@ -917,7 +926,7 @@ describe('HTMLInjector', () => {
         configurable: true,
       });
 
-      const injections = new Map<InjectionLocation, any>([
+      const injections = new Map<InjectionLocation, InjectionItem[]>([
         ['bodyEnd', [{ code: '<div>test</div>', priority: 0, location: 'bodyEnd' }]],
       ]);
 
@@ -964,7 +973,10 @@ describe('HTMLInjector', () => {
       const result = injector.collectInjections(allInjectHTML, 'https://example.com/products');
       expect(result.get('headStart')).toHaveLength(1);
 
-      const resultNoMatch = injector.collectInjections(allInjectHTML, 'https://example.com/checkout');
+      const resultNoMatch = injector.collectInjections(
+        allInjectHTML,
+        'https://example.com/checkout'
+      );
       expect(resultNoMatch.get('headStart')).toBeUndefined();
     });
 
@@ -993,7 +1005,10 @@ describe('HTMLInjector', () => {
       const result = injector.collectInjections(allInjectHTML, 'https://example.com/products');
       expect(result.get('headStart')).toHaveLength(1);
 
-      const resultExcluded = injector.collectInjections(allInjectHTML, 'https://example.com/checkout');
+      const resultExcluded = injector.collectInjections(
+        allInjectHTML,
+        'https://example.com/checkout'
+      );
       expect(resultExcluded.get('headStart')).toBeUndefined();
     });
 
@@ -1049,7 +1064,9 @@ describe('HTMLInjector', () => {
       injector.collectInjections(allInjectHTML, 'https://example.com/checkout');
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[HTMLInjector] Skipping exp1 variant 0 - URL filter doesn\'t match:'),
+        expect.stringContaining(
+          "[HTMLInjector] Skipping exp1 variant 0 - URL filter doesn't match:"
+        ),
         expect.any(Object)
       );
 
