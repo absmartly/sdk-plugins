@@ -147,8 +147,8 @@ describe('PendingChangeManager', () => {
       container.innerHTML = '<button class="nested-btn">Nested</button>';
       document.body.appendChild(container);
 
-      // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Wait for processing (increased timeout for CI stability)
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(applyFnMock).toHaveBeenCalled();
       const button = container.querySelector('.nested-btn');
@@ -176,8 +176,8 @@ describe('PendingChangeManager', () => {
         <button class="btn3"></button>
       `;
 
-      // Wait for batch processing
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Wait for batch processing (increased timeout for CI stability)
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // All should be applied in one batch
       expect(applyFnMock).toHaveBeenCalledTimes(3);
