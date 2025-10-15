@@ -32,7 +32,9 @@ export class DOMManipulatorLite {
       return false;
     }
 
-    const isReapplying = !!(this.plugin as any).reapplyingElements && Array.from((this.plugin as any).reapplyingElements).length > 0;
+    const isReapplying =
+      !!(this.plugin as any).reapplyingElements &&
+      Array.from((this.plugin as any).reapplyingElements).length > 0;
     if (this.debug) {
       logDebug(`[DOM-APPLY] ${isReapplying ? 'RE-APPLYING' : 'APPLYING'} change`, {
         experimentName,

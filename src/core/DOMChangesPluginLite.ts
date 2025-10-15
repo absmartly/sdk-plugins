@@ -128,7 +128,7 @@ export class DOMChangesPluginLite {
   }
 
   private setupMutationObserver(): void {
-    const observer = new MutationObserver((mutations) => {
+    const observer = new MutationObserver(mutations => {
       // Re-apply ALL changes to elements that were replaced by React (hydration mismatch)
       mutations.forEach(mutation => {
         if (mutation.type === 'childList') {
@@ -148,12 +148,15 @@ export class DOMChangesPluginLite {
 
                     matchingElements.forEach(matchingEl => {
                       if (this.config.debug) {
-                        logDebug('[SPA-REAPPLY] Re-applying change to newly added element (React hydration recovery)', {
-                          experimentName,
-                          selector: change.selector,
-                          element: matchingEl.tagName,
-                          changeType: change.type,
-                        });
+                        logDebug(
+                          '[SPA-REAPPLY] Re-applying change to newly added element (React hydration recovery)',
+                          {
+                            experimentName,
+                            selector: change.selector,
+                            element: matchingEl.tagName,
+                            changeType: change.type,
+                          }
+                        );
                       }
 
                       // Re-apply the change to the new element (ALL types: style, class, attribute, html, text, etc.)
@@ -1154,10 +1157,13 @@ export class DOMChangesPluginLite {
                       this.reapplyingElements.delete(element);
                     }, 0);
                   } else if (this.config.debug) {
-                    logDebug('[MUTATION-NO-REAPPLY] Style mutation detected but no reapply needed', {
-                      experimentName,
-                      selector: change.selector,
-                    });
+                    logDebug(
+                      '[MUTATION-NO-REAPPLY] Style mutation detected but no reapply needed',
+                      {
+                        experimentName,
+                        selector: change.selector,
+                      }
+                    );
                   }
                 }
               });
