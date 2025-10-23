@@ -50,7 +50,7 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
 
   // ✨ Plugin constructor starts loading web-vitals library immediately
   const webVitalsPlugin = new WebVitalsPlugin({
-    context: context as any,
+    context,
     trackWebVitals: true,
     trackPageMetrics: true,
   });
@@ -173,11 +173,7 @@ async function main(): Promise<void> {
       unitId = cookiePlugin.generateAndSetUnitId();
     }
 
-    // 3. Get overrides BEFORE SDK init
-    const searchParams = new URLSearchParams(location.search);
-    const overrides = getOverrides('absmartly_overrides', '_exp_', searchParams);
-
-    // 4. Initialize SDK
+    // 3. Initialize SDK
     const sdk = new SDK({
       endpoint: 'https://api.absmartly.io/v1',
       apiKey: 'YOUR_API_KEY',
@@ -186,6 +182,10 @@ async function main(): Promise<void> {
     });
 
     const context = sdk.createContext({ units: { userId: unitId } });
+
+    // 3. Get overrides 
+    const searchParams = new URLSearchParams(location.search);
+    const overrides = getOverrides('absmartly_overrides', 'exp_', searchParams);
 
     // Set overrides using the method (can be called before ready())
     if (Object.keys(overrides).length > 0) {
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
 
     // 7. Initialize DOM changes plugin
     const domPlugin = new DOMChangesPluginLite({
-      context: context as any,
+      context,
       autoApply: true,
       spa: true,
       visibilityTracking: true,
@@ -236,7 +236,7 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
     const { WebVitalsPlugin } = await import('@absmartly/sdk-plugins/vitals-only');
 
     const webVitalsPlugin = new WebVitalsPlugin({
-      context: context as any,
+      context,
       trackWebVitals: true,
       trackPageMetrics: true,
     });
