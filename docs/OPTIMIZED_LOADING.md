@@ -55,8 +55,8 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
     trackPageMetrics: true,
   });
 
-  // ✨ ready() starts tracking without waiting for context.ready()
-  webVitalsPlugin.ready();
+  // ✨ start() begins tracking without waiting for context.ready()
+  webVitalsPlugin.start();
 }
 ```
 
@@ -241,7 +241,7 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
       trackPageMetrics: true,
     });
 
-    webVitalsPlugin.ready();
+    webVitalsPlugin.start();
   } catch (error) {
     console.error('Failed to initialize WebVitalsPlugin:', error);
   }
@@ -375,7 +375,7 @@ async function main() {
 
 With optimized loading, you should see:
 
-- **Cookie resolution**: 0-50ms (if cached) or 100-300ms (if calling worker)
+- **Cookie resolution**: 0-50ms
 - **SDK ready**: 150-500ms (depending on network and data size)
 - **DOM plugin init**: 10-50ms
 - **Total time to DOM ready**: 200-600ms

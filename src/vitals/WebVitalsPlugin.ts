@@ -263,11 +263,11 @@ export class WebVitalsPlugin {
     }
   }
 
-  public async ready(): Promise<void> {
-    this.debugLog('Initializing WebVitalsPlugin');
+  public async start(): Promise<void> {
+    this.debugLog('Starting WebVitalsPlugin');
 
     if (!this.context) {
-      this.debugLog('No context available during initialization');
+      this.debugLog('No context available during start');
       return;
     }
 
@@ -285,12 +285,16 @@ export class WebVitalsPlugin {
       }
     }
 
-    this.debugLog('WebVitalsPlugin initialized successfully');
+    this.debugLog('WebVitalsPlugin started successfully');
   }
 
-  // Alias for backwards compatibility
+  // Aliases for backwards compatibility
+  public async ready(): Promise<void> {
+    return this.start();
+  }
+
   public async initialize(): Promise<void> {
-    return this.ready();
+    return this.start();
   }
 
   public reset(): void {
