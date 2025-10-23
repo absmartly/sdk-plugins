@@ -26,12 +26,17 @@ export class ExposureTracker {
 
   /**
    * Register an experiment with all its variants' changes for comprehensive tracking
+   *
+   * @param hasImmediateTrigger - Whether ANY variant matching URL filter has immediate trigger
+   * @param hasViewportTrigger - Whether ANY variant matching URL filter has viewport trigger
    */
   registerExperiment(
     experimentName: string,
     currentVariant: number,
     currentChanges: DOMChange[],
-    allVariantsChanges: DOMChange[][]
+    allVariantsChanges: DOMChange[][],
+    hasImmediateTrigger: boolean,
+    hasViewportTrigger: boolean
   ): void {
     if (this.debug) {
       logDebug(`[ABsmartly] Registering experiment ${experimentName} for exposure tracking`);
@@ -125,20 +130,8 @@ export class ExposureTracker {
       }
     });
 
-    // Determine what triggers are needed by checking ALL variants
-    // This ensures experiments are tracked even if the user is in a variant without changes
-    let hasImmediateTrigger = false;
-    let hasViewportTrigger = false;
-
-    allVariantsChanges.forEach(variantChanges => {
-      variantChanges.forEach(change => {
-        if (change.trigger_on_view) {
-          hasViewportTrigger = true;
-        } else {
-          hasImmediateTrigger = true;
-        }
-      });
-    });
+    // Trigger flags are now passed in from DOMChangesPluginLite after URL filtering
+    // This ensures only variants matching the current URL determine trigger behavior
 
     // Store experiment tracking info
     const tracking: ExperimentTracking = {

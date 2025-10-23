@@ -399,9 +399,6 @@ export class DOMChangesPluginLite {
         });
       }
 
-      let hasImmediateTrigger = false;
-      let hasViewportTrigger = false;
-
       // Apply visual changes only if URL matches for user's variant AND user has changes
       if (shouldApplyVisualChanges && changes && changes.length > 0) {
         for (const change of changes) {
@@ -410,21 +407,12 @@ export class DOMChangesPluginLite {
           if (success) {
             totalApplied++;
             stats.success++;
-
-            if (change.trigger_on_view) {
-              hasViewportTrigger = true;
-            } else {
-              hasImmediateTrigger = true;
-            }
           } else if (change.type !== 'create' && change.type !== 'styleRules') {
             // Track pending changes for stats
             try {
               const elements = document.querySelectorAll(change.selector);
               if (elements.length === 0 && (this.config.spa || change.waitForElement)) {
                 stats.pending++;
-                if (change.trigger_on_view) {
-                  hasViewportTrigger = true;
-                }
               }
             } catch (error) {
               if (this.config.debug) {
@@ -434,56 +422,117 @@ export class DOMChangesPluginLite {
           }
         }
       } else if (changes && changes.length > 0) {
-        // URL doesn't match for user's variant OR user has no changes
-        // Check if user's changes have viewport trigger (if they exist)
-        // We still need to set up tracking for SRM prevention
-        for (const change of changes) {
-          if (change.trigger_on_view) {
-            hasViewportTrigger = true;
-          } else {
-            hasImmediateTrigger = true;
-          }
-        }
         logDebug(
           `[ABsmartly] Experiment '${expName}' variant ${currentVariant} doesn't match URL filter or has no changes, but setting up tracking for SRM prevention`
         );
       }
 
-      // For SRM prevention: Check trigger types across ALL variants (not just user's variant)
-      // If ANY variant has changes with viewport or immediate triggers, we need to track
-      let hasAnyViewportTriggerInAnyVariant = hasViewportTrigger;
-      let hasAnyImmediateTriggerInAnyVariant = hasImmediateTrigger;
+      // For SRM prevention: Check trigger types ONLY from variants whose URL filters match
+      // CRITICAL: Only variants matching the current URL should determine the trigger behavior
+      let hasAnyViewportTriggerInAnyVariant = false;
+      let hasAnyImmediateTriggerInAnyVariant = false;
 
-      if (!hasViewportTrigger || !hasImmediateTrigger) {
-        for (const variantChanges of allVariantChanges) {
-          if (variantChanges && variantChanges.length > 0) {
-            for (const change of variantChanges) {
-              if (change.trigger_on_view) {
-                hasAnyViewportTriggerInAnyVariant = true;
-              } else {
-                hasAnyImmediateTriggerInAnyVariant = true;
-              }
+      // Get all variants data to check URL filters
+      const allVariantsData = this.variantExtractor.getAllVariantsData(expName);
 
-              // Early exit if we found both types
-              if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
-                break;
-              }
+
+      if (this.config.debug) {
+        logDebug(
+          `[ABsmartly] Checking trigger types for experiment '${expName}' on URL: ${currentURL}`,
+          {
+            allVariantsDataSize: allVariantsData.size,
+            allVariantChangesLength: allVariantChanges.length,
+          }
+        );
+
+        // Log the structure of each variant's data
+        allVariantsData.forEach((data, idx) => {
+          logDebug(`[ABsmartly] Variant ${idx} data structure:`, {
+            isArray: Array.isArray(data),
+            isObject: typeof data === 'object',
+            hasUrlFilter: data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data,
+            keys: data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
+          });
+        });
+      }
+
+      // Loop through ALL variants (not just ones with changes)
+      // We need to check URL filters from the raw data, which includes variants without changes
+      for (const [variantIndex, variantData] of allVariantsData) {
+        const variantChanges = allVariantChanges[variantIndex];
+        if (!variantChanges || variantChanges.length === 0) {
+          continue;
+        }
+
+        // Check if this variant's URL filter matches the current URL
+        let variantMatchesURL = true; // Default to true for legacy format (no URL filter)
+
+        if (variantData && typeof variantData === 'object' && !Array.isArray(variantData)) {
+          const config = variantData as { urlFilter?: unknown };
+          if ('urlFilter' in config && config.urlFilter) {
+            // This variant has a URL filter - check if it matches
+            const urlFilterConfig = config as { urlFilter: { include?: string[]; exclude?: string[] } };
+            variantMatchesURL = URLMatcher.matches(urlFilterConfig.urlFilter, currentURL);
+
+
+            if (this.config.debug) {
+              logDebug(
+                `[ABsmartly] Variant ${variantIndex} has URL filter, matches: ${variantMatchesURL}`
+              );
             }
           }
-          if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
-            break;
+          // If no urlFilter property, variantMatchesURL stays true (legacy behavior)
+        } else {
+        }
+
+        // Only collect trigger types from variants whose URL filters match
+        if (variantMatchesURL) {
+          for (const change of variantChanges) {
+            if (change.trigger_on_view) {
+              hasAnyViewportTriggerInAnyVariant = true;
+            } else {
+              hasAnyImmediateTriggerInAnyVariant = true;
+            }
+
+            // Early exit if we found both types
+            if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
+              break;
+            }
+          }
+
+          if (this.config.debug) {
+            logDebug(
+              `[ABsmartly] Variant ${variantIndex} matches URL - hasImmediate: ${hasAnyImmediateTriggerInAnyVariant}, hasViewport: ${hasAnyViewportTriggerInAnyVariant}`
+            );
+          }
+        } else {
+          if (this.config.debug) {
+            logDebug(`[ABsmartly] Variant ${variantIndex} does NOT match URL - skipping`);
           }
         }
+
+        if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
+          break;
+        }
+      }
+
+      if (this.config.debug) {
+        logDebug(
+          `[ABsmartly] Final trigger decision for '${expName}': hasImmediate=${hasAnyImmediateTriggerInAnyVariant}, hasViewport=${hasAnyViewportTriggerInAnyVariant}`
+        );
       }
 
       // CRITICAL: Always register experiment for tracking if ANY variant has ANY trigger type
       // This prevents SRM even when user's variant doesn't match URL filter
+      // Pass the URL-filtered trigger flags to ExposureTracker
       if (hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant) {
         this.exposureTracker.registerExperiment(
           expName,
           currentVariant || 0,
           changes || [],
-          allVariantChanges
+          allVariantChanges,
+          hasAnyImmediateTriggerInAnyVariant,
+          hasAnyViewportTriggerInAnyVariant
         );
       }
 
