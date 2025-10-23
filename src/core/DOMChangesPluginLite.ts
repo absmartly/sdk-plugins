@@ -435,7 +435,6 @@ export class DOMChangesPluginLite {
       // Get all variants data to check URL filters
       const allVariantsData = this.variantExtractor.getAllVariantsData(expName);
 
-
       if (this.config.debug) {
         logDebug(
           `[ABsmartly] Checking trigger types for experiment '${expName}' on URL: ${currentURL}`,
@@ -450,8 +449,10 @@ export class DOMChangesPluginLite {
           logDebug(`[ABsmartly] Variant ${idx} data structure:`, {
             isArray: Array.isArray(data),
             isObject: typeof data === 'object',
-            hasUrlFilter: data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data,
-            keys: data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
+            hasUrlFilter:
+              data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data,
+            keys:
+              data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
           });
         });
       }
@@ -471,9 +472,10 @@ export class DOMChangesPluginLite {
           const config = variantData as { urlFilter?: unknown };
           if ('urlFilter' in config && config.urlFilter) {
             // This variant has a URL filter - check if it matches
-            const urlFilterConfig = config as { urlFilter: { include?: string[]; exclude?: string[] } };
+            const urlFilterConfig = config as {
+              urlFilter: { include?: string[]; exclude?: string[] };
+            };
             variantMatchesURL = URLMatcher.matches(urlFilterConfig.urlFilter, currentURL);
-
 
             if (this.config.debug) {
               logDebug(
@@ -482,7 +484,6 @@ export class DOMChangesPluginLite {
             }
           }
           // If no urlFilter property, variantMatchesURL stays true (legacy behavior)
-        } else {
         }
 
         // Only collect trigger types from variants whose URL filters match
