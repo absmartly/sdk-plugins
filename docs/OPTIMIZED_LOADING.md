@@ -185,12 +185,13 @@ async function main(): Promise<void> {
       application: 'website',
     });
 
-    const contextConfig: any = { units: { userId: unitId } };
+    const context = sdk.createContext({ units: { userId: unitId } });
+
+    // Set overrides using the method (can be called before ready())
     if (Object.keys(overrides).length > 0) {
-      contextConfig.overrides = overrides;
+      context.overrides(overrides);
     }
 
-    const context = sdk.createContext(contextConfig);
     context.attribute('user_agent', navigator.userAgent);
 
     // 5. ✨ Start loading WebVitals BEFORE context.ready()
