@@ -416,6 +416,7 @@ The plugin communicates with the ABsmartly Browser Extension for visual editing:
 
 For detailed documentation:
 
+- **[Optimized Loading Guide](docs/OPTIMIZED_LOADING.md)** - Best practices for loading the SDK and plugins with minimal performance impact
 - **[Extension Integration Guide](docs/EXTENSION_INTEGRATION_GUIDE.md)** - Complete guide for browser extension integration, visual editing, preview mode, and advanced features
 - **[Exposure Tracking Guide](docs/EXPOSURE_TRACKING_GUIDE.md)** - Understanding trigger_on_view and preventing sample ratio mismatch
 
