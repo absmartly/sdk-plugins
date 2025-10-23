@@ -64,23 +64,35 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
 
 ### 2. Using Optimized Entry Points
 
-The package provides optimized entry points that include only the code you need:
+The package provides optimized entry points that include only the code you need.
+
+**Why entry points instead of relying on tree-shaking?**
+
+While modern bundlers support tree-shaking, entry points provide **guaranteed** minimal bundles because:
+
+1. **Import Side Effects**: When you import from the main entry point, top-level code from ALL modules runs, even if you don't use the exports
+2. **Transitive Dependencies**: The main `index.ts` imports ALL plugins, which pulls in their dependencies (e.g., `web-vitals` library ~15KB)
+3. **Bundler Limitations**: Not all bundlers can perfectly tree-shake re-exports (`export * from './module'`), classes with static initializers, or dynamic imports
+
+Entry points **guarantee** you only load what you need by only importing the required modules at the source level.
 
 ```typescript
 // ❌ DON'T: Import everything (larger bundle)
 import { DOMChangesPluginLite, CookiePlugin, WebVitalsPlugin } from '@absmartly/sdk-plugins';
 
-// ✅ DO: Use specific entry points (smaller bundle, better tree-shaking)
-import { DOMChangesPluginLite, CookiePlugin } from '@absmartly/sdk-plugins/dom-only';
-// or
+// ✅ DO: Use specific entry points (smaller bundle, guaranteed tree-shaking)
+import { DOMChangesPluginLite, CookiePlugin, getOverrides } from '@absmartly/sdk-plugins/dom-with-overrides-lite';
+// or if you only need DOM changes
+import { DOMChangesPluginLite } from '@absmartly/sdk-plugins/dom-only';
+// or if you only need cookies
 import { CookiePlugin } from '@absmartly/sdk-plugins/cookie-only';
 ```
 
 Available entry points:
-- `@absmartly/sdk-plugins/dom-only` - DOM changes + Cookie plugins
-- `@absmartly/sdk-plugins/cookie-only` - Cookie plugin only
-- `@absmartly/sdk-plugins/vitals-only` - WebVitals plugin only
-- `@absmartly/sdk-plugins/dom-with-overrides-lite` - DOM + Cookie + Overrides
+- `@absmartly/sdk-plugins/dom-only` - DOMChangesPluginLite only
+- `@absmartly/sdk-plugins/cookie-only` - CookiePlugin only
+- `@absmartly/sdk-plugins/vitals-only` - WebVitalsPlugin only
+- `@absmartly/sdk-plugins/dom-with-overrides-lite` - DOMChangesPluginLite + CookiePlugin + OverridesPluginLite + utility functions
 - `@absmartly/sdk-plugins` - All plugins (use when you need everything)
 
 ### 3. Background Task Execution
@@ -136,7 +148,7 @@ Here's a complete optimized loading example:
 
 ```typescript
 import { SDK, Context } from '@absmartly/javascript-sdk';
-import { DOMChangesPluginLite, CookiePlugin, getOverrides } from '@absmartly/sdk-plugins/dom-only';
+import { DOMChangesPluginLite, CookiePlugin, getOverrides } from '@absmartly/sdk-plugins/dom-with-overrides-lite';
 
 // Performance tracking
 const perfMarks = {
@@ -242,12 +254,12 @@ main();
 
 ### DOM Only (`@absmartly/sdk-plugins/dom-only`)
 
-**Size**: ~45KB minified
-**Includes**: DOMChangesPluginLite, CookiePlugin, utility functions
-**Use when**: You only need DOM changes and cookie management
+**Size**: ~30KB minified
+**Includes**: DOMChangesPluginLite only
+**Use when**: You only need DOM changes (no cookies, no overrides)
 
 ```typescript
-import { DOMChangesPluginLite, CookiePlugin } from '@absmartly/sdk-plugins/dom-only';
+import { DOMChangesPluginLite } from '@absmartly/sdk-plugins/dom-only';
 ```
 
 ### Cookie Only (`@absmartly/sdk-plugins/cookie-only`)
@@ -273,14 +285,15 @@ import { WebVitalsPlugin } from '@absmartly/sdk-plugins/vitals-only';
 ### DOM with Overrides Lite (`@absmartly/sdk-plugins/dom-with-overrides-lite`)
 
 **Size**: ~55KB minified
-**Includes**: DOMChangesPluginLite, CookiePlugin, OverridesPluginLite
-**Use when**: You need DOM changes, cookies, and QA overrides
+**Includes**: DOMChangesPluginLite, CookiePlugin, OverridesPluginLite, utility functions (getOverrides, getCookie, etc.)
+**Use when**: You need DOM changes, cookies, and QA overrides (most common use case)
 
 ```typescript
 import {
   DOMChangesPluginLite,
   CookiePlugin,
-  OverridesPluginLite
+  OverridesPluginLite,
+  getOverrides
 } from '@absmartly/sdk-plugins/dom-with-overrides-lite';
 ```
 
