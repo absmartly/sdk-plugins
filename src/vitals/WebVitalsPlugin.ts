@@ -263,7 +263,7 @@ export class WebVitalsPlugin {
     }
   }
 
-  public async initialize(): Promise<void> {
+  public async ready(): Promise<void> {
     this.debugLog('Initializing WebVitalsPlugin');
 
     if (!this.context) {
@@ -286,6 +286,11 @@ export class WebVitalsPlugin {
     }
 
     this.debugLog('WebVitalsPlugin initialized successfully');
+  }
+
+  // Alias for backwards compatibility
+  public async initialize(): Promise<void> {
+    return this.ready();
   }
 
   public reset(): void {

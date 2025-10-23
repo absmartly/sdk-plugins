@@ -306,7 +306,7 @@ export class CookiePlugin {
     this.debugLog('All cookies and storage cleared');
   }
 
-  public async initialize(): Promise<void> {
+  public async ready(): Promise<void> {
     this.debugLog('Initializing CookiePlugin');
 
     let unitId = this.getUnitId();
@@ -327,6 +327,11 @@ export class CookiePlugin {
     }
 
     this.debugLog('CookiePlugin initialized successfully');
+  }
+
+  // Alias for backwards compatibility
+  public async initialize(): Promise<void> {
+    return this.ready();
   }
 
   public setContext(context: Context): void {

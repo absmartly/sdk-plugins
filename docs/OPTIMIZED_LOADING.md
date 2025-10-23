@@ -55,8 +55,8 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
     trackPageMetrics: true,
   });
 
-  // ✨ initialize() starts tracking without waiting for context.ready()
-  webVitalsPlugin.initialize();
+  // ✨ ready() starts tracking without waiting for context.ready()
+  webVitalsPlugin.ready();
 }
 ```
 
@@ -210,7 +210,7 @@ async function main(): Promise<void> {
       debug: true,
     });
 
-    await domPlugin.initialize();
+    await domPlugin.ready();
     perfMarks.domPluginInit = performance.now();
 
     // 8. Log performance
@@ -241,7 +241,7 @@ async function initializeWebVitalsLazy(context: Context): Promise<void> {
       trackPageMetrics: true,
     });
 
-    webVitalsPlugin.initialize();
+    webVitalsPlugin.ready();
   } catch (error) {
     console.error('Failed to initialize WebVitalsPlugin:', error);
   }
