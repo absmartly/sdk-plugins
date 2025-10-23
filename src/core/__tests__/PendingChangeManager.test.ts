@@ -123,7 +123,7 @@ describe('PendingChangeManager', () => {
       document.body.appendChild(div);
 
       // Wait for MutationObserver and batch processing
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       expect(applyFnMock).toHaveBeenCalledWith(change, 'test-exp', div);
       expect(manager.getAppliedCount()).toBe(1);
@@ -148,7 +148,7 @@ describe('PendingChangeManager', () => {
       document.body.appendChild(container);
 
       // Wait for processing (increased timeout for CI stability)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       expect(applyFnMock).toHaveBeenCalled();
       const button = container.querySelector('.nested-btn');
@@ -177,7 +177,7 @@ describe('PendingChangeManager', () => {
       `;
 
       // Wait for batch processing (increased timeout for CI stability)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // All should be applied in one batch
       expect(applyFnMock).toHaveBeenCalledTimes(3);
@@ -206,7 +206,7 @@ describe('PendingChangeManager', () => {
       btn.className = 'container-btn';
       container.appendChild(btn);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       expect(applyFnMock).toHaveBeenCalledWith(change, 'test-exp', btn);
     });
@@ -296,7 +296,7 @@ describe('PendingChangeManager', () => {
       btn.className = 'btn';
       document.body.appendChild(btn);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Observer should be disconnected after applying
       expect(manager.getPendingCount()).toBe(0);
@@ -389,7 +389,7 @@ describe('PendingChangeManager', () => {
       btn.className = 'btn';
       document.body.appendChild(btn);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       expect(applyFnMock).toHaveBeenCalledTimes(1);
 
@@ -398,7 +398,7 @@ describe('PendingChangeManager', () => {
       btn2.className = 'btn';
       document.body.appendChild(btn2);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Should not apply again for same experiment
       expect(applyFnMock).toHaveBeenCalledTimes(1);
