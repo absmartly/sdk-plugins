@@ -339,15 +339,7 @@ export class CookiePlugin {
     this.debugLog('Context set for CookiePlugin');
   }
 
-  public needsWorkerCall(searchParams?: URLSearchParams): boolean {
-    const params = searchParams || new URLSearchParams(window.location.search);
-
-    const hasOverrides = Array.from(params.keys()).some(key => key.startsWith('exp_'));
-    if (hasOverrides) {
-      this.debugLog('Worker call needed due to experiment overrides');
-      return true;
-    }
-
+  public needsServerSideCookie(): boolean {
     const unitId = this.getUnitId();
     const cookiesEnabled = navigator.cookieEnabled;
     const localStorageAvailable = isLocalStorageAvailable();
