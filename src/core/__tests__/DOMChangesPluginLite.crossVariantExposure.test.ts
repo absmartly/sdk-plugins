@@ -1362,14 +1362,24 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             {
               variables: {
                 __dom_changes: [
-                  { selector: '.header', type: 'text', value: 'Header Changed', trigger_on_view: true },
+                  {
+                    selector: '.header',
+                    type: 'text',
+                    value: 'Header Changed',
+                    trigger_on_view: true,
+                  },
                 ],
               },
             },
             {
               variables: {
                 __dom_changes: [
-                  { selector: '.footer', type: 'text', value: 'Footer Changed', trigger_on_view: true },
+                  {
+                    selector: '.footer',
+                    type: 'text',
+                    value: 'Footer Changed',
+                    trigger_on_view: true,
+                  },
                 ],
               },
             },
@@ -1381,7 +1391,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_multi_viewport_selectors: 0,
           });
-          document.body.innerHTML = '<div class="header">Header</div><div class="footer">Footer</div>';
+          document.body.innerHTML =
+            '<div class="header">Header</div><div class="footer">Footer</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -1409,7 +1420,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_multi_viewport_selectors: 1,
           });
-          document.body.innerHTML = '<div class="header">Header</div><div class="footer">Footer</div>';
+          document.body.innerHTML =
+            '<div class="header">Header</div><div class="footer">Footer</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -1451,7 +1463,12 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               variables: {
                 __dom_changes: [
                   { selector: '.footer', type: 'text', value: 'Footer V1', trigger_on_view: true },
-                  { selector: '.sidebar', type: 'text', value: 'Sidebar V1', trigger_on_view: true },
+                  {
+                    selector: '.sidebar',
+                    type: 'text',
+                    value: 'Sidebar V1',
+                    trigger_on_view: true,
+                  },
                 ],
               },
             },
@@ -1507,7 +1524,12 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
                 __dom_changes: {
                   urlFilter: { include: ['/products'] }, // Matches
                   changes: [
-                    { selector: '.product-title', type: 'text', value: 'Title V0', trigger_on_view: true },
+                    {
+                      selector: '.product-title',
+                      type: 'text',
+                      value: 'Title V0',
+                      trigger_on_view: true,
+                    },
                   ],
                 },
               },
@@ -1517,7 +1539,12 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
                 __dom_changes: {
                   urlFilter: { include: ['/checkout'] }, // Doesn't match
                   changes: [
-                    { selector: '.checkout-btn', type: 'text', value: 'Checkout V1', trigger_on_view: true },
+                    {
+                      selector: '.checkout-btn',
+                      type: 'text',
+                      value: 'Checkout V1',
+                      trigger_on_view: true,
+                    },
                   ],
                 },
               },

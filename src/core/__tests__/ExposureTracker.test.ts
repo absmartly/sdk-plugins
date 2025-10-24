@@ -60,7 +60,14 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [changes, changes]; // Same for both variants
 
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Wait for async trigger
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -82,7 +89,14 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [changes, changes];
 
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Should NOT trigger immediately
       expect(treatmentMock).not.toHaveBeenCalled();
@@ -107,7 +121,14 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [variant0Changes, variant1Changes];
 
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        variant0Changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Wait for async trigger
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -153,7 +174,14 @@ describe('ExposureTracker', () => {
 
       // Register experiment with variant 0 active
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        variant0Changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Check that it's tracking selectors from BOTH variants
       expect(tracker.needsViewportTracking('exp1')).toBe(true);
@@ -185,7 +213,14 @@ describe('ExposureTracker', () => {
 
       // Register with variant 1 (move variant)
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 1, variant1Changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        1,
+        variant1Changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Should track parent containers, not the button itself
       expect(tracker.needsViewportTracking('exp1')).toBe(true);
@@ -208,7 +243,14 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [changes, changes];
 
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Initially not triggered
       expect(treatmentMock).not.toHaveBeenCalled();
@@ -242,7 +284,14 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [changes, changes];
 
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Manually check if experiment is triggered
       expect(tracker.isTriggered('exp1')).toBe(false);
@@ -280,7 +329,14 @@ describe('ExposureTracker', () => {
 
       // User is in variant 0, but should track elements from BOTH variants
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        variant0Changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Verify it needs viewport tracking
       expect(tracker.needsViewportTracking('exp1')).toBe(true);
@@ -325,7 +381,14 @@ describe('ExposureTracker', () => {
 
       // User is in variant 0 (control) - element stays in header
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        variant0Changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Should create a minimal placeholder in .footer (where element would be in variant 1)
       const placeholder = document.querySelector('[data-absmartly-placeholder="true"]');
@@ -383,7 +446,14 @@ describe('ExposureTracker', () => {
 
       // User is in variant 0
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, variant0Changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        variant0Changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Should create placeholders in .middle and .bottom (where element would be in variants 1 and 2)
       const placeholders = document.querySelectorAll('[data-absmartly-placeholder="true"]');
@@ -423,7 +493,14 @@ describe('ExposureTracker', () => {
       const allVariantChanges = [changes, changes];
 
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Wait for async trigger
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -454,9 +531,23 @@ describe('ExposureTracker', () => {
       ];
 
       const flags1 = calculateTriggerFlags([exp1Changes]);
-      tracker.registerExperiment('exp1', 0, exp1Changes, [exp1Changes], flags1.hasImmediateTrigger, flags1.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        exp1Changes,
+        [exp1Changes],
+        flags1.hasImmediateTrigger,
+        flags1.hasViewportTrigger
+      );
       const flags2 = calculateTriggerFlags([exp2Changes]);
-      tracker.registerExperiment('exp2', 0, exp2Changes, [exp2Changes], flags2.hasImmediateTrigger, flags2.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp2',
+        0,
+        exp2Changes,
+        [exp2Changes],
+        flags2.hasImmediateTrigger,
+        flags2.hasViewportTrigger
+      );
 
       // Wait for async trigger
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -481,7 +572,14 @@ describe('ExposureTracker', () => {
 
       const allVariantChanges = [changes, changes]; // Same format as successful test
       const flags = calculateTriggerFlags(allVariantChanges);
-      tracker.registerExperiment('exp1', 0, changes, allVariantChanges, flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        allVariantChanges,
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Wait for async trigger
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -506,9 +604,23 @@ describe('ExposureTracker', () => {
       ];
 
       const flags1 = calculateTriggerFlags([changes]);
-      tracker.registerExperiment('exp1', 0, changes, [changes], flags1.hasImmediateTrigger, flags1.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        [changes],
+        flags1.hasImmediateTrigger,
+        flags1.hasViewportTrigger
+      );
       const flags2 = calculateTriggerFlags([changes]);
-      tracker.registerExperiment('exp2', 0, changes, [changes], flags2.hasImmediateTrigger, flags2.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp2',
+        0,
+        changes,
+        [changes],
+        flags2.hasImmediateTrigger,
+        flags2.hasViewportTrigger
+      );
 
       tracker.destroy();
 
@@ -521,7 +633,14 @@ describe('ExposureTracker', () => {
   describe('edge cases', () => {
     it('should handle empty changes array', () => {
       const flags = calculateTriggerFlags([[], []]);
-      tracker.registerExperiment('exp1', 0, [], [[], []], flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        [],
+        [[], []],
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Should not crash and should not trigger
       expect(treatmentMock).not.toHaveBeenCalled();
@@ -540,7 +659,14 @@ describe('ExposureTracker', () => {
       // Should not crash
       expect(() => {
         const flags = calculateTriggerFlags([changes]);
-      tracker.registerExperiment('exp1', 0, changes, [changes], flags.hasImmediateTrigger, flags.hasViewportTrigger);
+        tracker.registerExperiment(
+          'exp1',
+          0,
+          changes,
+          [changes],
+          flags.hasImmediateTrigger,
+          flags.hasViewportTrigger
+        );
       }).not.toThrow();
     });
 
@@ -555,7 +681,14 @@ describe('ExposureTracker', () => {
       ];
 
       const flags = calculateTriggerFlags([changes]);
-      tracker.registerExperiment('exp1', 0, changes, [changes], flags.hasImmediateTrigger, flags.hasViewportTrigger);
+      tracker.registerExperiment(
+        'exp1',
+        0,
+        changes,
+        [changes],
+        flags.hasImmediateTrigger,
+        flags.hasViewportTrigger
+      );
 
       // Wait for async trigger
       await new Promise(resolve => setTimeout(resolve, 0));
