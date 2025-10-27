@@ -337,13 +337,8 @@ export class DOMManipulatorLite {
         if (change.value && typeof change.value === 'object') {
           Object.entries(change.value).forEach(([property, value]) => {
             const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
-            const cssValue = String(value);
-            // Extract !important from value if present
-            const hasImportant = cssValue.includes('!important');
-            const cleanValue = cssValue.replace(/\s*!important\s*$/i, '').trim();
-            // Use !important if either present in value or change.important flag is true
-            const priority = (hasImportant || change.important !== false) ? 'important' : '';
-            (element as HTMLElement).style.setProperty(cssProperty, cleanValue, priority);
+            const priority = change.important !== false ? 'important' : '';
+            (element as HTMLElement).style.setProperty(cssProperty, String(value), priority);
           });
         }
         break;
