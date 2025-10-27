@@ -186,6 +186,157 @@ describe('DOMManipulatorLite', () => {
         expect(el.style.color).toBe('blue');
       });
     });
+
+    it('should extract !important flag from style value', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'red !important',
+          fontSize: '20px !important',
+        },
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('red');
+      expect(element.style.fontSize).toBe('20px');
+      expect(element.style.getPropertyPriority('color')).toBe('important');
+      expect(element.style.getPropertyPriority('font-size')).toBe('important');
+    });
+
+    it('should handle !important with extra whitespace', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'blue   !important  ',
+          backgroundColor: 'white !important  ',
+        },
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('blue');
+      expect(element.style.getPropertyPriority('color')).toBe('important');
+      expect(element.style.backgroundColor).toBe('white');
+      expect(element.style.getPropertyPriority('background-color')).toBe('important');
+    });
+
+    it('should apply important priority when change.important is true', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'green',
+        },
+        important: true,
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('green');
+      expect(element.style.getPropertyPriority('color')).toBe('important');
+    });
+
+    it('should not apply important priority when change.important is false', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'yellow',
+        },
+        important: false,
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('yellow');
+      expect(element.style.getPropertyPriority('color')).toBe('');
+    });
+
+    it('should prefer !important from value over change.important flag', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'purple !important',
+        },
+        important: false,
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('purple');
+      expect(element.style.getPropertyPriority('color')).toBe('important');
+    });
+
+    it('should handle mixed important and non-important styles', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'red !important',
+          fontSize: '16px',
+          backgroundColor: 'white !important',
+        },
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('red');
+      expect(element.style.getPropertyPriority('color')).toBe('important');
+      expect(element.style.fontSize).toBe('16px');
+      expect(element.style.getPropertyPriority('font-size')).toBe('');
+      expect(element.style.backgroundColor).toBe('white');
+      expect(element.style.getPropertyPriority('background-color')).toBe('important');
+    });
+
+    it('should handle case-insensitive !important', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          color: 'pink !IMPORTANT',
+        },
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.color).toBe('pink');
+      expect(element.style.getPropertyPriority('color')).toBe('important');
+    });
+
+    it('should handle !important in the middle of value (only end is extracted)', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'style',
+        value: {
+          // This should keep "!important" in the middle of the value
+          content: '"!important text" !important',
+        },
+      };
+      manipulator.applyChange(change, 'test_exp');
+
+      const element = document.querySelector('.target') as HTMLElement;
+      expect(element.style.getPropertyPriority('content')).toBe('important');
+    });
   });
 
   describe('Class Changes', () => {
