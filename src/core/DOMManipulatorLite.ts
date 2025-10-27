@@ -337,7 +337,7 @@ export class DOMManipulatorLite {
         if (change.value && typeof change.value === 'object') {
           Object.entries(change.value).forEach(([property, value]) => {
             const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
-            const priority = change.important !== false ? 'important' : '';
+            const priority = change.important === true ? 'important' : '';
             (element as HTMLElement).style.setProperty(cssProperty, String(value), priority);
           });
         }
