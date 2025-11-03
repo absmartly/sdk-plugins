@@ -54,9 +54,7 @@ describe('DOMChangesPluginLite', () => {
       expect((plugin as any).config.autoApply).toBe(true);
       expect((plugin as any).config.spa).toBe(true);
       expect((plugin as any).config.visibilityTracking).toBe(true);
-      expect((plugin as any).config.extensionBridge).toBe(false);
-      expect((plugin as any).config.dataSource).toBe('variable');
-      expect((plugin as any).config.dataFieldName).toBe('__dom_changes');
+      expect((plugin as any).config.variableName).toBe('__dom_changes');
       expect((plugin as any).config.debug).toBe(false);
     });
 
@@ -68,17 +66,14 @@ describe('DOMChangesPluginLite', () => {
         spa: false,
         visibilityTracking: false,
         debug: true,
-        dataSource: 'customField',
-        dataFieldName: 'custom_changes',
+        variableName: 'custom_changes',
       });
 
       expect((plugin as any).config.autoApply).toBe(false);
       expect((plugin as any).config.spa).toBe(false);
       expect((plugin as any).config.visibilityTracking).toBe(false);
       expect((plugin as any).config.debug).toBe(true);
-      expect((plugin as any).config.dataSource).toBe('customField');
-      expect((plugin as any).config.dataFieldName).toBe('custom_changes');
-      expect((plugin as any).config.extensionBridge).toBe(false); // Always false for Lite
+      expect((plugin as any).config.variableName).toBe('custom_changes');
     });
   });
 

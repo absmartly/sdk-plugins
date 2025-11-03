@@ -150,9 +150,7 @@ export interface PluginConfig {
    */
   spa?: boolean;
   visibilityTracking?: boolean;
-  extensionBridge?: boolean;
-  dataSource?: 'variable' | 'customField';
-  dataFieldName?: string;
+  variableName?: string;
   debug?: boolean;
 
   // Anti-flicker functionality to prevent content flash before experiments load

@@ -42,9 +42,7 @@ export class DOMChangesPluginLite {
       autoApply: config.autoApply ?? true,
       spa: config.spa ?? true,
       visibilityTracking: config.visibilityTracking ?? true,
-      extensionBridge: false, // Always false for lite version
-      dataSource: config.dataSource ?? 'variable',
-      dataFieldName: config.dataFieldName ?? '__dom_changes',
+      variableName: config.variableName ?? '__dom_changes',
       debug: config.debug ?? false,
       hideUntilReady: config.hideUntilReady ?? false,
       hideTimeout: config.hideTimeout ?? 3000,
@@ -64,8 +62,7 @@ export class DOMChangesPluginLite {
     this.domManipulator = new DOMManipulatorLite(this.config.debug, this);
     this.variantExtractor = new VariantExtractor(
       this.config.context,
-      this.config.dataSource,
-      this.config.dataFieldName,
+      this.config.variableName,
       this.config.debug
     );
     this.exposureTracker = new ExposureTracker(this.config.context, this.config.debug);
@@ -85,7 +82,6 @@ export class DOMChangesPluginLite {
         autoApply: this.config.autoApply,
         spa: this.config.spa,
         visibilityTracking: this.config.visibilityTracking,
-        dataSource: this.config.dataSource,
         DEBUG,
       },
     });

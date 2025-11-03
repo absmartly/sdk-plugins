@@ -17,7 +17,6 @@ describe('DOMChangesPlugin', () => {
     const plugin = new DOMChangesPlugin({
       context: mockContext,
       autoApply: false,
-      extensionBridge: false,
     });
 
     expect(plugin).toBeInstanceOf(DOMChangesPlugin);

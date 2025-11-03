@@ -20,7 +20,7 @@ describe('VariantExtractor', () => {
 
   describe('variable data source', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should extract changes from variant variables', () => {
@@ -217,7 +217,6 @@ describe('VariantExtractor', () => {
     beforeEach(() => {
       variantExtractor = new VariantExtractor(
         mockContext,
-        'customField',
         'dom_changes_field',
         false
       );
@@ -265,7 +264,7 @@ describe('VariantExtractor', () => {
 
   describe('change validation', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should filter invalid changes', () => {
@@ -436,7 +435,7 @@ describe('VariantExtractor', () => {
 
   describe('getExperimentChanges', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should get changes for specific experiment', () => {
@@ -509,7 +508,7 @@ describe('VariantExtractor', () => {
 
   describe('error handling', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should handle JSON parse errors', () => {
@@ -575,7 +574,7 @@ describe('VariantExtractor', () => {
       // Mock logDebug since the code uses that, not console.warn directly
       const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
-      const debugExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', true);
+      const debugExtractor = new VariantExtractor(mockContext, '__dom_changes', true);
 
       const contextData: ContextData = {
         experiments: [
@@ -607,7 +606,7 @@ describe('VariantExtractor', () => {
 
   describe('getAllVariantChanges', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should get changes for all variants of an experiment', () => {
@@ -684,7 +683,7 @@ describe('VariantExtractor', () => {
 
   describe('getExperiment', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should get experiment data by name', () => {
@@ -738,7 +737,7 @@ describe('VariantExtractor', () => {
 
   describe('edge cases and complex scenarios', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', false);
+      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
     });
 
     it('should handle null/undefined variant index', () => {
@@ -938,7 +937,7 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle experiment extraction errors with debug', () => {
-      const debugExtractor = new VariantExtractor(mockContext, 'variable', '__dom_changes', true);
+      const debugExtractor = new VariantExtractor(mockContext, '__dom_changes', true);
 
       const contextData: ContextData = {
         experiments: [
@@ -963,7 +962,6 @@ describe('VariantExtractor', () => {
     beforeEach(() => {
       variantExtractor = new VariantExtractor(
         mockContext,
-        'customField',
         'custom_dom_changes',
         false
       );
@@ -1001,7 +999,7 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle null custom field with debug', () => {
-      const debugExtractor = new VariantExtractor(mockContext, 'customField', 'custom_field', true);
+      const debugExtractor = new VariantExtractor(mockContext, 'custom_field', true);
 
       const contextData: ContextData = {
         experiments: [{ name: 'exp1', variants: [{}] }],

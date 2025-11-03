@@ -14,20 +14,17 @@ import { URLMatcher } from '../utils/URLMatcher';
 
 export class VariantExtractor {
   private context: ABsmartlyContext;
-  private dataSource: 'variable' | 'customField';
-  private dataFieldName: string;
+  private variableName: string;
   private debug: boolean;
   private cachedAllChanges: Map<string, Map<number, DOMChange[]>> | null = null;
 
   constructor(
     context: ABsmartlyContext,
-    dataSource: 'variable' | 'customField' = 'variable',
-    dataFieldName: string = '__dom_changes',
+    variableName: string = '__dom_changes',
     debug = false
   ) {
     this.context = context;
-    this.dataSource = dataSource;
-    this.dataFieldName = dataFieldName;
+    this.variableName = variableName;
     this.debug = debug;
   }
 
@@ -148,47 +145,41 @@ export class VariantExtractor {
 
       let changesData = null;
 
-      if (this.dataSource === 'variable') {
-        // First check variant.variables (common in tests and some setups)
-        if (variant.variables && variant.variables[this.dataFieldName]) {
-          changesData = variant.variables[this.dataFieldName];
-          logDebug(
-            `[VariantExtractor DEBUG] ✓ Found DOM changes in variables[${this.dataFieldName}]:`,
-            changesData
-          );
-        }
-        // Then check variant.config (ABSmartly SDK provides data here as a JSON string)
-        else if (variant.config) {
-          try {
-            const config =
-              typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
+      // First check variant.variables (common in tests and some setups)
+      if (variant.variables && variant.variables[this.variableName]) {
+        changesData = variant.variables[this.variableName];
+        logDebug(
+          `[VariantExtractor DEBUG] ✓ Found DOM changes in variables[${this.variableName}]:`,
+          changesData
+        );
+      }
+      // Then check variant.config (ABSmartly SDK provides data here as a JSON string)
+      else if (variant.config) {
+        try {
+          const config =
+            typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
 
-            if (config && config[this.dataFieldName]) {
-              changesData = config[this.dataFieldName];
-              logDebug(
-                `[VariantExtractor DEBUG] ✓ Found DOM changes in config[${this.dataFieldName}]:`,
-                changesData
-              );
-            } else {
-              logDebug(
-                '[VariantExtractor DEBUG] ✗ No',
-                this.dataFieldName,
-                'field found in parsed config'
-              );
-            }
-          } catch (e) {
+          if (config && config[this.variableName]) {
+            changesData = config[this.variableName];
             logDebug(
-              '[VariantExtractor DEBUG] ✗ Failed to parse variant.config:',
-              e,
-              'Raw config:',
-              typeof variant.config === 'string' ? variant.config.substring(0, 100) : ''
+              `[VariantExtractor DEBUG] ✓ Found DOM changes in config[${this.variableName}]:`,
+              changesData
+            );
+          } else {
+            logDebug(
+              '[VariantExtractor DEBUG] ✗ No',
+              this.variableName,
+              'field found in parsed config'
             );
           }
+        } catch (e) {
+          logDebug(
+            '[VariantExtractor DEBUG] ✗ Failed to parse variant.config:',
+            e,
+            'Raw config:',
+            typeof variant.config === 'string' ? variant.config.substring(0, 100) : ''
+          );
         }
-      } else {
-        // For custom field, we would need to handle it per experiment
-        // This is a limitation of the current approach when extracting all variants
-        continue;
       }
 
       if (changesData) {
@@ -432,23 +423,21 @@ export class VariantExtractor {
 
         let changesData = null;
 
-        if (this.dataSource === 'variable') {
-          // First check variant.variables
-          if (variant.variables && variant.variables[this.dataFieldName]) {
-            changesData = variant.variables[this.dataFieldName];
-          }
-          // Then check variant.config
-          else if (variant.config) {
-            try {
-              const config =
-                typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
+        // First check variant.variables
+        if (variant.variables && variant.variables[this.variableName]) {
+          changesData = variant.variables[this.variableName];
+        }
+        // Then check variant.config
+        else if (variant.config) {
+          try {
+            const config =
+              typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
 
-              if (config && config[this.dataFieldName]) {
-                changesData = config[this.dataFieldName];
-              }
-            } catch (e) {
-              logDebug('[VariantExtractor] Failed to parse variant.config:', e);
+            if (config && config[this.variableName]) {
+              changesData = config[this.variableName];
             }
+          } catch (e) {
+            logDebug('[VariantExtractor] Failed to parse variant.config:', e);
           }
         }
 

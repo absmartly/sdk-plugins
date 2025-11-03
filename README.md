@@ -60,9 +60,7 @@ const domPlugin = new DOMChangesPlugin({
   autoApply: true,              // Automatically apply changes on init
   spa: true,                     // Enable SPA support
   visibilityTracking: true,     // Track when changes become visible
-  extensionBridge: true,         // Enable browser extension communication
-  dataSource: 'variable',        // Use variables (or 'customField')
-  dataFieldName: '__dom_changes', // Variable/field name for DOM changes
+  variableName: '__dom_changes', // Variable name for DOM changes
   debug: true                    // Enable debug logging
 });
 
@@ -127,8 +125,7 @@ overridesPlugin.ready().then(() => {
 const domPlugin = new DOMChangesPlugin({
   context: context,
   autoApply: true,
-  dataSource: 'variable',
-  dataFieldName: '__dom_changes',
+  variableName: '__dom_changes',
   debug: true
 });
 
@@ -1078,9 +1075,7 @@ new DOMChangesPlugin({
   spa: true,                     // Enable SPA support
                                  // ✅ Auto-enables: waitForElement + persistStyle
   visibilityTracking: true,      // Track viewport visibility
-  extensionBridge: true,         // Enable browser extension communication
-  dataSource: 'variable',        // 'variable' or 'customField'
-  dataFieldName: '__dom_changes', // Variable/field name for changes
+  variableName: '__dom_changes', // Variable name for DOM changes
   debug: false,                  // Enable debug logging
 
   // Anti-flicker options
