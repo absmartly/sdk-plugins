@@ -18,11 +18,7 @@ export class VariantExtractor {
   private debug: boolean;
   private cachedAllChanges: Map<string, Map<number, DOMChange[]>> | null = null;
 
-  constructor(
-    context: ABsmartlyContext,
-    variableName: string = '__dom_changes',
-    debug = false
-  ) {
+  constructor(context: ABsmartlyContext, variableName: string = '__dom_changes', debug = false) {
     this.context = context;
     this.variableName = variableName;
     this.debug = debug;

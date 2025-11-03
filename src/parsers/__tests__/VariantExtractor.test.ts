@@ -215,11 +215,7 @@ describe('VariantExtractor', () => {
 
   describe('customField data source', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(
-        mockContext,
-        'dom_changes_field',
-        false
-      );
+      variantExtractor = new VariantExtractor(mockContext, 'dom_changes_field', false);
     });
 
     it('should not extract changes from custom field with extractAllChanges', () => {
@@ -960,11 +956,7 @@ describe('VariantExtractor', () => {
 
   describe('custom field edge cases', () => {
     beforeEach(() => {
-      variantExtractor = new VariantExtractor(
-        mockContext,
-        'custom_dom_changes',
-        false
-      );
+      variantExtractor = new VariantExtractor(mockContext, 'custom_dom_changes', false);
     });
 
     it('should not extract custom field with extractAllChanges', () => {
