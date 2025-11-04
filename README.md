@@ -447,8 +447,17 @@ const domPlugin = new DOMChangesPlugin({
 ```javascript
 const domPlugin = new DOMChangesPlugin({
   context: context,
-  hideUntilReady: 'elements',     // Hide only marked elements
+  hideUntilReady: '[data-absmartly-hide]',  // CSS selector for elements to hide
   hideTransition: '0.4s ease-out'
+});
+```
+
+**Hide multiple types of elements:**
+```javascript
+const domPlugin = new DOMChangesPlugin({
+  context: context,
+  hideUntilReady: '[data-absmartly-hide], [data-custom-hide], .test-element',
+  hideTransition: '0.3s ease-in'
 });
 ```
 
@@ -479,10 +488,11 @@ const domPlugin = new DOMChangesPlugin({
 ```javascript
 new DOMChangesPlugin({
   // Anti-flicker configuration
-  hideUntilReady: 'body',              // 'body' | 'elements' | true | false
-                                       // 'body': hide entire page
-                                       // 'elements': hide only marked elements
-                                       // true: same as 'elements'
+  hideUntilReady: 'body',              // CSS selector for elements to hide
+                                       // Examples:
+                                       //   'body' - hide entire page
+                                       //   '[data-absmartly-hide]' - hide only marked elements
+                                       //   '[data-absmartly-hide], .test' - hide multiple selectors
                                        // false: disabled (default)
 
   hideTimeout: 3000,                   // Max wait time in ms (default: 3000)
@@ -492,9 +502,6 @@ new DOMChangesPlugin({
   hideTransition: '0.3s ease-in',      // CSS transition for fade-in
                                        // Examples: '0.3s ease-in', '0.5s linear'
                                        // false: instant reveal (default)
-
-  hideSelector: '[data-absmartly-hide]' // Custom selector for 'elements' mode
-                                       // default: '[data-absmartly-hide]'
 })
 ```
 
@@ -516,7 +523,7 @@ User sees: [Hidden] → Experiment Version (smooth fade-in)
 
 ### Best Practices
 
-**✅ Use `hideUntilReady: 'elements'` (Recommended)**
+**✅ Use `hideUntilReady: '[data-absmartly-hide]'` (Recommended)**
 - Mark only elements being tested
 - Faster perceived load time
 - Better user experience
@@ -529,6 +536,14 @@ User sees: [Hidden] → Experiment Version (smooth fade-in)
   <h1>Hero headline being tested</h1>
 </div>
 <main>Rest of content visible immediately</main>
+```
+
+```javascript
+const domPlugin = new DOMChangesPlugin({
+  context: context,
+  hideUntilReady: '[data-absmartly-hide]',
+  hideTransition: '0.3s ease-in'
+});
 ```
 
 **✅ Use `hideUntilReady: 'body'` (For whole-page experiments)**
@@ -1079,10 +1094,9 @@ new DOMChangesPlugin({
   debug: false,                  // Enable debug logging
 
   // Anti-flicker options
-  hideUntilReady: false,         // 'body' | 'elements' | true | false
+  hideUntilReady: false,         // CSS selector (e.g., 'body', '[data-absmartly-hide]') or false
   hideTimeout: 3000,             // Max wait time (ms)
   hideTransition: false,         // CSS transition (e.g., '0.3s ease-in') or false
-  hideSelector: '[data-absmartly-hide]' // Custom selector for elements mode
 })
 ```
 

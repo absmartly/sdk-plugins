@@ -46,7 +46,6 @@ export class DOMChangesPluginLite {
       debug: config.debug ?? false,
       hideUntilReady: config.hideUntilReady ?? false,
       hideTimeout: config.hideTimeout ?? 3000,
-      hideSelector: config.hideSelector ?? '[data-absmartly-hide]',
       hideTransition: config.hideTransition ?? false,
     };
 
@@ -54,7 +53,7 @@ export class DOMChangesPluginLite {
       throw new Error('[ABsmartly] Context is required');
     }
 
-    // Apply anti-flicker hiding immediately if enabled
+    // Apply anti-flicker hiding immediately if enabled (BEFORE context is ready)
     if (this.config.hideUntilReady) {
       this.hideContent();
     }
@@ -928,8 +927,8 @@ export class DOMChangesPluginLite {
    * Hide content to prevent flicker before experiments are applied
    */
   private hideContent(): void {
-    const mode = this.config.hideUntilReady;
-    if (!mode) return;
+    const selector = this.config.hideUntilReady;
+    if (!selector) return;
 
     // Check if style already exists (prevent duplicate injection)
     if (document.getElementById(this.antiFlickerStyleId)) {
@@ -940,7 +939,6 @@ export class DOMChangesPluginLite {
     style.id = this.antiFlickerStyleId;
 
     const hasTransition = this.config.hideTransition !== false;
-    const selector = mode === 'body' ? 'body' : this.config.hideSelector || '[data-absmartly-hide]';
 
     if (hasTransition) {
       // Use both visibility:hidden and opacity:0 for smooth transition
@@ -961,7 +959,7 @@ export class DOMChangesPluginLite {
 
     document.head.appendChild(style);
 
-    // Set timeout to show content even if experiments fail to load
+    // Set timeout to show content even if experiments fail to load or timeout expires
     this.antiFlickerTimeout = window.setTimeout(() => {
       if (this.config.debug) {
         logDebug(
@@ -973,13 +971,13 @@ export class DOMChangesPluginLite {
 
     if (this.config.debug) {
       logDebug(
-        `[ABsmartly] Anti-flicker enabled (mode: ${mode}, transition: ${hasTransition ? this.config.hideTransition : 'none'}, timeout: ${this.config.hideTimeout}ms)`
+        `[ABsmartly] Anti-flicker enabled (selector: '${selector}', transition: ${hasTransition ? this.config.hideTransition : 'none'}, timeout: ${this.config.hideTimeout}ms)`
       );
     }
   }
 
   /**
-   * Show hidden content after experiments are applied
+   * Show hidden content after experiments are applied or timeout expires
    */
   private showContent(): void {
     // Clear timeout if still pending
@@ -995,9 +993,7 @@ export class DOMChangesPluginLite {
 
     if (hasTransition) {
       // Smooth fade-in: remove visibility, add transition, then animate opacity
-      const mode = this.config.hideUntilReady;
-      const selector =
-        mode === 'body' ? 'body' : this.config.hideSelector || '[data-absmartly-hide]';
+      const selector = this.config.hideUntilReady as string;
 
       // Step 1: Remove visibility:hidden, keep opacity:0, add transition
       style.textContent = `

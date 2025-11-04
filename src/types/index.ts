@@ -112,14 +112,11 @@ export interface ElementState {
   };
 }
 
-// ABsmartly Context type
-export interface ABsmartlyContext {
-  ready(): Promise<void>;
-  data(): ContextData | null;
-  peek(experimentName: string): number | undefined;
-  treatment(experimentName: string): number;
-  override(experimentName: string, variant: number): void;
-  customFieldValue(experimentName: string, fieldName: string): unknown;
+// Import Context from SDK
+import type { Context } from '@absmartly/javascript-sdk';
+
+// ABsmartly Context type - extends SDK Context with plugin registration
+export interface ABsmartlyContext extends Context {
   // Plugin registration - standardized under __plugins
   __plugins?: {
     [key: string]: PluginRegistration | undefined;
@@ -154,9 +151,8 @@ export interface PluginConfig {
   debug?: boolean;
 
   // Anti-flicker functionality to prevent content flash before experiments load
-  hideUntilReady?: boolean | 'body' | 'elements'; // false: disabled, 'body': hide entire body, 'elements': hide only marked elements, true: same as 'elements'
+  hideUntilReady?: string | false; // CSS selector for elements to hide (e.g., 'body', '[data-absmartly-hide]', '[data-absmartly-hide], [data-custom]'), or false to disable
   hideTimeout?: number; // Max milliseconds to keep content hidden (default: 3000ms)
-  hideSelector?: string; // Custom selector for elements to hide (default: '[data-absmartly-hide]')
   hideTransition?: string | false; // CSS transition for fade-in (e.g., '0.3s ease-in'), false for instant reveal (default: false)
 }
 

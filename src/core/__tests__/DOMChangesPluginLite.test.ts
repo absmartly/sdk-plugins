@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import { TestDataFactory, MockContextFactory, TestDOMUtils } from '../../__tests__/test-utils';
+import { TestDataFactory, TestDOMUtils } from '../../__tests__/test-utils';
+import { createTestSDK, createTestContext } from '../../__tests__/sdk-helper';
+import {
+  createEmptyContextData,
+  createContextDataWithExperiments,
+  extractVariantOverrides,
+} from '../../__tests__/fixtures';
 import { DOMChange } from '../../types';
 
 describe('DOMChangesPluginLite', () => {
@@ -34,7 +40,8 @@ describe('DOMChangesPluginLite', () => {
 
   describe('Constructor', () => {
     it('should create an instance with required config', () => {
-      const context = MockContextFactory.create();
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       expect(plugin).toBeInstanceOf(DOMChangesPluginLite);
@@ -48,7 +55,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should apply default configuration values', () => {
-      const context = MockContextFactory.create();
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       expect((plugin as any).config.autoApply).toBe(true);
@@ -59,7 +67,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should respect custom configuration', () => {
-      const context = MockContextFactory.create();
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({
         context,
         autoApply: false,
@@ -80,7 +89,8 @@ describe('DOMChangesPluginLite', () => {
   describe('ready() and initialize()', () => {
     it('should initialize successfully', async () => {
       TestDOMUtils.createTestPage();
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       await plugin.ready();
@@ -89,7 +99,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should not re-initialize if already initialized', async () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       await plugin.ready();
@@ -102,7 +113,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should call initialize() as alias for ready()', async () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       await plugin.initialize();
@@ -111,7 +123,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should setup mutation observer when spa is enabled', async () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context, spa: true });
 
       await plugin.ready();
@@ -121,7 +134,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should not setup mutation observer when spa is disabled', async () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context, spa: false });
 
       await plugin.ready();
@@ -133,7 +147,13 @@ describe('DOMChangesPluginLite', () => {
       TestDOMUtils.createTestPage();
       const textChange = TestDataFactory.createTextChange('.hero-title', 'Modified Title');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        { test_exp: 1 } // Override to use variant 1
+      );
 
       const plugin = createPlugin({ context, autoApply: true });
       await plugin.ready();
@@ -147,7 +167,14 @@ describe('DOMChangesPluginLite', () => {
 
       const textChange = TestDataFactory.createTextChange('.hero-title', 'Modified Title');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -156,7 +183,8 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should emit initialized event', async () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       const emitSpy = jest.spyOn(plugin as any, 'emit');
@@ -177,7 +205,14 @@ describe('DOMChangesPluginLite', () => {
       const exp1 = TestDataFactory.createExperiment('exp1', [exp1Change], 1);
       const exp2 = TestDataFactory.createExperiment('exp2', [exp2Change], 1);
 
-      const context = MockContextFactory.withVariants([exp1, exp2], { exp1: 1, exp2: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([exp1, exp2]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([exp1, exp2] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -197,7 +232,14 @@ describe('DOMChangesPluginLite', () => {
       const exp1 = TestDataFactory.createExperiment('exp1', [exp1Change], 1);
       const exp2 = TestDataFactory.createExperiment('exp2', [exp2Change], 1);
 
-      const context = MockContextFactory.withVariants([exp1, exp2], { exp1: 1, exp2: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([exp1, exp2]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([exp1, exp2] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -214,8 +256,14 @@ describe('DOMChangesPluginLite', () => {
       const exp1Change = TestDataFactory.createTextChange('.hero-title', 'Title from Exp1');
       const exp1 = TestDataFactory.createExperiment('exp1', [exp1Change], 1);
 
-      // Context returns null/0 for control variant
-      const context = MockContextFactory.withVariants([exp1], { exp1: 0 });
+      // Context returns null/0 for control variant - do NOT use extractVariantOverrides here
+      // because this test intentionally wants variant 0 (control/no changes)
+      const sdk = createTestSDK();
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([exp1] as any),
+        'test-user'
+      );
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -229,7 +277,14 @@ describe('DOMChangesPluginLite', () => {
       TestDOMUtils.createTestPage();
 
       const exp1 = TestDataFactory.createExperiment('exp_no_changes', [], 1);
-      const context = MockContextFactory.withVariants([exp1], { exp_no_changes: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([exp1]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([exp1] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -244,7 +299,14 @@ describe('DOMChangesPluginLite', () => {
 
       const textChange = TestDataFactory.createTextChange('.hero-title', 'New Title');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -257,7 +319,14 @@ describe('DOMChangesPluginLite', () => {
 
       const textChange = TestDataFactory.createTextChange('.feature-title', 'Updated Feature');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -279,7 +348,14 @@ describe('DOMChangesPluginLite', () => {
         value: '<strong>Bold Description</strong>',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [htmlChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -299,7 +375,14 @@ describe('DOMChangesPluginLite', () => {
         fontSize: '20px',
       });
       const experiment = TestDataFactory.createExperiment('test_exp', [styleChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -320,7 +403,14 @@ describe('DOMChangesPluginLite', () => {
         'btn-primary',
       ]);
       const experiment = TestDataFactory.createExperiment('test_exp', [classChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -340,7 +430,14 @@ describe('DOMChangesPluginLite', () => {
         ['old-class', 'another-class']
       );
       const experiment = TestDataFactory.createExperiment('test_exp', [classChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -360,7 +457,14 @@ describe('DOMChangesPluginLite', () => {
         ['old-class']
       );
       const experiment = TestDataFactory.createExperiment('test_exp', [classChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -382,7 +486,14 @@ describe('DOMChangesPluginLite', () => {
         value: { 'data-test-id': 'hero-button' },
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [attrChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -400,7 +511,14 @@ describe('DOMChangesPluginLite', () => {
         value: { 'data-old-attr': null as any },
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [attrChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -420,7 +538,14 @@ describe('DOMChangesPluginLite', () => {
         value: 'element.textContent = "JS Modified: " + element.textContent;',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [jsChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -437,7 +562,14 @@ describe('DOMChangesPluginLite', () => {
         value: 'throw new Error("Test error");',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [jsChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
 
@@ -457,7 +589,14 @@ describe('DOMChangesPluginLite', () => {
 
       const moveChange = TestDataFactory.createMoveChange('.item-1', '.container', 'lastChild');
       const experiment = TestDataFactory.createExperiment('test_exp', [moveChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -477,7 +616,14 @@ describe('DOMChangesPluginLite', () => {
 
       const moveChange = TestDataFactory.createMoveChange('.item-3', '.container', 'firstChild');
       const experiment = TestDataFactory.createExperiment('test_exp', [moveChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -497,7 +643,14 @@ describe('DOMChangesPluginLite', () => {
 
       const moveChange = TestDataFactory.createMoveChange('.item-3', '.item-1', 'before');
       const experiment = TestDataFactory.createExperiment('test_exp', [moveChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -517,7 +670,14 @@ describe('DOMChangesPluginLite', () => {
 
       const moveChange = TestDataFactory.createMoveChange('.item-1', '.item-3', 'after');
       const experiment = TestDataFactory.createExperiment('test_exp', [moveChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -537,7 +697,14 @@ describe('DOMChangesPluginLite', () => {
         position: 'lastChild',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [createElement], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       const extractor = (plugin as any).variantExtractor;
@@ -557,7 +724,14 @@ describe('DOMChangesPluginLite', () => {
         position: 'lastChild',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [createElement], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, spa: false });
       await plugin.ready();
@@ -582,7 +756,14 @@ describe('DOMChangesPluginLite', () => {
         position: 'firstChild',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [createElement], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, spa: false });
       await plugin.ready();
@@ -595,7 +776,8 @@ describe('DOMChangesPluginLite', () => {
   describe('Delete Changes', () => {
     it('should delete elements via manipulator directly', () => {
       TestDOMUtils.createTestPage();
-      const context = MockContextFactory.create();
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
       const manipulator = (plugin as any).domManipulator;
 
@@ -617,7 +799,14 @@ describe('DOMChangesPluginLite', () => {
         type: 'delete',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [deleteChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       const extractor = (plugin as any).variantExtractor;
@@ -635,7 +824,14 @@ describe('DOMChangesPluginLite', () => {
         type: 'delete',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [deleteChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -651,7 +847,14 @@ describe('DOMChangesPluginLite', () => {
         type: 'delete',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [deleteChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -670,7 +873,14 @@ describe('DOMChangesPluginLite', () => {
         value: '.hero-title { color: blue; font-size: 24px; }',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [styleRulesChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -710,7 +920,14 @@ describe('DOMChangesPluginLite', () => {
         enabled: false,
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [disabledChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -725,12 +942,20 @@ describe('DOMChangesPluginLite', () => {
 
       const textChange = TestDataFactory.createTextChange('.hero-title', 'New Title');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
+      const treatmentSpy = jest.spyOn(context, 'treatment');
 
       const plugin = createPlugin({ context });
       await plugin.ready();
 
-      expect(context.treatment).toHaveBeenCalledWith('test_exp');
+      expect(treatmentSpy).toHaveBeenCalledWith('test_exp');
     });
 
     it('should not trigger immediate exposure for viewport-only changes', async () => {
@@ -742,13 +967,21 @@ describe('DOMChangesPluginLite', () => {
         'Visible!'
       );
       const experiment = TestDataFactory.createExperiment('viewport_exp', [viewportChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { viewport_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
+      const treatmentSpy = jest.spyOn(context, 'treatment');
 
       const plugin = createPlugin({ context, visibilityTracking: true });
       await plugin.ready();
 
       // Should NOT call treatment immediately for viewport-only changes
-      expect(context.treatment).not.toHaveBeenCalled();
+      expect(treatmentSpy).not.toHaveBeenCalled();
     });
 
     it('should track experiments with mixed immediate and viewport triggers separately', async () => {
@@ -766,13 +999,21 @@ describe('DOMChangesPluginLite', () => {
         [immediateChange, viewportChange],
         1
       );
-      const context = MockContextFactory.withVariants([experiment], { mixed_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
+      const treatmentSpy = jest.spyOn(context, 'treatment');
 
       const plugin = createPlugin({ context });
       await plugin.ready();
 
       // Should trigger for immediate changes
-      expect(context.treatment).toHaveBeenCalledWith('mixed_exp');
+      expect(treatmentSpy).toHaveBeenCalledWith('mixed_exp');
     });
   });
 
@@ -782,7 +1023,14 @@ describe('DOMChangesPluginLite', () => {
 
       const textChange = TestDataFactory.createTextChange('.hero-title', 'First Title');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
       await plugin.ready();
@@ -809,7 +1057,14 @@ describe('DOMChangesPluginLite', () => {
         'Pending Text'
       );
       const experiment = TestDataFactory.createExperiment('test_exp', [pendingChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, spa: true });
       await plugin.ready();
@@ -839,7 +1094,14 @@ describe('DOMChangesPluginLite', () => {
         'Dynamic Text'
       );
       const experiment = TestDataFactory.createExperiment('spa_exp', [dynamicChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { spa_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, spa: true });
       await plugin.ready();
@@ -861,7 +1123,14 @@ describe('DOMChangesPluginLite', () => {
         'Dynamic Text'
       );
       const experiment = TestDataFactory.createExperiment('spa_exp', [dynamicChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { spa_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, spa: false });
       await plugin.ready();
@@ -876,7 +1145,14 @@ describe('DOMChangesPluginLite', () => {
 
       const textChange = TestDataFactory.createTextChange('.non-existent', 'Text');
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
 
@@ -892,7 +1168,14 @@ describe('DOMChangesPluginLite', () => {
         value: 'Text',
       };
       const experiment = TestDataFactory.createExperiment('test_exp', [textChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { test_exp: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context });
 
@@ -902,8 +1185,9 @@ describe('DOMChangesPluginLite', () => {
     it('should handle context.ready() failures gracefully', async () => {
       TestDOMUtils.createTestPage();
 
-      const context = MockContextFactory.create([]);
-      (context.ready as jest.Mock).mockRejectedValueOnce(new Error('Context failed'));
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+      jest.spyOn(context, 'ready').mockRejectedValueOnce(new Error('Context failed'));
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -914,7 +1198,8 @@ describe('DOMChangesPluginLite', () => {
 
   describe('Performance', () => {
     it('should initialize within reasonable time', async () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const plugin = createPlugin({ context });
 
       const start = performance.now();
@@ -933,7 +1218,14 @@ describe('DOMChangesPluginLite', () => {
       );
 
       const experiment = TestDataFactory.createExperiment('perf_test', changes, 1);
-      const context = MockContextFactory.withVariants([experiment], { perf_test: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false });
       await plugin.ready();
@@ -959,7 +1251,14 @@ describe('DOMChangesPluginLite', () => {
       };
 
       const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false, spa: false });
       const watchElementSpy = jest.spyOn(plugin, 'watchElement');
@@ -982,7 +1281,14 @@ describe('DOMChangesPluginLite', () => {
       };
 
       const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false, spa: false });
       const watchElementSpy = jest.spyOn(plugin, 'watchElement');
@@ -1005,7 +1311,14 @@ describe('DOMChangesPluginLite', () => {
       };
 
       const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false, spa: true });
       const watchElementSpy = jest.spyOn(plugin, 'watchElement');
@@ -1028,7 +1341,14 @@ describe('DOMChangesPluginLite', () => {
       };
 
       const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false, spa: false });
       await plugin.ready();
@@ -1039,7 +1359,12 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should use element.matches() for selector matching (not exact element reference)', () => {
-      const plugin = createPlugin({ context: MockContextFactory.create() });
+      const plugin = createPlugin({
+        context: (() => {
+          const sdk = createTestSDK();
+          return createTestContext(sdk, createEmptyContextData());
+        })(),
+      });
 
       // Test checkStyleOverwritten directly
       const element = document.createElement('button');
@@ -1056,7 +1381,12 @@ describe('DOMChangesPluginLite', () => {
     });
 
     it('should detect when !important flag is missing', () => {
-      const plugin = createPlugin({ context: MockContextFactory.create() });
+      const plugin = createPlugin({
+        context: (() => {
+          const sdk = createTestSDK();
+          return createTestContext(sdk, createEmptyContextData());
+        })(),
+      });
 
       const element = document.createElement('button');
       element.style.setProperty('background-color', 'red'); // No !important
@@ -1078,7 +1408,14 @@ describe('DOMChangesPluginLite', () => {
       };
 
       const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
-      const context = MockContextFactory.withVariants([experiment], { style_test: 1 });
+      const sdk = createTestSDK();
+      const overrides = extractVariantOverrides([experiment]);
+      const context = createTestContext(
+        sdk,
+        createContextDataWithExperiments([experiment] as any),
+        'test-user',
+        overrides
+      );
 
       const plugin = createPlugin({ context, autoApply: false, spa: false });
       await plugin.ready();
@@ -1090,6 +1427,280 @@ describe('DOMChangesPluginLite', () => {
 
       expect(experiments).toBeDefined();
       expect(experiments.has('style_test')).toBe(true);
+    });
+  });
+
+  describe('Anti-Flicker (hideUntilReady)', () => {
+    beforeEach(() => {
+      document.head.innerHTML = '';
+      document.body.innerHTML = '';
+    });
+
+    it('should not inject anti-flicker style when hideUntilReady is false', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      createPlugin({
+        context,
+        hideUntilReady: false
+      });
+
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).toBeNull();
+    });
+
+    it('should inject anti-flicker style for body selector BEFORE context.ready()', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      // Create plugin but DON'T call ready() yet
+      createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTimeout: 5000
+      });
+
+      // Anti-flicker should be applied IMMEDIATELY in constructor
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).not.toBeNull();
+      expect(antiFlickerStyle?.textContent).toContain('body');
+      expect(antiFlickerStyle?.textContent).toContain('visibility: hidden !important');
+    });
+
+    it('should inject anti-flicker style for custom selector', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      createPlugin({
+        context,
+        hideUntilReady: '[data-absmartly-hide]',
+        hideTimeout: 5000
+      });
+
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).not.toBeNull();
+      expect(antiFlickerStyle?.textContent).toContain('[data-absmartly-hide]');
+      expect(antiFlickerStyle?.textContent).toContain('visibility: hidden !important');
+    });
+
+    it('should inject anti-flicker style for multiple selectors', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      createPlugin({
+        context,
+        hideUntilReady: '[data-absmartly-hide], [data-custom], .test-element',
+        hideTimeout: 5000
+      });
+
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).not.toBeNull();
+      expect(antiFlickerStyle?.textContent).toContain('[data-absmartly-hide], [data-custom], .test-element');
+      expect(antiFlickerStyle?.textContent).toContain('visibility: hidden !important');
+    });
+
+    it('should include opacity when hideTransition is enabled', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTransition: '0.3s ease-in'
+      });
+
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle?.textContent).toContain('visibility: hidden !important');
+      expect(antiFlickerStyle?.textContent).toContain('opacity: 0 !important');
+    });
+
+    it('should NOT include opacity when hideTransition is false', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTransition: false
+      });
+
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle?.textContent).toContain('visibility: hidden !important');
+      expect(antiFlickerStyle?.textContent).not.toContain('opacity');
+    });
+
+    it('should remove anti-flicker style after applyChanges() completes', async () => {
+      document.body.innerHTML = '<div class="test">Content</div>';
+
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      const plugin = createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTransition: false,
+        autoApply: true
+      });
+
+      // Anti-flicker should be present initially
+      let antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).not.toBeNull();
+
+      // Wait for plugin to initialize and apply changes
+      await plugin.ready();
+
+      // Anti-flicker should be removed after ready()
+      antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).toBeNull();
+    });
+
+    it('should remove anti-flicker style after timeout expires', async () => {
+      jest.useFakeTimers();
+
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTimeout: 1000,
+        autoApply: false // Don't auto-apply to test timeout
+      });
+
+      // Anti-flicker should be present initially
+      let antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).not.toBeNull();
+
+      // Fast-forward time by 1000ms
+      jest.advanceTimersByTime(1000);
+
+      // Anti-flicker should be removed after timeout
+      antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).toBeNull();
+
+      jest.useRealTimers();
+    });
+
+    it('should handle transition fade-in correctly', async () => {
+      jest.useFakeTimers();
+
+      document.body.innerHTML = '<div class="test">Content</div>';
+
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      const plugin = createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTransition: '0.3s ease-in',
+        autoApply: true
+      });
+
+      // Anti-flicker should be present initially with opacity: 0
+      let antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).not.toBeNull();
+      expect(antiFlickerStyle?.textContent).toContain('opacity: 0 !important');
+
+      // Wait for plugin to initialize
+      await plugin.ready();
+
+      // After ready(), style should transition to opacity: 1
+      antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      if (antiFlickerStyle) {
+        expect(antiFlickerStyle.textContent).toContain('opacity: 1 !important');
+        expect(antiFlickerStyle.textContent).toContain('transition');
+      }
+
+      // Fast-forward past transition duration (300ms)
+      jest.advanceTimersByTime(300);
+
+      // Style should be completely removed after transition
+      antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).toBeNull();
+
+      jest.useRealTimers();
+    });
+
+    it('should not create duplicate style elements', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      // Create plugin twice (shouldn't happen in practice, but test defensive code)
+      const plugin1 = createPlugin({
+        context,
+        hideUntilReady: 'body'
+      });
+
+      // Try to call hideContent again (it should check for existing style)
+      (plugin1 as any).hideContent();
+      (plugin1 as any).hideContent();
+
+      const antiFlickerStyles = document.querySelectorAll('#absmartly-antiflicker');
+      expect(antiFlickerStyles.length).toBe(1);
+    });
+
+    it('should clear timeout when showContent is called before timeout expires', async () => {
+      jest.useFakeTimers();
+
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      const plugin = createPlugin({
+        context,
+        hideUntilReady: 'body',
+        hideTimeout: 5000,
+        hideTransition: false,
+        autoApply: true
+      });
+
+      // Verify timeout was set
+      expect((plugin as any).antiFlickerTimeout).not.toBeNull();
+
+      // Initialize plugin (this will call showContent)
+      await plugin.ready();
+
+      // Timeout should be cleared
+      expect((plugin as any).antiFlickerTimeout).toBeNull();
+
+      // Fast-forward past the original timeout
+      jest.advanceTimersByTime(5000);
+
+      // Style should still be removed (already removed by ready())
+      const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+      expect(antiFlickerStyle).toBeNull();
+
+      jest.useRealTimers();
+    });
+
+    it('should work with real-world selectors', () => {
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
+
+      const testSelectors = [
+        'body',
+        '[data-absmartly-hide]',
+        '.hero-section',
+        '#main-content',
+        '[data-absmartly-hide], [data-custom-hide]',
+        '.hero, .cta, #banner',
+        'div[data-test="value"]',
+      ];
+
+      for (const selector of testSelectors) {
+        document.head.innerHTML = ''; // Clear previous styles
+
+        createPlugin({
+          context,
+          hideUntilReady: selector
+        });
+
+        const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
+        expect(antiFlickerStyle).not.toBeNull();
+        expect(antiFlickerStyle?.textContent).toContain(selector);
+
+        // Clean up for next iteration
+        antiFlickerStyle?.remove();
+      }
     });
   });
 });
