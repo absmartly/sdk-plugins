@@ -9,7 +9,7 @@ A comprehensive collection of plugins for the ABsmartly JavaScript SDK including
 - **Smart Exposure Tracking**: Cross-variant tracking prevents sample ratio mismatch
 - **Dynamic Content Support**: Pending changes with `waitForElement` for SPAs
 - **React/Vue Compatibility**: StyleRules survive re-renders
-- **Browser Extension Integration**: Two-way communication for visual editing
+- **Anti-Flicker Support**: Hide content until experiments load to prevent visual flash
 
 ### 2. OverridesPlugin
 - **Query String Overrides**: Force experiments via URL parameters
@@ -90,9 +90,9 @@ vitalsPlugin.ready().then(() => {
 });
 ```
 
-### With Experiment Overrides (Browser Extension Support)
+### With Experiment Overrides
 
-The OverridesPlugin enables experiment overrides for internal testing and the ABsmartly Browser Extension. Simply load it before SDK initialization and it will automatically check for and apply any overrides:
+The OverridesPlugin enables experiment overrides for internal testing and development. Simply load it before SDK initialization and it will automatically check for and apply any overrides:
 
 ```javascript
 import {
@@ -251,7 +251,7 @@ The plugin supports comprehensive DOM manipulation with advanced features:
 }
 ```
 
-### Style Rules (With Pseudo-States) ⭐ NEW
+### Style Rules (With Pseudo-States)
 ```javascript
 {
   selector: '.button',
@@ -341,7 +341,7 @@ The plugin supports comprehensive DOM manipulation with advanced features:
 }
 ```
 
-### Pending Changes (Elements Not Yet in DOM) ⭐ NEW
+### Pending Changes (Elements Not Yet in DOM)
 ```javascript
 {
   selector: '.lazy-loaded-button',
@@ -401,20 +401,11 @@ const changes = plugin.getAppliedChanges('experiment-name');
 plugin.destroy();
 ```
 
-## Browser Extension Integration
-
-The plugin communicates with the ABsmartly Browser Extension for visual editing:
-
-- **Automatic Detection**: Detects and connects to the extension
-- **Message Protocol**: Two-way communication for preview mode and visual editing
-- **Preview Support**: Test changes before creating experiments
-
 ## Documentation
 
 For detailed documentation:
 
 - **[Optimized Loading Guide](docs/OPTIMIZED_LOADING.md)** - Best practices for loading the SDK and plugins with minimal performance impact
-- **[Extension Integration Guide](docs/EXTENSION_INTEGRATION_GUIDE.md)** - Complete guide for browser extension integration, visual editing, preview mode, and advanced features
 - **[Exposure Tracking Guide](docs/EXPOSURE_TRACKING_GUIDE.md)** - Understanding trigger_on_view and preventing sample ratio mismatch
 
 ## Anti-Flicker Support

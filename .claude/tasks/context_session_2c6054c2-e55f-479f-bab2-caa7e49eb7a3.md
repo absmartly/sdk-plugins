@@ -185,3 +185,26 @@ Added comprehensive test suite for anti-flicker functionality in `src/core/__tes
 - **Content Verification**: Verified CSS contains expected selectors and properties
 - **State Verification**: Checked internal `antiFlickerTimeout` state
 - **Lifecycle Testing**: Tested constructor → ready() → showContent() lifecycle
+
+---
+
+## Documentation Cleanup
+
+### Changes Made
+1. **Removed browser extension references** - Plugin doesn't have extension integration
+   - Removed "Browser Extension Integration" from features list
+   - Removed entire "Browser Extension Integration" section
+   - Updated "With Experiment Overrides" section title
+   - Removed Extension Integration Guide reference from docs list
+
+2. **Removed "NEW" markers** - Module shipped to npm, everything is production-ready
+   - Removed "⭐ NEW" from "Style Rules (With Pseudo-States)"
+   - Removed "⭐ NEW" from "Pending Changes (Elements Not Yet in DOM)"
+
+3. **Deleted outdated documentation files**
+   - docs/EXTENSION_INTEGRATION_GUIDE.md
+   - docs/browser-extension-integration.md
+
+4. **Updated feature descriptions**
+   - Added "Anti-Flicker Support" to DOMChangesPlugin features
+   - Simplified OverridesPlugin description to focus on testing/development
