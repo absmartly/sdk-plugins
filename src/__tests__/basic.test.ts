@@ -18,7 +18,7 @@ describe('DOMChangesPlugin', () => {
   });
 
   it('should have a VERSION constant', () => {
-    expect(DOMChangesPlugin.VERSION).toBe('1.0.0-lite');
+    expect(DOMChangesPlugin.VERSION).toBe('1.1.2');
   });
 
   it('should create an instance with DOMChangesPlugin alias', () => {

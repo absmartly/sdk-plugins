@@ -15,8 +15,10 @@ import { HTMLInjector } from './HTMLInjector';
 import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
 
+declare const __VERSION__: string;
+
 export class DOMChangesPluginLite {
-  public static readonly VERSION: string = '1.0.0-lite';
+  public static readonly VERSION: string = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '1.1.2';
 
   protected config: Required<PluginConfig>;
   protected domManipulator: DOMManipulatorLite;
@@ -54,7 +56,8 @@ export class DOMChangesPluginLite {
       throw new Error('[ABsmartly] Context is required');
     }
 
-    // Apply anti-flicker hiding immediately if enabled (BEFORE context is ready)
+    console.log(`[ABsmartly] DOMChangesPluginLite v${DOMChangesPluginLite.VERSION} initialized`);
+
     if (this.config.hideUntilReady) {
       this.hideContent();
     }
@@ -69,7 +72,16 @@ export class DOMChangesPluginLite {
     this.htmlInjector = new HTMLInjector(this.config.debug);
 
     // Auto-initialize when context is ready
-    this.readyPromise = this.config.context.ready().then(() => this.initialize());
+    this.readyPromise = this.config.context
+      .ready()
+      .then(() => {
+        logDebug('[DOMChangesPluginLite] Context is ready, starting initialization');
+        return this.initialize();
+      })
+      .catch(error => {
+        logDebug('[DOMChangesPluginLite] ERROR during initialization:', error);
+        throw error;
+      });
   }
 
   async ready(): Promise<void> {
@@ -327,7 +339,6 @@ export class DOMChangesPluginLite {
 
     this.variantExtractor.clearCache();
 
-    // Get all experiments with their data
     const allExperiments = this.getAllExperimentsData();
 
     let totalApplied = 0;

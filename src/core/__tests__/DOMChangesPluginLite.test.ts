@@ -45,7 +45,7 @@ describe('DOMChangesPluginLite', () => {
       const plugin = createPlugin({ context });
 
       expect(plugin).toBeInstanceOf(DOMChangesPluginLite);
-      expect(DOMChangesPluginLite.VERSION).toBe('1.0.0-lite');
+      expect(DOMChangesPluginLite.VERSION).toBe('1.1.2');
     });
 
     it('should throw error if context is missing', () => {
@@ -111,7 +111,6 @@ describe('DOMChangesPluginLite', () => {
       // Should still be initialized (not re-initialized)
       expect((plugin as any).initialized).toBe(initializedState);
     });
-
 
     it('should setup mutation observer when spa is enabled', async () => {
       const sdk = createTestSDK();
@@ -1172,7 +1171,6 @@ describe('DOMChangesPluginLite', () => {
 
       await expect(plugin.ready()).resolves.not.toThrow();
     });
-
   });
 
   describe('Performance', () => {
@@ -1421,7 +1419,7 @@ describe('DOMChangesPluginLite', () => {
 
       createPlugin({
         context,
-        hideUntilReady: false
+        hideUntilReady: false,
       });
 
       const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
@@ -1436,7 +1434,7 @@ describe('DOMChangesPluginLite', () => {
       createPlugin({
         context,
         hideUntilReady: 'body',
-        hideTimeout: 5000
+        hideTimeout: 5000,
       });
 
       // Anti-flicker should be applied IMMEDIATELY in constructor
@@ -1453,7 +1451,7 @@ describe('DOMChangesPluginLite', () => {
       createPlugin({
         context,
         hideUntilReady: '[data-absmartly-hide]',
-        hideTimeout: 5000
+        hideTimeout: 5000,
       });
 
       const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
@@ -1469,12 +1467,14 @@ describe('DOMChangesPluginLite', () => {
       createPlugin({
         context,
         hideUntilReady: '[data-absmartly-hide], [data-custom], .test-element',
-        hideTimeout: 5000
+        hideTimeout: 5000,
       });
 
       const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
       expect(antiFlickerStyle).not.toBeNull();
-      expect(antiFlickerStyle?.textContent).toContain('[data-absmartly-hide], [data-custom], .test-element');
+      expect(antiFlickerStyle?.textContent).toContain(
+        '[data-absmartly-hide], [data-custom], .test-element'
+      );
       expect(antiFlickerStyle?.textContent).toContain('visibility: hidden !important');
     });
 
@@ -1485,7 +1485,7 @@ describe('DOMChangesPluginLite', () => {
       createPlugin({
         context,
         hideUntilReady: 'body',
-        hideTransition: '0.3s ease-in'
+        hideTransition: '0.3s ease-in',
       });
 
       const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
@@ -1500,7 +1500,7 @@ describe('DOMChangesPluginLite', () => {
       createPlugin({
         context,
         hideUntilReady: 'body',
-        hideTransition: false
+        hideTransition: false,
       });
 
       const antiFlickerStyle = document.getElementById('absmartly-antiflicker');
@@ -1518,7 +1518,7 @@ describe('DOMChangesPluginLite', () => {
         context,
         hideUntilReady: 'body',
         hideTransition: false,
-        autoApply: true
+        autoApply: true,
       });
 
       // Anti-flicker should be present initially
@@ -1543,7 +1543,7 @@ describe('DOMChangesPluginLite', () => {
         context,
         hideUntilReady: 'body',
         hideTimeout: 1000,
-        autoApply: false // Don't auto-apply to test timeout
+        autoApply: false, // Don't auto-apply to test timeout
       });
 
       // Anti-flicker should be present initially
@@ -1572,7 +1572,7 @@ describe('DOMChangesPluginLite', () => {
         context,
         hideUntilReady: 'body',
         hideTransition: '0.3s ease-in',
-        autoApply: true
+        autoApply: true,
       });
 
       // Anti-flicker should be present initially with opacity: 0
@@ -1607,7 +1607,7 @@ describe('DOMChangesPluginLite', () => {
       // Create plugin twice (shouldn't happen in practice, but test defensive code)
       const plugin1 = createPlugin({
         context,
-        hideUntilReady: 'body'
+        hideUntilReady: 'body',
       });
 
       // Try to call hideContent again (it should check for existing style)
@@ -1629,7 +1629,7 @@ describe('DOMChangesPluginLite', () => {
         hideUntilReady: 'body',
         hideTimeout: 5000,
         hideTransition: false,
-        autoApply: true
+        autoApply: true,
       });
 
       // Verify timeout was set
@@ -1670,7 +1670,7 @@ describe('DOMChangesPluginLite', () => {
 
         createPlugin({
           context,
-          hideUntilReady: selector
+          hideUntilReady: selector,
         });
 
         const antiFlickerStyle = document.getElementById('absmartly-antiflicker');

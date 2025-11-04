@@ -141,41 +141,37 @@ export class VariantExtractor {
 
       let changesData = null;
 
-      // First check variant.variables (common in tests and some setups)
-      if (variant.variables && variant.variables[this.variableName]) {
-        changesData = variant.variables[this.variableName];
-        logDebug(
-          `[VariantExtractor DEBUG] ✓ Found DOM changes in variables[${this.variableName}]:`,
-          changesData
-        );
-      }
-      // Then check variant.config (ABSmartly SDK provides data here as a JSON string)
-      else if (variant.config) {
+      // Check variant.config (ABSmartly SDK provides data here as a JSON string)
+      if (variant.config) {
         try {
-          const config =
+          // Parse config as JSON if it's a string
+          const parsedConfig =
             typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
 
-          if (config && config[this.variableName]) {
-            changesData = config[this.variableName];
+          logDebug(`[VariantExtractor DEBUG] Parsed config for variant ${i}:`, parsedConfig);
+
+          // Look for __dom_changes inside the parsed config
+          if (parsedConfig && parsedConfig[this.variableName]) {
+            changesData = parsedConfig[this.variableName];
             logDebug(
               `[VariantExtractor DEBUG] ✓ Found DOM changes in config[${this.variableName}]:`,
               changesData
             );
           } else {
             logDebug(
-              '[VariantExtractor DEBUG] ✗ No',
-              this.variableName,
-              'field found in parsed config'
+              `[VariantExtractor DEBUG] ✗ No ${this.variableName} field found in parsed config for variant ${i}`
             );
           }
         } catch (e) {
           logDebug(
-            '[VariantExtractor DEBUG] ✗ Failed to parse variant.config:',
+            `[VariantExtractor DEBUG] ✗ Failed to parse variant.config for variant ${i}:`,
             e,
             'Raw config:',
             typeof variant.config === 'string' ? variant.config.substring(0, 100) : ''
           );
         }
+      } else {
+        logDebug(`[VariantExtractor DEBUG] ✗ No config field found for variant ${i}`);
       }
 
       if (changesData) {
@@ -218,8 +214,6 @@ export class VariantExtractor {
     return this.parseChanges(data);
   }
 
-  // Get changes for the current variant of a specific experiment
-  // Note: Requires context to be ready for peek() to work correctly
   getExperimentChanges(experimentName: string): DOMChange[] | null {
     const allChanges = this.extractAllChanges();
     const experimentVariants = allChanges.get(experimentName);
@@ -228,8 +222,6 @@ export class VariantExtractor {
       return null;
     }
 
-    // Use peek to get the current variant without triggering exposure
-    // Important: peek() returns 0 if context is not ready
     const currentVariant = this.context.peek(experimentName);
 
     if (currentVariant === undefined || currentVariant === null) {
