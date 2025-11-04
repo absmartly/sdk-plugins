@@ -18,7 +18,8 @@ import { URLMatcher } from '../utils/URLMatcher';
 declare const __VERSION__: string;
 
 export class DOMChangesPluginLite {
-  public static readonly VERSION: string = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '1.1.2';
+  public static readonly VERSION: string =
+    typeof __VERSION__ !== 'undefined' ? __VERSION__ : '1.1.2';
 
   protected config: Required<PluginConfig>;
   protected domManipulator: DOMManipulatorLite;

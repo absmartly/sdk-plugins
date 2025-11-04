@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPluginLite } from '../core/DOMChangesPluginLite';
 import { OverridesPlugin } from '../overrides/OverridesPlugin';
 import * as debugModule from '../utils/debug';
+import { createTestSDK, createTestContext } from './sdk-helper';
+import type { ContextData } from '@absmartly/javascript-sdk/types/context';
+import type { ABsmartlyContext } from '../types';
+import { SDK } from '@absmartly/javascript-sdk';
 
 // Mock fetch globally
 global.fetch = jest.fn();
@@ -10,9 +13,9 @@ global.fetch = jest.fn();
 describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
   let domPlugin: DOMChangesPluginLite;
   let overridesPlugin: OverridesPlugin;
-  let mockContext: any;
-  let originalData: any;
-  let cookieStore: { [key: string]: string } = {};
+  let context: ABsmartlyContext;
+  let sdk: typeof SDK.prototype;
+  let cookieStore: { [key: string]: string} = {};
 
   beforeEach(() => {
     // Reset fetch mock
@@ -43,60 +46,8 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
     // Clear DOM
     document.body.innerHTML = '';
 
-    // Create mock context data with one running experiment
-    originalData = {
-      experiments: [
-        {
-          id: 1,
-          name: 'running_experiment',
-          unitType: 'user_id',
-          iteration: 1,
-          seedHi: 0,
-          seedLo: 0,
-          split: [0.5, 0.5],
-          trafficSeedHi: 0,
-          trafficSeedLo: 0,
-          trafficSplit: [0, 1],
-          fullOnVariant: 0,
-          applications: [{ name: 'www' }],
-          variants: [
-            {
-              name: 'Control',
-              config: '{}',
-              variables: {
-                __dom_changes: [
-                  { selector: '.running-test', type: 'text', value: 'Running Control' },
-                ],
-              },
-            },
-            {
-              name: 'Treatment',
-              config: '{}',
-              variables: {
-                __dom_changes: [
-                  { selector: '.running-test', type: 'text', value: 'Running Treatment' },
-                ],
-              },
-            },
-          ],
-          audience: '',
-          audienceStrict: false,
-        },
-      ],
-    };
-
-    // Create mock context
-    mockContext = {
-      ready: jest.fn().mockResolvedValue(undefined),
-      data: jest.fn(() => originalData),
-      override: jest.fn(),
-      peek: jest.fn(),
-      treatment: jest.fn(),
-      customFieldValue: jest.fn(),
-    };
-
-    // Clear cookies
-    cookieStore = {};
+    // Create real SDK instance
+    sdk = createTestSDK();
   });
 
   afterEach(() => {
@@ -113,26 +64,72 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       // Set up DOM
       document.body.innerHTML = '<div class="running-test">Original</div>';
 
+      // Create context with running experiment using real SDK
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Control' },
+                  ],
+                }),
+              },
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Treatment' },
+                  ],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
+
       // Set override for running experiment
       cookieStore['absmartly_overrides'] = 'running_experiment:1';
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
       });
       await overridesPlugin.ready();
 
-      // Mock peek to return variant 1
-      mockContext.peek.mockImplementation((expName: string) => {
-        if (expName === 'running_experiment') return 1;
-        return undefined;
-      });
+      // Override to variant 1
+      context.override('running_experiment', 1);
 
       // Initialize DOM plugin
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
         debug: true,
       });
@@ -149,6 +146,55 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         <div class="running-test">Original Running</div>
         <div class="api-test">Original API</div>
       `;
+
+      // Create context with running experiment
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Control' },
+                  ],
+                }),
+              },
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Treatment' },
+                  ],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
 
       // Set overrides for both running and API experiments
       cookieStore['absmartly_overrides'] = 'running_experiment:0,api_experiment:1.2.22846';
@@ -193,7 +239,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
@@ -206,16 +252,13 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         expect.any(Object)
       );
 
-      // Mock peek to return configured variants
-      mockContext.peek.mockImplementation((expName: string) => {
-        if (expName === 'running_experiment') return 0;
-        if (expName === 'api_experiment') return 1;
-        return undefined;
-      });
+      // Override variants
+      context.override('running_experiment', 0);
+      context.override('api_experiment', 1);
 
       // Initialize DOM plugin
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
         debug: true,
       });
@@ -230,12 +273,12 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       expect(apiElement?.style.color).toBe('red');
 
       // Verify context.data() includes both experiments
-      const contextData = mockContext.data();
-      expect(contextData.experiments).toHaveLength(2);
+      const contextData2 = context.data();
+      expect(contextData2.experiments).toHaveLength(2);
       expect(
-        contextData.experiments.find((e: any) => e.name === 'running_experiment')
+        contextData2.experiments!.find((e: any) => e.name === 'running_experiment')
       ).toBeDefined();
-      expect(contextData.experiments.find((e: any) => e.name === 'api_experiment')).toBeDefined();
+      expect(contextData2.experiments!.find((e: any) => e.name === 'api_experiment')).toBeDefined();
     });
 
     it('should handle development experiments from SDK dev endpoint', async () => {
@@ -243,6 +286,13 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       document.body.innerHTML = `
         <div class="dev-test">Original Dev</div>
       `;
+
+      // Create context (empty initially)
+      const contextData: ContextData = {
+        experiments: [],
+      };
+
+      context = createTestContext(sdk, contextData);
 
       // Set overrides with dev environment
       cookieStore['absmartly_overrides'] = 'devEnv=staging|dev_experiment:1.1';
@@ -259,26 +309,26 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
             variants: [
               {
                 name: 'Control',
-                variables: {
+                config: JSON.stringify({
                   __dom_changes: [{ selector: '.dev-test', type: 'text', value: 'Dev Control' }],
-                },
+                }),
               },
               {
                 name: 'Treatment A',
-                variables: {
+                config: JSON.stringify({
                   __dom_changes: [
                     { selector: '.dev-test', type: 'text', value: 'Dev Treatment A' },
                     { selector: '.dev-test', type: 'style', value: { 'font-weight': 'bold' } },
                   ],
-                },
+                }),
               },
               {
                 name: 'Treatment B',
-                variables: {
+                config: JSON.stringify({
                   __dom_changes: [
                     { selector: '.dev-test', type: 'text', value: 'Dev Treatment B' },
                   ],
-                },
+                }),
               },
             ],
           },
@@ -293,7 +343,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         cookieName: 'absmartly_overrides',
       });
@@ -305,15 +355,12 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         expect.any(Object)
       );
 
-      // Mock peek for dev experiment
-      mockContext.peek.mockImplementation((expName: string) => {
-        if (expName === 'dev_experiment') return 1;
-        return undefined;
-      });
+      // Override to variant 1
+      context.override('dev_experiment', 1);
 
       // Initialize DOM plugin
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
       });
       await domPlugin.ready();
@@ -331,6 +378,55 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         <div class="dev-test">Original Dev</div>
         <div class="api-test">Original API</div>
       `;
+
+      // Create context with running experiment
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Control' },
+                  ],
+                }),
+              },
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Treatment' },
+                  ],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
 
       // Set mixed overrides
       cookieStore['absmartly_overrides'] =
@@ -379,12 +475,12 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
               name: 'dev_experiment',
               variants: [
                 {
-                  variables: {
+                  config: JSON.stringify({
                     __dom_changes: [
                       { selector: '.dev-test', type: 'text', value: 'Dev Control' },
                       { selector: '.dev-test', type: 'class', add: ['dev-control'] },
                     ],
-                  },
+                  }),
                 },
               ],
             },
@@ -394,7 +490,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
@@ -412,23 +508,14 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         expect.any(Object)
       );
 
-      // Mock peek for all experiments
-      mockContext.peek.mockImplementation((expName: string) => {
-        switch (expName) {
-          case 'running_experiment':
-            return 1;
-          case 'dev_experiment':
-            return 0;
-          case 'api_experiment':
-            return 2;
-          default:
-            return undefined;
-        }
-      });
+      // Override all experiments
+      context.override('running_experiment', 1);
+      context.override('dev_experiment', 0);
+      context.override('api_experiment', 2);
 
       // Initialize DOM plugin
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
       });
       await domPlugin.ready();
@@ -445,9 +532,9 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       expect(apiElement?.innerHTML).toBe('<strong>API Variant 2</strong>');
 
       // Verify all experiments are in context
-      const contextData = mockContext.data();
-      expect(contextData.experiments).toHaveLength(3);
-      expect(contextData.experiments.map((e: any) => e.name).sort()).toEqual([
+      const contextData2 = context.data();
+      expect(contextData2.experiments).toHaveLength(3);
+      expect(contextData2.experiments!.map((e: any) => e.name).sort()).toEqual([
         'api_experiment',
         'dev_experiment',
         'running_experiment',
@@ -455,6 +542,55 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
     });
 
     it('should handle experiment updates when the same experiment exists', async () => {
+      // Create context with running experiment
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.updated', type: 'text', value: 'Original Control' },
+                  ],
+                }),
+              },
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.updated', type: 'text', value: 'Original Treatment' },
+                  ],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
+
       // Override the existing running_experiment with API data
       cookieStore['absmartly_overrides'] = 'running_experiment:1.2.1';
 
@@ -504,22 +640,19 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.ready();
 
-      // Mock peek
-      mockContext.peek.mockImplementation((expName: string) => {
-        if (expName === 'running_experiment') return 1;
-        return undefined;
-      });
+      // Override to variant 1
+      context.override('running_experiment', 1);
 
       // Initialize DOM plugin
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
       });
       await domPlugin.ready();
@@ -530,20 +663,71 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       expect(element?.style.backgroundColor).toBe('yellow');
 
       // Verify context still has one experiment but with updated data
-      const contextData = mockContext.data();
-      expect(contextData.experiments).toHaveLength(1);
-      const experiment = contextData.experiments[0];
+      const contextData2 = context.data();
+      expect(contextData2.experiments).toHaveLength(1);
+      const experiment = contextData2.experiments![0];
       expect(experiment.name).toBe('running_experiment');
-      expect(experiment.variants[1].variables.__dom_changes).toHaveLength(2);
+      // API response has 2 DOM changes in variant 1
+      const variant1Config = JSON.parse(experiment.variants[1].config!);
+      expect(variant1Config.__dom_changes).toHaveLength(2);
     });
 
     it('should work correctly when no overrides are present', async () => {
       // No cookie set
       document.body.innerHTML = '<div class="running-test">Original</div>';
 
+      // Create context with running experiment
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Control' },
+                  ],
+                }),
+              },
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Treatment' },
+                  ],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
+
       // Initialize overrides plugin (should do nothing)
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
       });
       await overridesPlugin.ready();
@@ -551,15 +735,12 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       // No fetch should be called
       expect(global.fetch).not.toHaveBeenCalled();
 
-      // Mock peek for running experiment
-      mockContext.peek.mockImplementation((expName: string) => {
-        if (expName === 'running_experiment') return 0;
-        return undefined;
-      });
+      // Override to variant 0
+      context.override('running_experiment', 0);
 
       // Initialize DOM plugin
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
       });
       await domPlugin.ready();
@@ -569,14 +750,63 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       expect(element?.textContent).toBe('Running Control');
 
       // Context should remain unchanged
-      const contextData = mockContext.data();
-      expect(contextData.experiments).toHaveLength(1);
-      expect(contextData.experiments[0].name).toBe('running_experiment');
+      const contextData2 = context.data();
+      expect(contextData2.experiments).toHaveLength(1);
+      expect(contextData2.experiments![0].name).toBe('running_experiment');
     });
   });
 
   describe('Error handling', () => {
     it('should handle API fetch failure gracefully', async () => {
+      // Create context with running experiment
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Control' },
+                  ],
+                }),
+              },
+              {
+                config: JSON.stringify({
+                  __dom_changes: [
+                    { selector: '.running-test', type: 'text', value: 'Running Treatment' },
+                  ],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
+
       cookieStore['absmartly_overrides'] = 'api_experiment:1.2.12345';
 
       // Mock fetch failure
@@ -586,7 +816,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
@@ -596,15 +826,12 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
       expect(logDebugSpy).toHaveBeenCalled();
 
       // DOM plugin should still work with existing experiments
-      mockContext.peek.mockImplementation((expName: string) => {
-        if (expName === 'running_experiment') return 0;
-        return undefined;
-      });
+      context.override('running_experiment', 0);
 
       document.body.innerHTML = '<div class="running-test">Original</div>';
 
       domPlugin = new DOMChangesPluginLite({
-        context: mockContext,
+        context,
         autoApply: true,
       });
       await domPlugin.ready();
@@ -616,6 +843,46 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
     });
 
     it('should handle malformed API response gracefully', async () => {
+      // Create context with running experiment
+      const contextData: ContextData = {
+        experiments: [
+          {
+            id: 1,
+            name: 'running_experiment',
+            unitType: 'user_id',
+            iteration: 1,
+            seedHi: 0,
+            seedLo: 0,
+            split: [0.5, 0.5],
+            trafficSeedHi: 0,
+            trafficSeedLo: 0,
+            trafficSplit: [0, 1],
+            fullOnVariant: 0,
+            audience: '',
+            audienceStrict: false,
+            variants: [
+              {
+                config: JSON.stringify({
+                  __dom_changes: [],
+                }),
+              },
+            ],
+            variables: {},
+            variant: 0,
+            overridden: false,
+            assigned: true,
+            exposed: false,
+            eligible: true,
+            fullOn: false,
+            custom: false,
+            audienceMismatch: false,
+            customFieldValues: null,
+          },
+        ],
+      };
+
+      context = createTestContext(sdk, contextData);
+
       cookieStore['absmartly_overrides'] = 'api_experiment:1.2.12345';
 
       // Mock malformed response
@@ -627,16 +894,16 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
 
       // Initialize overrides plugin
       overridesPlugin = new OverridesPlugin({
-        context: mockContext,
+        context,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         cookieName: 'absmartly_overrides',
       });
       await overridesPlugin.ready();
 
       // Should not crash, context should remain unchanged
-      const contextData = mockContext.data();
-      expect(contextData.experiments).toHaveLength(1);
-      expect(contextData.experiments[0].name).toBe('running_experiment');
+      const contextData2 = context.data();
+      expect(contextData2.experiments).toHaveLength(1);
+      expect(contextData2.experiments![0].name).toBe('running_experiment');
     });
   });
 });
