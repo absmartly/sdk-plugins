@@ -35,6 +35,7 @@ export class DOMChangesPluginLite {
   protected appliedChanges: Map<string, DOMChange[]> = new Map();
   protected antiFlickerTimeout: number | null = null;
   protected antiFlickerStyleId = 'absmartly-antiflicker';
+  private readyPromise: Promise<void>;
 
   constructor(config: PluginConfig) {
     this.config = {
@@ -66,9 +67,16 @@ export class DOMChangesPluginLite {
     );
     this.exposureTracker = new ExposureTracker(this.config.context, this.config.debug);
     this.htmlInjector = new HTMLInjector(this.config.debug);
+
+    // Auto-initialize when context is ready
+    this.readyPromise = this.config.context.ready().then(() => this.initialize());
   }
 
   async ready(): Promise<void> {
+    return this.readyPromise;
+  }
+
+  private async initialize(): Promise<void> {
     if (this.initialized) {
       logDebug('Plugin already initialized');
       return;
@@ -116,10 +124,6 @@ export class DOMChangesPluginLite {
       logDebug('[ABsmartly] Failed to initialize plugin:', error);
       throw error;
     }
-  }
-
-  async initialize(): Promise<void> {
-    return this.ready();
   }
 
   private setupMutationObserver(): void {

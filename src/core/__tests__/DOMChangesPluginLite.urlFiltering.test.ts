@@ -82,7 +82,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="product">Original</div><div class="other">Other</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
       expect(treatmentSpy).toHaveBeenCalledWith('test_experiment');
@@ -113,7 +113,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="product">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -142,7 +142,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="product">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('test_experiment');
 
@@ -184,7 +184,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         '<div class="hero">Original</div><div class="product">Product</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('multi_filter_test');
 
@@ -201,7 +201,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="hero">Hero</div><div class="product">Product</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('multi_filter_test');
 
@@ -218,7 +218,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="cart">Cart</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('multi_filter_test');
 
@@ -235,7 +235,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="hero">Hero</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
     });
@@ -265,7 +265,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       });
 
       plugin = new DOMChangesPluginLite({ context: ctx1, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(spy1).toHaveBeenCalled();
 
@@ -278,7 +278,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       });
 
       plugin = new DOMChangesPluginLite({ context: ctx2, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(spy2).not.toHaveBeenCalled();
     });
@@ -309,7 +309,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         document.body.innerHTML = '<div class="banner">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).toHaveBeenCalled();
 
@@ -323,7 +323,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="banner">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
     });
@@ -350,7 +350,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="product">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
     });
@@ -377,7 +377,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="content">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
       expect(document.querySelector('.content')?.textContent).toBe('Filtered');
@@ -410,7 +410,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
 
@@ -442,7 +442,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
 
@@ -469,7 +469,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
       expect(document.querySelector('.test')?.textContent).toBe('Test');
@@ -488,7 +488,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
       expect(document.querySelector('.test')?.textContent).toBe('Test');
@@ -514,7 +514,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
     });
@@ -540,7 +540,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
       expect(document.querySelector('.test')?.textContent).toBe('Test');
@@ -570,7 +570,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
       expect(treatmentSpy).toHaveBeenCalledWith('tracking_test');
@@ -591,7 +591,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       });
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
     });
@@ -626,7 +626,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         '<div class="test1">Original1</div><div class="test2">Original2</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
       expect(treatmentSpy).toHaveBeenCalledWith('exp1');
@@ -660,7 +660,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).toHaveBeenCalled();
         document.body.innerHTML = '';
@@ -692,7 +692,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).not.toHaveBeenCalled();
         document.body.innerHTML = '';
@@ -739,7 +739,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         '<div class="hero">Hero</div><div class="product">Product</div><div class="cart">Cart</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
       expect(treatmentSpy).toHaveBeenCalledWith('products_exp');
@@ -775,7 +775,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         '<div class="test1">Original1</div><div class="test2">Original2</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledTimes(2);
       expect(treatmentSpy).toHaveBeenCalledWith('exp1');
@@ -826,7 +826,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
         '<div class="test1">Test1</div><div class="test2">Test2</div><div class="test3">Test3</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledTimes(2);
       expect(treatmentSpy).toHaveBeenCalledWith('no_filter_exp');
@@ -869,7 +869,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       `;
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
 
@@ -902,7 +902,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="hero">Hero</div><div class="product">Product</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalled();
 
@@ -964,7 +964,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       const pushStateSpy = jest.spyOn(history, 'pushState');
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
-      await plugin.initialize();
+      await plugin.ready();
 
       // Initially on home page - should NOT apply changes
       expect(document.querySelector('.content')?.textContent).toBe('Home');
@@ -999,7 +999,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       const replaceStateSpy = jest.spyOn(history, 'replaceState');
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
-      await plugin.initialize();
+      await plugin.ready();
 
       // Initially on cart page - should NOT apply changes
       expect(document.querySelector('.content')?.textContent).toBe('Cart');
@@ -1031,7 +1031,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="content">About</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
-      await plugin.initialize();
+      await plugin.ready();
 
       // Should apply changes on /about
       expect(document.querySelector('.content')?.textContent).toBe('About Page');
@@ -1077,7 +1077,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       document.body.innerHTML = '<div class="content">Home</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       // Initially on home page - should NOT apply changes
       expect(document.querySelector('.content')?.textContent).toBe('Home');
@@ -1116,7 +1116,7 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       `;
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
-      await plugin.initialize();
+      await plugin.ready();
 
       // On /products - should apply changes
       expect(document.querySelector('.product')?.textContent).toBe('Product Content');

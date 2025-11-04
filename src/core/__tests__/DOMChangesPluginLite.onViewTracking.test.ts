@@ -138,7 +138,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="test">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('immediate_test');
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -165,7 +165,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="hero">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -200,7 +200,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
         '<div class="item">Item 1</div><div class="item">Item 2</div><div class="item">Item 3</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const items = document.querySelectorAll('.item');
       for (const item of items) {
@@ -230,7 +230,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="hero">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const heroElement = document.querySelector('.hero')!;
       await triggerIntersection(heroElement, false);
@@ -261,7 +261,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="hero">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -305,7 +305,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="hero">Original</div><div class="other">Other</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -353,7 +353,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="element-a">A</div><div class="element-b">B</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -407,7 +407,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       `;
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const placeholders = findPlaceholders('move_test');
       expect(placeholders.length).toBeGreaterThan(0);
@@ -445,7 +445,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       `;
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const item = document.querySelector('.item');
       const targetContainer = document.querySelector('.target-container');
@@ -480,7 +480,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="item">Item</div><div class="target"></div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const placeholders = findPlaceholders('placeholder_test');
       expect(placeholders.length).toBeGreaterThan(0);
@@ -517,7 +517,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
         '<div class="special-item">Item</div><div class="special-target"></div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(verifyPlaceholderExists('verify_placeholder', '.special-item')).toBe(true);
     });
@@ -561,7 +561,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       `;
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       // Experiment should be triggered immediately (immediate trigger takes precedence)
       expect(treatmentSpy).toHaveBeenCalledWith('no_placeholder_test');
@@ -596,7 +596,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="immediate">A</div><div class="viewport">B</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('mixed_test');
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -637,7 +637,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="immediate">A</div><div class="viewport">B</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('priority_test');
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -665,7 +665,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div id="container"></div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -704,7 +704,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div id="container"></div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const container = document.getElementById('container')!;
 
@@ -752,7 +752,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="below-fold">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const element = document.querySelector('.below-fold')!;
       await triggerIntersection(element, false);
@@ -798,7 +798,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="test1">T1</div><div class="test2">T2</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -835,7 +835,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="toggle">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const element = document.querySelector('.toggle')!;
 
@@ -876,7 +876,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
         '<div class="hero">H</div><div class="cta">C</div><div class="footer">F</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -951,7 +951,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       `;
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const placeholders = findPlaceholders('move_positions_test');
       expect(placeholders.length).toBeGreaterThan(0);
@@ -982,7 +982,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="hero">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       const hero = document.querySelector('.hero')!;
       await triggerIntersection(hero, true);
@@ -1022,7 +1022,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       document.body.innerHTML = '<div class="hero">Original</div>';
 
       plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-      await plugin.initialize();
+      await plugin.ready();
 
       expect(treatmentSpy).toHaveBeenCalledWith('no_viewport_test');
       expect(treatmentSpy).toHaveBeenCalledTimes(1);

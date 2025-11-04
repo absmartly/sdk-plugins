@@ -122,7 +122,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         sdkEndpoint: 'https://demo-2.absmartly.io',
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // Mock peek to return variant 1
       mockContext.peek.mockImplementation((expName: string) => {
@@ -136,7 +136,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         autoApply: true,
         debug: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       // Check DOM was modified
       const element = document.querySelector('.running-test');
@@ -198,7 +198,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // Verify API was called
       expect(global.fetch).toHaveBeenCalledWith(
@@ -219,7 +219,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         autoApply: true,
         debug: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       // Check DOM was modified for both experiments
       const runningElement = document.querySelector('.running-test');
@@ -297,7 +297,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         sdkEndpoint: 'https://demo-2.absmartly.io',
         cookieName: 'absmartly_overrides',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // Verify SDK dev endpoint was called
       expect(global.fetch).toHaveBeenCalledWith(
@@ -316,7 +316,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         autoApply: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       // Check DOM was modified
       const devElement = document.querySelector('.dev-test') as HTMLElement;
@@ -399,7 +399,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // Verify both endpoints were called
       expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -431,7 +431,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         autoApply: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       // Check all DOM modifications
       const runningElement = document.querySelector('.running-test');
@@ -509,7 +509,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // Mock peek
       mockContext.peek.mockImplementation((expName: string) => {
@@ -522,7 +522,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         autoApply: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       // Check DOM uses updated changes from API
       const element = document.querySelector('.updated') as HTMLElement;
@@ -546,7 +546,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // No fetch should be called
       expect(global.fetch).not.toHaveBeenCalled();
@@ -562,7 +562,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         autoApply: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       // Should use original experiment data
       const element = document.querySelector('.running-test');
@@ -591,7 +591,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         absmartlyEndpoint: 'https://demo-2.absmartly.com',
         cookieName: 'absmartly_overrides',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       expect(logDebugSpy).toHaveBeenCalled();
 
@@ -607,7 +607,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         context: mockContext,
         autoApply: true,
       });
-      await domPlugin.initialize();
+      await domPlugin.ready();
 
       const element = document.querySelector('.running-test');
       expect(element?.textContent).toBe('Running Control');
@@ -631,7 +631,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
         sdkEndpoint: 'https://demo-2.absmartly.io',
         cookieName: 'absmartly_overrides',
       });
-      await overridesPlugin.initialize();
+      await overridesPlugin.ready();
 
       // Should not crash, context should remain unchanged
       const contextData = mockContext.data();

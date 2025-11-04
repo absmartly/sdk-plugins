@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMManipulatorLite } from '../DOMManipulatorLite';
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import { TestDataFactory, MockContextFactory, TestDOMUtils } from '../../__tests__/test-utils';
+import { TestDataFactory, TestDOMUtils } from '../../__tests__/test-utils';
+import { createTestSDK, createTestContext } from '../../__tests__/sdk-helper';
+import { createEmptyContextData } from '../../__tests__/fixtures';
 import { DOMChange } from '../../types';
 
 describe('DOMManipulatorLite', () => {
@@ -10,7 +12,8 @@ describe('DOMManipulatorLite', () => {
 
   beforeEach(() => {
     document.body.innerHTML = '';
-    const context = MockContextFactory.create([]);
+    const sdk = createTestSDK();
+    const context = createTestContext(sdk, createEmptyContextData());
     plugin = new DOMChangesPluginLite({ context, spa: false });
     manipulator = (plugin as any).domManipulator;
   });
@@ -25,7 +28,8 @@ describe('DOMManipulatorLite', () => {
     });
 
     it('should initialize with debug mode', () => {
-      const context = MockContextFactory.create([]);
+      const sdk = createTestSDK();
+      const context = createTestContext(sdk, createEmptyContextData());
       const debugPlugin = new DOMChangesPluginLite({ context, debug: true });
       const debugManipulator = (debugPlugin as any).domManipulator;
 

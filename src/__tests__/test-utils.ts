@@ -6,41 +6,62 @@
  * to facilitate thorough testing of the DOM Changes Plugin.
  */
 
-import { DOMChange, ContextData, ExperimentData, ABsmartlyContext } from '../types';
+import { DOMChange } from '../types';
+import type { ExperimentData } from '@absmartly/javascript-sdk/types/context';
+import { createTestExperiment } from './sdk-helper';
 
 /**
  * Test Data Factories for creating test data
  */
 export class TestDataFactory {
+  /**
+   * Create experiment with DOM changes for testing
+   * NOTE: The returned experiment will have variant=0 by default.
+   * Use createTestContextWithOverrides() to force a specific variant in tests.
+   *
+   * @param name - Experiment name
+   * @param changes - DOM changes to apply
+   * @param variantIndex - Which variant should have the changes (for creating variants array)
+   * @returns ExperimentData with variants array populated
+   */
   static createExperiment(
     name: string,
     changes: DOMChange[],
     variantIndex: number = 0
-  ): ExperimentData {
+  ): ExperimentData & { _testVariantIndex?: number } {
     const variants = [];
     for (let i = 0; i <= variantIndex; i++) {
       variants.push({
-        variables: {
+        config: {
           __dom_changes: i === variantIndex ? changes : [],
         },
       });
     }
 
-    return {
-      name,
-      variants,
+    const baseExperiment = createTestExperiment(name, variants) as ExperimentData & {
+      _testVariantIndex?: number;
     };
+    // Store the intended variant for use with createTestContextWithOverrides
+    baseExperiment._testVariantIndex = variantIndex;
+    return baseExperiment;
   }
 
-  static createMultiVariantExperiment(name: string, variantChanges: DOMChange[][]): ExperimentData {
-    return {
-      name,
-      variants: variantChanges.map(changes => ({
-        variables: {
-          __dom_changes: changes,
-        },
-      })),
+  static createMultiVariantExperiment(
+    name: string,
+    variantChanges: DOMChange[][]
+  ): ExperimentData & { _testVariantIndex?: number } {
+    const variants = variantChanges.map(changes => ({
+      config: {
+        __dom_changes: changes,
+      },
+    }));
+
+    const variantIndex = variantChanges.length > 1 ? 1 : 0;
+    const baseExperiment = createTestExperiment(name, variants) as ExperimentData & {
+      _testVariantIndex?: number;
     };
+    baseExperiment._testVariantIndex = variantIndex;
+    return baseExperiment;
   }
 
   static createTextChange(
@@ -131,55 +152,9 @@ export class TestDataFactory {
 }
 
 /**
- * Mock ABsmartly Context factory with advanced configuration
+ * Real SDK Context factory (RECOMMENDED - uses real ABsmartly SDK)
  */
-export class MockContextFactory {
-  static create(experiments: ExperimentData[] = []): ABsmartlyContext {
-    return {
-      ready: jest.fn().mockResolvedValue(undefined),
-      data: jest.fn().mockReturnValue({ experiments } as ContextData),
-      peek: jest.fn().mockReturnValue(0),
-      treatment: jest.fn().mockReturnValue(0),
-      override: jest.fn(),
-      customFieldValue: jest.fn().mockReturnValue(null),
-    };
-  }
-
-  static withVariants(
-    experiments: ExperimentData[],
-    variants: Record<string, number>
-  ): ABsmartlyContext {
-    const context = this.create(experiments);
-    (context.peek as jest.Mock).mockImplementation(
-      (experimentName: string) => variants[experimentName] ?? 0
-    );
-    (context.treatment as jest.Mock).mockImplementation(
-      (experimentName: string) => variants[experimentName] ?? 0
-    );
-    return context;
-  }
-
-  static withCustomFields(
-    experiments: ExperimentData[],
-    customFields: Record<string, Record<string, any>>
-  ): ABsmartlyContext {
-    const context = this.create(experiments);
-    (context.customFieldValue as jest.Mock).mockImplementation(
-      (experimentName: string, fieldName: string) =>
-        customFields[experimentName]?.[fieldName] || null
-    );
-    return context;
-  }
-
-  static withTreatmentTracking(experiments: ExperimentData[]): {
-    context: ABsmartlyContext;
-    treatmentCalls: jest.Mock;
-  } {
-    const context = this.create(experiments);
-    const treatmentCalls = context.treatment as jest.Mock;
-    return { context, treatmentCalls };
-  }
-}
+// No longer using mock contexts - use real SDK with createTestSDK/createTestContext from sdk-helper.ts
 
 /**
  * DOM Test Utilities
@@ -583,7 +558,6 @@ export class IntegrationTestHelpers {
 
 export default {
   TestDataFactory,
-  MockContextFactory,
   TestDOMUtils,
   TestPerformanceUtils,
   TestMemoryUtils,

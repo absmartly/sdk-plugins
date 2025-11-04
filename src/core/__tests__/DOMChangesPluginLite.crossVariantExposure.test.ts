@@ -143,7 +143,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         // Should trigger immediately even though user is in empty v0
         expect(treatmentSpy).toHaveBeenCalledWith('test_empty_v0_immediate_v1');
@@ -171,7 +171,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).toHaveBeenCalledWith('test_empty_v0_immediate_v1');
         expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -200,7 +200,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         // Should NOT trigger yet
         expect(treatmentSpy).not.toHaveBeenCalled();
@@ -234,7 +234,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -268,7 +268,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).toHaveBeenCalledWith('test_immediate_v0_empty_v1');
         expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -295,7 +295,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         // Should trigger immediately because v0 has immediate trigger
         expect(treatmentSpy).toHaveBeenCalledWith('test_immediate_v0_empty_v1');
@@ -325,7 +325,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -357,7 +357,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         document.body.innerHTML = '<div class="test">Original</div>';
 
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
-        await plugin.initialize();
+        await plugin.ready();
 
         expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -406,7 +406,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).toHaveBeenCalledWith('test_empty_v0_immediate_v1_url');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -452,7 +452,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // Should NOT track because URL doesn't match
           expect(treatmentSpy).not.toHaveBeenCalled();
@@ -498,7 +498,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -549,7 +549,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -601,7 +601,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).toHaveBeenCalledWith('test_immediate_both');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -644,7 +644,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // Should trigger immediately because v0 has immediate trigger
           expect(treatmentSpy).toHaveBeenCalledWith('test_immediate_v0_viewport_v1');
@@ -688,7 +688,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // Should trigger immediately because v1 has immediate trigger
           expect(treatmentSpy).toHaveBeenCalledWith('test_viewport_v0_immediate_v1');
@@ -732,7 +732,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -795,7 +795,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).toHaveBeenCalledWith('test_both_match_immediate');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -850,7 +850,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -910,7 +910,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).toHaveBeenCalledWith('test_both_match_mixed');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
@@ -965,7 +965,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // Should trigger immediately because v0 matches URL and has immediate trigger
           expect(treatmentSpy).toHaveBeenCalledWith('test_v0_match_v1_no_match');
@@ -1021,7 +1021,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // CRITICAL: Should NOT trigger immediately
           // v0's immediate trigger should be IGNORED because its URL doesn't match
@@ -1085,7 +1085,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -1139,7 +1139,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // v0 matches URL and has immediate trigger
           // Therefore: ALL variants should trigger immediately
@@ -1196,7 +1196,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // CRITICAL: Should NOT trigger immediately
           // v1 matches URL and has viewport trigger
@@ -1260,7 +1260,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // Both variants match URL
           // v0 has immediate, v1 has viewport
@@ -1318,7 +1318,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           // Both variants match the URL
           // v1 has immediate trigger
@@ -1378,7 +1378,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -1407,7 +1407,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -1470,7 +1470,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -1545,7 +1545,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -1577,7 +1577,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 
@@ -1626,7 +1626,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             autoApply: true,
             spa: false,
           });
-          await plugin.initialize();
+          await plugin.ready();
 
           expect(treatmentSpy).not.toHaveBeenCalled();
 

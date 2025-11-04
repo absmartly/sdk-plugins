@@ -490,7 +490,7 @@ export class VariantExtractor {
 
   /**
    * Extract __inject_html from all variants for all experiments
-   * Only extracts from variant.variables (not from config)
+   * Checks both variant.variables and variant.config
    */
   extractAllInjectHTML(): Map<string, Map<number, InjectionDataWithFilter>> {
     const allInjectHTML = new Map<string, Map<number, InjectionDataWithFilter>>();
@@ -527,7 +527,7 @@ export class VariantExtractor {
 
   /**
    * Extract __inject_html for a single experiment
-   * Only from variant.variables (not from config)
+   * Checks both variant.variables and variant.config
    */
   private extractInjectHTMLForExperiment(
     experiment: ExperimentData
@@ -542,33 +542,65 @@ export class VariantExtractor {
       const variant = experiment.variants[i];
       if (!variant) continue;
 
+      let injectionData = null;
+
+      // First check variant.variables (common in tests and some setups)
       if (variant.variables && variant.variables.__inject_html) {
-        const injectionData = variant.variables.__inject_html;
-
-        if (typeof injectionData === 'object' && !Array.isArray(injectionData)) {
-          // Extract urlFilter if present
-          const { urlFilter, ...rawData } = injectionData as Record<string, any>;
-
-          // Create InjectionDataWithFilter
-          const dataWithFilter: InjectionDataWithFilter = {
-            data: rawData as RawInjectionData,
-            urlFilter: urlFilter || undefined,
-          };
-
-          variantInjections.set(i, dataWithFilter);
-
-          if (this.debug) {
-            logDebug(`[VariantExtractor] Found __inject_html in ${experiment.name} variant ${i}:`, {
-              keys: Object.keys(rawData),
-              hasUrlFilter: !!urlFilter,
-            });
-          }
-        } else if (this.debug) {
+        injectionData = variant.variables.__inject_html;
+        if (this.debug) {
           logDebug(
-            `[VariantExtractor] Invalid __inject_html format in ${experiment.name} variant ${i}`,
-            injectionData
+            `[VariantExtractor] Found __inject_html in variables for ${experiment.name} variant ${i}`
           );
         }
+      }
+      // Then check variant.config (ABSmartly SDK provides data here as a JSON string)
+      else if (variant.config) {
+        try {
+          const config =
+            typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
+
+          if (config && config.__inject_html) {
+            injectionData = config.__inject_html;
+            if (this.debug) {
+              logDebug(
+                `[VariantExtractor] Found __inject_html in config for ${experiment.name} variant ${i}`
+              );
+            }
+          }
+        } catch (e) {
+          logDebug(
+            `[VariantExtractor] Failed to parse variant.config for ${experiment.name} variant ${i}:`,
+            e
+          );
+        }
+      }
+
+      if (injectionData && typeof injectionData === 'object' && !Array.isArray(injectionData)) {
+        // Extract urlFilter if present
+        const { urlFilter, ...rawData } = injectionData as Record<string, any>;
+
+        // Create InjectionDataWithFilter
+        const dataWithFilter: InjectionDataWithFilter = {
+          data: rawData as RawInjectionData,
+          urlFilter: urlFilter || undefined,
+        };
+
+        variantInjections.set(i, dataWithFilter);
+
+        if (this.debug) {
+          logDebug(
+            `[VariantExtractor] Extracted __inject_html for ${experiment.name} variant ${i}:`,
+            {
+              keys: Object.keys(rawData),
+              hasUrlFilter: !!urlFilter,
+            }
+          );
+        }
+      } else if (injectionData && this.debug) {
+        logDebug(
+          `[VariantExtractor] Invalid __inject_html format in ${experiment.name} variant ${i}`,
+          injectionData
+        );
       }
     }
 

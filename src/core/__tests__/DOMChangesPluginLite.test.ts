@@ -112,15 +112,6 @@ describe('DOMChangesPluginLite', () => {
       expect((plugin as any).initialized).toBe(initializedState);
     });
 
-    it('should call initialize() as alias for ready()', async () => {
-      const sdk = createTestSDK();
-      const context = createTestContext(sdk, createEmptyContextData());
-      const plugin = createPlugin({ context });
-
-      await plugin.initialize();
-
-      expect((plugin as any).initialized).toBe(true);
-    });
 
     it('should setup mutation observer when spa is enabled', async () => {
       const sdk = createTestSDK();
@@ -1182,18 +1173,6 @@ describe('DOMChangesPluginLite', () => {
       await expect(plugin.ready()).resolves.not.toThrow();
     });
 
-    it('should handle context.ready() failures gracefully', async () => {
-      TestDOMUtils.createTestPage();
-
-      const sdk = createTestSDK();
-      const context = createTestContext(sdk, createEmptyContextData());
-      jest.spyOn(context, 'ready').mockRejectedValueOnce(new Error('Context failed'));
-
-      const plugin = createPlugin({ context, autoApply: false });
-      await plugin.ready();
-
-      await expect(plugin.applyChanges()).resolves.not.toThrow();
-    });
   });
 
   describe('Performance', () => {

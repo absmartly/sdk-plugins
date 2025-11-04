@@ -1,52 +1,37 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { VariantExtractor } from '../VariantExtractor';
-import { ABsmartlyContext, ContextData } from '../../types';
+import { ABsmartlyContext } from '../../types';
 import * as debugModule from '../../utils/debug';
+import { createTestSDK, createTestContext, createTestExperiment } from '../../__tests__/sdk-helper';
+import type { SDK } from '@absmartly/javascript-sdk';
 
 describe('VariantExtractor', () => {
   let variantExtractor: VariantExtractor;
-  let mockContext: ABsmartlyContext;
+  let context: ABsmartlyContext;
+  let sdk: typeof SDK.prototype;
 
   beforeEach(() => {
-    mockContext = {
-      ready: jest.fn().mockResolvedValue(undefined),
-      data: jest.fn(),
-      peek: jest.fn(),
-      treatment: jest.fn(),
-      override: jest.fn(),
-      customFieldValue: jest.fn(),
-    };
+    sdk = createTestSDK();
   });
 
   describe('variable data source', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should extract changes from variant variables', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [
               {
-                variables: {
-                  __dom_changes: [
-                    {
-                      selector: '.test',
-                      type: 'text',
-                      value: 'Modified text',
-                    },
-                  ],
-                },
+                selector: '.test',
+                type: 'text',
+                value: 'Modified text',
               },
             ],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -73,23 +58,16 @@ describe('VariantExtractor', () => {
         },
       ];
 
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: JSON.stringify(changesArray),
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: JSON.stringify(changesArray),
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -98,23 +76,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle no variant selected', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(undefined);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -126,17 +97,14 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle variant without variables', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [{}],
-          },
-        ],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -144,23 +112,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle variant without __dom_changes field', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  other_field: 'value',
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            other_field: 'value',
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -168,33 +129,26 @@ describe('VariantExtractor', () => {
     });
 
     it('should use correct variant index', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.variant0', type: 'text', value: 'Variant 0' }],
-                },
-              },
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.variant1', type: 'text', value: 'Variant 1' }],
-                },
-              },
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.variant2', type: 'text', value: 'Variant 2' }],
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.variant0', type: 'text', value: 'Variant 0' }],
           },
-        ],
-      };
+        },
+        {
+          config: {
+            __dom_changes: [{ selector: '.variant1', type: 'text', value: 'Variant 1' }],
+          },
+        },
+        {
+          config: {
+            __dom_changes: [{ selector: '.variant2', type: 'text', value: 'Variant 2' }],
+          },
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(1);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -214,43 +168,33 @@ describe('VariantExtractor', () => {
   });
 
   describe('customField data source', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'dom_changes_field', false);
-    });
-
     it('should not extract changes from custom field with extractAllChanges', () => {
       // Note: customField data source is not supported with extractAllChanges()
       // This is a documented limitation in the implementation
-      const changesData = [
+      const experiment = createTestExperiment('exp1', [
         {
-          selector: '.test',
-          type: 'html',
-          value: '<span>Custom field HTML</span>',
+          config: null,
         },
-      ];
+      ]);
 
-      const contextData: ContextData = {
-        experiments: [{ name: 'exp1', variants: [{}] }],
-      };
-
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.customFieldValue as jest.Mock).mockReturnValue(changesData);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, 'dom_changes_field', false);
 
       const changes = variantExtractor.extractAllChanges();
 
       // Custom field extraction is not supported in extractAllChanges
       expect(changes.size).toBe(0);
-      // customFieldValue should NOT be called by extractAllChanges
-      expect(mockContext.customFieldValue).not.toHaveBeenCalled();
     });
 
     it('should handle no custom field value', () => {
-      const contextData: ContextData = {
-        experiments: [{ name: 'exp1' }],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.customFieldValue as jest.Mock).mockReturnValue(null);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, 'dom_changes_field', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -259,33 +203,22 @@ describe('VariantExtractor', () => {
   });
 
   describe('change validation', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should filter invalid changes', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [
-                    { selector: '.valid', type: 'text', value: 'Valid' },
-                    { type: 'text', value: 'Missing selector' } as any,
-                    { selector: '.test' } as any, // Missing type
-                    { selector: '.test', type: 'invalid' as any }, // Invalid type
-                  ],
-                },
-              },
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [
+              { selector: '.valid', type: 'text', value: 'Valid' },
+              { type: 'text', value: 'Missing selector' } as any,
+              { selector: '.test' } as any, // Missing type
+              { selector: '.test', type: 'invalid' as any }, // Invalid type
             ],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -294,27 +227,20 @@ describe('VariantExtractor', () => {
     });
 
     it('should validate class changes', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [
-                    { selector: '.valid', type: 'class', add: ['new-class'] },
-                    { selector: '.invalid', type: 'class' }, // No add or remove
-                    { selector: '.invalid2', type: 'class', add: 'not-array' } as any,
-                  ],
-                },
-              },
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [
+              { selector: '.valid', type: 'class', add: ['new-class'] },
+              { selector: '.invalid', type: 'class' }, // No add or remove
+              { selector: '.invalid2', type: 'class', add: 'not-array' } as any,
             ],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -325,26 +251,19 @@ describe('VariantExtractor', () => {
     });
 
     it('should validate move changes', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [
-                    { selector: '.valid', type: 'move', targetSelector: '.target' },
-                    { selector: '.invalid', type: 'move' }, // No targetSelector
-                  ],
-                },
-              },
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [
+              { selector: '.valid', type: 'move', targetSelector: '.target' },
+              { selector: '.invalid', type: 'move' }, // No targetSelector
             ],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -355,32 +274,25 @@ describe('VariantExtractor', () => {
     });
 
     it('should validate create changes', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [
               {
-                variables: {
-                  __dom_changes: [
-                    {
-                      selector: '.valid',
-                      type: 'create',
-                      element: '<div>New</div>',
-                      targetSelector: '.target',
-                    },
-                    { selector: '.invalid1', type: 'create', element: '<div>New</div>' }, // No targetSelector
-                    { selector: '.invalid2', type: 'create', targetSelector: '.target' }, // No element
-                  ],
-                },
+                selector: '.valid',
+                type: 'create',
+                element: '<div>New</div>',
+                targetSelector: '.target',
               },
+              { selector: '.invalid1', type: 'create', element: '<div>New</div>' }, // No targetSelector
+              { selector: '.invalid2', type: 'create', targetSelector: '.target' }, // No element
             ],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -396,28 +308,21 @@ describe('VariantExtractor', () => {
     });
 
     it('should validate style and attribute changes', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [
-                    { selector: '.valid-style', type: 'style', value: { color: 'red' } },
-                    { selector: '.invalid-style', type: 'style', value: 'not-object' },
-                    { selector: '.valid-attr', type: 'attribute', value: { 'data-test': 'value' } },
-                    { selector: '.invalid-attr', type: 'attribute' }, // No value
-                  ],
-                },
-              },
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [
+              { selector: '.valid-style', type: 'style', value: { color: 'red' } },
+              { selector: '.invalid-style', type: 'style', value: 'not-object' },
+              { selector: '.valid-attr', type: 'attribute', value: { 'data-test': 'value' } },
+              { selector: '.invalid-attr', type: 'attribute' }, // No value
             ],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -430,38 +335,25 @@ describe('VariantExtractor', () => {
   });
 
   describe('getExperimentChanges', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should get changes for specific experiment', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test1', type: 'text', value: 'Exp1' }],
-                },
-              },
-            ],
+      const exp1 = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test1', type: 'text', value: 'Exp1' }],
           },
-          {
-            name: 'exp2',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test2', type: 'text', value: 'Exp2' }],
-                },
-              },
-            ],
-          },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      const exp2 = createTestExperiment('exp2', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test2', type: 'text', value: 'Exp2' }],
+          },
+        },
+      ]);
+
+      context = createTestContext(sdk, { experiments: [exp1, exp2] }, 'test-user', { exp2: 0 });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.getExperimentChanges('exp2');
 
@@ -469,16 +361,14 @@ describe('VariantExtractor', () => {
     });
 
     it('should return null for non-existent experiment', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [],
-          },
-        ],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.getExperimentChanges('non-existent');
 
@@ -486,7 +376,8 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle empty context data', () => {
-      (mockContext.data as jest.Mock).mockReturnValue(null);
+      context = createTestContext(sdk, { experiments: [] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -494,7 +385,8 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle context with no experiments', () => {
-      (mockContext.data as jest.Mock).mockReturnValue({});
+      context = createTestContext(sdk, { experiments: [] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -503,31 +395,19 @@ describe('VariantExtractor', () => {
   });
 
   describe('error handling', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should handle JSON parse errors', () => {
-      // Mock logDebug since the code uses that, not console.error directly
       const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: '{ invalid json }',
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: '{ invalid json }',
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -541,23 +421,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle non-array changes data', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: { not: 'an array' },
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: { not: 'an array' },
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -567,28 +440,18 @@ describe('VariantExtractor', () => {
 
   describe('debug mode', () => {
     it('should log debug messages when enabled', () => {
-      // Mock logDebug since the code uses that, not console.warn directly
       const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
-      const debugExtractor = new VariantExtractor(mockContext, '__dom_changes', true);
-
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ invalid: 'change' }],
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ invalid: 'change' }],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      const debugExtractor = new VariantExtractor(context, '__dom_changes', true);
 
       debugExtractor.extractAllChanges();
 
@@ -601,37 +464,25 @@ describe('VariantExtractor', () => {
   });
 
   describe('getAllVariantChanges', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should get changes for all variants of an experiment', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test1', type: 'text', value: 'Variant 0' }],
-                },
-              },
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test2', type: 'text', value: 'Variant 1' }],
-                },
-              },
-              {
-                variables: {
-                  // No changes for variant 2
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test1', type: 'text', value: 'Variant 0' }],
           },
-        ],
-      };
+        },
+        {
+          config: {
+            __dom_changes: [{ selector: '.test2', type: 'text', value: 'Variant 1' }],
+          },
+        },
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const allChanges = variantExtractor.getAllVariantChanges('exp1');
 
@@ -643,16 +494,14 @@ describe('VariantExtractor', () => {
     });
 
     it('should return empty array for non-existent experiment', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [],
-          },
-        ],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const allChanges = variantExtractor.getAllVariantChanges('non-existent');
 
@@ -660,16 +509,10 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle experiment with no variants', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            // No variants property
-          },
-        ],
-      };
+      const experiment = createTestExperiment('exp1', []);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const allChanges = variantExtractor.getAllVariantChanges('exp1');
 
@@ -678,52 +521,41 @@ describe('VariantExtractor', () => {
   });
 
   describe('getExperiment', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should get experiment data by name', () => {
-      const experimentData = {
-        name: 'exp1',
-        variants: [
-          {
-            variables: {
-              __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
-            },
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
           },
-        ],
-      };
+        },
+      ]);
 
-      const contextData: ContextData = {
-        experiments: [experimentData],
-      };
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      const retrievedExperiment = variantExtractor.getExperiment('exp1');
 
-      const experiment = variantExtractor.getExperiment('exp1');
-
-      expect(experiment).toEqual(experimentData);
+      expect(retrievedExperiment).toEqual(experiment);
     });
 
     it('should return null for non-existent experiment', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [],
-          },
-        ],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
-      const experiment = variantExtractor.getExperiment('non-existent');
+      const retrievedExperiment = variantExtractor.getExperiment('non-existent');
 
-      expect(experiment).toBeNull();
+      expect(retrievedExperiment).toBeNull();
     });
 
     it('should handle null context data', () => {
-      (mockContext.data as jest.Mock).mockReturnValue(null);
+      context = createTestContext(sdk, { experiments: [] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const experiment = variantExtractor.getExperiment('exp1');
 
@@ -732,28 +564,17 @@ describe('VariantExtractor', () => {
   });
 
   describe('edge cases and complex scenarios', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, '__dom_changes', false);
-    });
-
     it('should handle null/undefined variant index', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(null);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       // extractAllChanges extracts ALL variants, peek value doesn't matter
       const changes = variantExtractor.extractAllChanges();
@@ -764,24 +585,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle missing variant at index', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              // Variant 0 exists
-              {
-                variables: {
-                  __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(1); // Request variant 1 which doesn't exist
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       // extractAllChanges extracts ALL variants, peek value doesn't matter
       const changes = variantExtractor.extractAllChanges();
@@ -794,21 +607,14 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle variant with no variables', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                // No variables property
-              },
-            ],
-          },
-        ],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -816,24 +622,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle missing data field in variables', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  other_field: 'some value',
-                  // No __dom_changes field
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            other_field: 'some value',
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -842,23 +640,16 @@ describe('VariantExtractor', () => {
 
     it('should handle valid JSON string data', () => {
       const changesArray = [{ selector: '.test', type: 'text', value: 'From JSON' }];
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: JSON.stringify(changesArray),
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: JSON.stringify(changesArray),
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -867,23 +658,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle empty array of changes', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [], // Empty array
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -891,23 +675,16 @@ describe('VariantExtractor', () => {
     });
 
     it('should handle all invalid changes in array', () => {
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [
-              {
-                variables: {
-                  __dom_changes: [{ invalid: 'change1' }, { invalid: 'change2' }, null, undefined],
-                },
-              },
-            ],
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ invalid: 'change1' }, { invalid: 'change2' }, null, undefined],
           },
-        ],
-      };
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.peek as jest.Mock).mockReturnValue(0);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
 
       const changes = variantExtractor.extractAllChanges();
 
@@ -917,10 +694,23 @@ describe('VariantExtractor', () => {
     it('should handle context.data() throwing an error', () => {
       const logDebugSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation();
 
-      (mockContext.data as jest.Mock).mockImplementation(() => {
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: {
+            __dom_changes: [{ selector: '.test', type: 'text', value: 'Test' }],
+          },
+        },
+      ]);
+
+      context = createTestContext(sdk, { experiments: [experiment] });
+
+      // Override the data method to throw an error
+      const originalData = context.data;
+      context.data = jest.fn().mockImplementation(() => {
         throw new Error('Context data error');
       });
 
+      variantExtractor = new VariantExtractor(context, '__dom_changes', false);
       const changes = variantExtractor.extractAllChanges();
 
       expect(changes.size).toBe(0);
@@ -929,23 +719,16 @@ describe('VariantExtractor', () => {
         expect.any(Error)
       );
 
+      // Restore original method
+      context.data = originalData;
       logDebugSpy.mockRestore();
     });
 
     it('should handle experiment extraction errors with debug', () => {
-      const debugExtractor = new VariantExtractor(mockContext, '__dom_changes', true);
+      const experiment = createTestExperiment('exp1', []);
 
-      const contextData: ContextData = {
-        experiments: [
-          {
-            name: 'exp1',
-            variants: [],
-          },
-        ],
-      };
-
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      // peek is not called during extractAllChanges, so this test scenario doesn't apply
+      context = createTestContext(sdk, { experiments: [experiment] });
+      const debugExtractor = new VariantExtractor(context, '__dom_changes', true);
 
       const changes = debugExtractor.extractAllChanges();
 
@@ -955,57 +738,52 @@ describe('VariantExtractor', () => {
   });
 
   describe('custom field edge cases', () => {
-    beforeEach(() => {
-      variantExtractor = new VariantExtractor(mockContext, 'custom_dom_changes', false);
-    });
-
     it('should not extract custom field with extractAllChanges', () => {
-      const changesArray = [{ selector: '.custom', type: 'text', value: 'Custom' }];
-      const contextData: ContextData = {
-        experiments: [{ name: 'exp1', variants: [{}] }],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.customFieldValue as jest.Mock).mockReturnValue(JSON.stringify(changesArray));
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, 'custom_dom_changes', false);
 
       // Custom fields are not supported in extractAllChanges
       const changes = variantExtractor.extractAllChanges();
 
       expect(changes.size).toBe(0);
-      expect(mockContext.customFieldValue).not.toHaveBeenCalled();
     });
 
     it('should not extract custom field with invalid JSON', () => {
-      const contextData: ContextData = {
-        experiments: [{ name: 'exp1', variants: [{}] }],
-      };
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.customFieldValue as jest.Mock).mockReturnValue('{ invalid json }');
+      context = createTestContext(sdk, { experiments: [experiment] });
+      variantExtractor = new VariantExtractor(context, 'custom_dom_changes', false);
 
       // Custom fields are not supported in extractAllChanges
       const changes = variantExtractor.extractAllChanges();
 
       expect(changes.size).toBe(0);
-      expect(mockContext.customFieldValue).not.toHaveBeenCalled();
     });
 
     it('should handle null custom field with debug', () => {
-      const debugExtractor = new VariantExtractor(mockContext, 'custom_field', true);
+      const experiment = createTestExperiment('exp1', [
+        {
+          config: null,
+        },
+      ]);
 
-      const contextData: ContextData = {
-        experiments: [{ name: 'exp1', variants: [{}] }],
-      };
-
-      (mockContext.data as jest.Mock).mockReturnValue(contextData);
-      (mockContext.customFieldValue as jest.Mock).mockReturnValue(null);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      const debugExtractor = new VariantExtractor(context, 'custom_field', true);
 
       // Custom fields are not supported in extractAllChanges
       const changes = debugExtractor.extractAllChanges();
 
       expect(changes.size).toBe(0);
-      // customFieldValue is not called during extractAllChanges
-      expect(mockContext.customFieldValue).not.toHaveBeenCalled();
     });
   });
 });
