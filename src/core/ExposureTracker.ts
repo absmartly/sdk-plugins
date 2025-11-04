@@ -413,7 +413,7 @@ export class ExposureTracker {
     if (!experiment || experiment.triggered) return;
 
     // Ensure context is ready before calling treatment
-    await (this.context as any).ready();
+    await this.context.ready();
     // Call treatment to trigger exposure
     this.context.treatment(experimentName);
     experiment.triggered = true;

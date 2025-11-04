@@ -1,5 +1,5 @@
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import { MockContextFactory } from '../../__tests__/test-utils';
+import { createTreatmentTracker } from '../../__tests__/sdk-helper';
 import { ExperimentData } from '../../types';
 
 /**
@@ -118,27 +118,6 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
 
     intersectionObserverCallback([updatedEntry], {} as IntersectionObserver);
     await new Promise(resolve => setTimeout(resolve, 10));
-  }
-
-  function createTreatmentTracker(
-    experiments: ExperimentData[],
-    assignedVariants: Record<string, number>
-  ) {
-    const treatmentSpy = jest.fn();
-    const mockContext = MockContextFactory.create(experiments);
-
-    (mockContext.peek as jest.Mock).mockImplementation(
-      (expName: string) => assignedVariants[expName] ?? 0
-    );
-
-    (mockContext.ready as jest.Mock).mockResolvedValue(undefined);
-
-    (mockContext.treatment as jest.Mock).mockImplementation((expName: string) => {
-      treatmentSpy(expName);
-      return assignedVariants[expName] ?? 0;
-    });
-
-    return { mockContext, treatmentSpy };
   }
 
   describe('Category 1: One Empty Variant + One With Changes (Core SRM Cases)', () => {

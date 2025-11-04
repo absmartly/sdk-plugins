@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import { MockContextFactory, TestDataFactory } from '../../__tests__/test-utils';
+import { TestDataFactory } from '../../__tests__/test-utils';
+import { createTreatmentTracker } from '../../__tests__/sdk-helper';
+import { extractVariantOverrides } from '../../__tests__/fixtures';
 import { DOMChange, ExperimentData, DOMChangesConfig } from '../../types';
 
 describe('DOMChangesPluginLite - URL Filtering', () => {
@@ -55,25 +57,6 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
   function setTestURL(url: string): void {
     delete (window as any).location;
     window.location = { href: url } as any;
-  }
-
-  function createTreatmentTracker(
-    experiments: ExperimentData[],
-    assignedVariants: Record<string, number>
-  ) {
-    const treatmentSpy = jest.fn();
-    const mockContext = MockContextFactory.create(experiments);
-
-    (mockContext.peek as jest.Mock).mockImplementation(
-      (expName: string) => assignedVariants[expName] ?? 0
-    );
-
-    (mockContext.treatment as jest.Mock).mockImplementation((expName: string) => {
-      treatmentSpy(expName);
-      return assignedVariants[expName] ?? 0;
-    });
-
-    return { mockContext, treatmentSpy };
   }
 
   describe('SRM Prevention - Single Variant with URL Filter', () => {
@@ -802,9 +785,11 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
 
   describe('Mixed experiments (with and without URL filters)', () => {
     it('should track all experiments without URL filters and only matching ones with filters', async () => {
-      const exp1 = TestDataFactory.createExperiment('no_filter_exp', [
-        { selector: '.test1', type: 'text', value: 'NoFilter' },
-      ]);
+      const exp1 = TestDataFactory.createExperiment(
+        'no_filter_exp',
+        [{ selector: '.test1', type: 'text', value: 'NoFilter' }],
+        1 // Variant 1 has the changes
+      );
 
       const exp2 = createExperimentWithURLFilters({
         experimentName: 'with_filter_exp',
@@ -827,11 +812,16 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
       });
 
       setTestURL('https://example.com/products/123');
-      const { mockContext, treatmentSpy } = createTreatmentTracker([exp1, exp2, exp3], {
-        no_filter_exp: 0,
-        with_filter_exp: 0,
-        non_matching_exp: 0,
-      });
+
+      // Extract variant overrides from exp1 which has _testVariantIndex
+      const overrides = extractVariantOverrides([exp1]);
+      // Merge with exp2 and exp3 which use variant 0
+      const allOverrides = { ...overrides, with_filter_exp: 0, non_matching_exp: 0 };
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker(
+        [exp1, exp2, exp3],
+        allOverrides
+      );
       document.body.innerHTML =
         '<div class="test1">Test1</div><div class="test2">Test2</div><div class="test3">Test3</div>';
 

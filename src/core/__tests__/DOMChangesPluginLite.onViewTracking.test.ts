@@ -1,5 +1,7 @@
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import { MockContextFactory } from '../../__tests__/test-utils';
+import { TestDataFactory } from '../../__tests__/test-utils';
+import { createTreatmentTracker } from '../../__tests__/sdk-helper';
+import { extractVariantOverrides } from '../../__tests__/fixtures';
 import { ExperimentData } from '../../types';
 
 describe('DOMChangesPluginLite - On-View Tracking', () => {
@@ -97,27 +99,6 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
     intersectionObserverCallback([updatedEntry], {} as IntersectionObserver);
 
     await new Promise(resolve => setTimeout(resolve, 10));
-  }
-
-  function createTreatmentTracker(
-    experiments: ExperimentData[],
-    assignedVariants: Record<string, number>
-  ) {
-    const treatmentSpy = jest.fn();
-    const mockContext = MockContextFactory.create(experiments);
-
-    (mockContext.peek as jest.Mock).mockImplementation(
-      (expName: string) => assignedVariants[expName] ?? 0
-    );
-
-    (mockContext.ready as jest.Mock).mockResolvedValue(undefined);
-
-    (mockContext.treatment as jest.Mock).mockImplementation((expName: string) => {
-      treatmentSpy(expName);
-      return assignedVariants[expName] ?? 0;
-    });
-
-    return { mockContext, treatmentSpy };
   }
 
   function findPlaceholders(experimentName: string): HTMLElement[] {
@@ -444,29 +425,18 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
     });
 
     it('should track moved element when user is in variant with move change', async () => {
-      const experiment: ExperimentData = {
-        name: 'move_user_test',
-        variants: [
-          { variables: { __dom_changes: [] } },
-          {
-            variables: {
-              __dom_changes: [
-                {
-                  selector: '.item',
-                  type: 'move',
-                  targetSelector: '.target-container',
-                  position: 'firstChild',
-                  trigger_on_view: true,
-                },
-              ],
-            },
-          },
-        ],
+      const moveChange = {
+        selector: '.item',
+        type: 'move' as const,
+        targetSelector: '.target-container',
+        position: 'firstChild' as const,
+        trigger_on_view: true,
       };
 
-      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
-        move_user_test: 1,
-      });
+      const experiment = TestDataFactory.createExperiment('move_user_test', [moveChange], 1);
+
+      const overrides = extractVariantOverrides([experiment]);
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], overrides);
       document.body.innerHTML = `
         <div class="original-container">
           <div class="item">Item</div>
