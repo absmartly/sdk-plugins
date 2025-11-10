@@ -15,7 +15,7 @@ describe('Integration: DOMChangesPlugin with OverridesPlugin', () => {
   let overridesPlugin: OverridesPlugin;
   let context: ABsmartlyContext;
   let sdk: typeof SDK.prototype;
-  let cookieStore: { [key: string]: string} = {};
+  let cookieStore: { [key: string]: string } = {};
 
   beforeEach(() => {
     // Reset fetch mock

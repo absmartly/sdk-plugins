@@ -56,6 +56,7 @@ export interface DOMChange {
 
   // For style persistence (frameworks like React overwriting styles)
   persistStyle?: boolean; // If true, watch for style changes and reapply when overwritten (auto-enabled in SPA mode)
+  persistAttribute?: boolean; // If true, watch for attribute changes and reapply when overwritten
 
   // For exposure tracking
   trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport

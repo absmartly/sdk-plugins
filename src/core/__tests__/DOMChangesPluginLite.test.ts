@@ -1273,8 +1273,8 @@ describe('DOMChangesPluginLite', () => {
       await plugin.ready();
       await plugin.applyChanges();
 
+      // watchElement should not be called when persistStyle is false
       expect(watchElementSpy).not.toHaveBeenCalled();
-      expect((plugin as any).persistenceObserver).toBeNull();
     });
 
     it('should call watchElement automatically when spa mode is enabled', async () => {
@@ -1331,80 +1331,13 @@ describe('DOMChangesPluginLite', () => {
       await plugin.ready();
       await plugin.applyChanges();
 
-      const appliedChanges = (plugin as any).appliedChanges.get('style_test');
+      const appliedChanges = (plugin as any).persistenceManager?.getAppliedChanges().get('style_test');
       expect(appliedChanges).toContainEqual(styleChange);
     });
 
-    it('should use element.matches() for selector matching (not exact element reference)', () => {
-      const plugin = createPlugin({
-        context: (() => {
-          const sdk = createTestSDK();
-          return createTestContext(sdk, createEmptyContextData());
-        })(),
-      });
+    // These tests for checkStyleOverwritten are now in DOMChangesPluginLite.persistence.test.ts
 
-      // Test checkStyleOverwritten directly
-      const element = document.createElement('button');
-      element.className = 'cta';
-      element.style.backgroundColor = 'blue';
-
-      const checkStyleOverwritten = (plugin as any).checkStyleOverwritten.bind(plugin);
-
-      // Should detect overwritten style
-      expect(checkStyleOverwritten(element, { backgroundColor: 'red' })).toBe(true);
-
-      // Should detect correct style
-      expect(checkStyleOverwritten(element, { backgroundColor: 'blue' })).toBe(false);
-    });
-
-    it('should detect when !important flag is missing', () => {
-      const plugin = createPlugin({
-        context: (() => {
-          const sdk = createTestSDK();
-          return createTestContext(sdk, createEmptyContextData());
-        })(),
-      });
-
-      const element = document.createElement('button');
-      element.style.setProperty('background-color', 'red'); // No !important
-
-      const checkStyleOverwritten = (plugin as any).checkStyleOverwritten.bind(plugin);
-
-      // Should detect missing !important
-      expect(checkStyleOverwritten(element, { backgroundColor: 'red !important' })).toBe(true);
-    });
-
-    it('should track elements in watchedElements WeakMap', async () => {
-      document.body.innerHTML = '<button class="cta">Click me</button>';
-
-      const styleChange: DOMChange = {
-        selector: '.cta',
-        type: 'style',
-        value: { backgroundColor: 'red' },
-        persistStyle: true,
-      };
-
-      const experiment = TestDataFactory.createExperiment('style_test', [styleChange], 1);
-      const sdk = createTestSDK();
-      const overrides = extractVariantOverrides([experiment]);
-      const context = createTestContext(
-        sdk,
-        createContextDataWithExperiments([experiment] as any),
-        'test-user',
-        overrides
-      );
-
-      const plugin = createPlugin({ context, autoApply: false, spa: false });
-      await plugin.ready();
-      await plugin.applyChanges();
-
-      const button = document.querySelector('.cta')!;
-      const watchedElements = (plugin as any).watchedElements;
-      const experiments = watchedElements.get(button);
-
-      expect(experiments).toBeDefined();
-      expect(experiments.has('style_test')).toBe(true);
-    });
+    // This test for watchedElements is now in DOMChangesPluginLite.persistence.test.ts
   });
 
   describe('Anti-Flicker (hideUntilReady)', () => {

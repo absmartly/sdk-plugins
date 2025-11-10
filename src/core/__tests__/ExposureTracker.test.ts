@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ExposureTracker } from '../ExposureTracker';
 import { ABsmartlyContext, DOMChange } from '../../types';
+import { createTestSDK, createTestContext, createEventCapture } from '../../__tests__/sdk-helper';
+import { createEmptyContextData } from '../../__tests__/fixtures';
+import type { CapturedEvent } from '../../__tests__/sdk-helper';
 
 describe('ExposureTracker', () => {
   let tracker: ExposureTracker;
   let mockContext: ABsmartlyContext;
-  let treatmentMock: jest.Mock;
+  let exposureEvents: CapturedEvent[];
 
   // Helper to calculate trigger flags from all variant changes
   const calculateTriggerFlags = (allVariantChanges: DOMChange[][]) => {
@@ -27,16 +30,12 @@ describe('ExposureTracker', () => {
 
   beforeEach(() => {
     document.body.innerHTML = '';
-    treatmentMock = jest.fn();
-
-    mockContext = {
-      ready: jest.fn().mockResolvedValue(undefined),
-      treatment: treatmentMock,
-      peek: jest.fn().mockReturnValue(1),
-      data: jest.fn().mockReturnValue({}),
-      override: jest.fn(),
-      customFieldValue: jest.fn().mockReturnValue(null),
-    } as any;
+    
+    const { events, eventLogger } = createEventCapture('exposure');
+    exposureEvents = events;
+    
+    const sdk = createTestSDK(eventLogger);
+    mockContext = createTestContext(sdk, createEmptyContextData());
 
     tracker = new ExposureTracker(mockContext, false);
   });
@@ -73,7 +72,8 @@ describe('ExposureTracker', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       // Should trigger immediately
-      expect(treatmentMock).toHaveBeenCalledWith('exp1');
+      expect(exposureEvents).toHaveLength(1);
+      expect((exposureEvents[0].data as any).name).toBe('exp1');
     });
 
     it('should NOT trigger exposure immediately for changes with trigger_on_view', () => {
@@ -99,7 +99,7 @@ describe('ExposureTracker', () => {
       );
 
       // Should NOT trigger immediately
-      expect(treatmentMock).not.toHaveBeenCalled();
+      expect(exposureEvents).toHaveLength(0);
     });
 
     it('should trigger exposure immediately when ANY variant has immediate triggers (cross-variant tracking)', async () => {
@@ -135,7 +135,7 @@ describe('ExposureTracker', () => {
 
       // Should trigger immediately even though current variant has no changes
       // because another variant has an immediate trigger
-      expect(treatmentMock).toHaveBeenCalledWith('exp1');
+      expect(exposureEvents.some(e => (e.data as any).name === 'exp1')).toBe(true);
     });
 
     it('should track all variant selectors for viewport changes', () => {
@@ -253,7 +253,7 @@ describe('ExposureTracker', () => {
       );
 
       // Initially not triggered
-      expect(treatmentMock).not.toHaveBeenCalled();
+      expect(exposureEvents).toHaveLength(0);
 
       // Simulate element becoming visible
       // Note: IntersectionObserver is mocked in tests, so we'd need to trigger it manually
@@ -506,7 +506,7 @@ describe('ExposureTracker', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       // Should trigger immediately because at least one change is immediate
-      expect(treatmentMock).toHaveBeenCalledWith('exp1');
+      expect(exposureEvents.some(e => (e.data as any).name === 'exp1')).toBe(true);
     });
   });
 
@@ -553,9 +553,9 @@ describe('ExposureTracker', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       // exp2 should trigger immediately, exp1 should not
-      expect(treatmentMock).toHaveBeenCalledTimes(1);
-      expect(treatmentMock).toHaveBeenCalledWith('exp2');
-      expect(treatmentMock).not.toHaveBeenCalledWith('exp1');
+      expect(exposureEvents).toHaveLength(1);
+      expect(exposureEvents.some(e => (e.data as any).name === 'exp2')).toBe(true);
+      expect(exposureEvents.some(e => (e.data as any).name === 'exp1')).toBe(false);
     });
   });
 
@@ -585,7 +585,7 @@ describe('ExposureTracker', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       // Check if treatment was called (should be immediate trigger)
-      expect(treatmentMock).toHaveBeenCalledWith('exp1');
+      expect(exposureEvents.some(e => (e.data as any).name === 'exp1')).toBe(true);
 
       // After triggering, experiment should be cleaned up but still marked as triggered
       // isTriggered returns true so tests can verify the experiment was triggered
@@ -643,7 +643,7 @@ describe('ExposureTracker', () => {
       );
 
       // Should not crash and should not trigger
-      expect(treatmentMock).not.toHaveBeenCalled();
+      expect(exposureEvents).toHaveLength(0);
     });
 
     it('should handle missing targetSelector in move changes', () => {
@@ -694,7 +694,7 @@ describe('ExposureTracker', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       // Should trigger immediately by default
-      expect(treatmentMock).toHaveBeenCalledWith('exp1');
+      expect(exposureEvents.some(e => (e.data as any).name === 'exp1')).toBe(true);
     });
   });
 });

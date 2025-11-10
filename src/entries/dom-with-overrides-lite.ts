@@ -5,6 +5,7 @@
 import { DOMChangesPluginLite } from '../core/DOMChangesPluginLite';
 import { OverridesPluginLite } from '../overrides/OverridesPluginLite';
 import { CookiePlugin } from '../cookies/CookiePlugin';
+import { DOMPersistenceManager } from '../utils/persistence';
 
 // Re-export types
 export * from '../types';
@@ -15,6 +16,9 @@ export type { CookieOptions } from '../cookies/cookieUtils';
 // Export the plugins
 export { DOMChangesPluginLite, OverridesPluginLite, CookiePlugin };
 export { DOMChangesPluginLite as DOMChangesPlugin }; // Alias for backward compatibility
+
+// Export persistence utility
+export { DOMPersistenceManager };
 
 // Export cookie utilities
 export {
