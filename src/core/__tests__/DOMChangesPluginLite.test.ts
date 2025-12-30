@@ -1331,7 +1331,9 @@ describe('DOMChangesPluginLite', () => {
       await plugin.ready();
       await plugin.applyChanges();
 
-      const appliedChanges = (plugin as any).persistenceManager?.getAppliedChanges().get('style_test');
+      const appliedChanges = (plugin as any).persistenceManager
+        ?.getAppliedChanges()
+        .get('style_test');
       expect(appliedChanges).toContainEqual(styleChange);
     });
 

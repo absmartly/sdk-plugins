@@ -39,7 +39,7 @@ export interface OverridesPluginConfig {
 
   // Query string configuration
   useQueryString?: boolean; // Default: true if in browser
-  queryPrefix?: string; // Prefix for experiment query params (default: '_exp_')
+  queryPrefix?: string; // Prefix for experiment query params (default: 'exp_')
   envParam?: string; // Query param for environment (default: 'env')
   persistQueryToCookie?: boolean; // Save query params to cookie (default: false)
 

@@ -98,12 +98,12 @@ describe('OverridesPluginLite', () => {
     });
 
     it('should apply query string overrides', async () => {
-      (window as any).location = new URL('http://localhost?_exp_test=2&_exp_another=1');
+      (window as any).location = new URL('http://localhost?exp_test=2&exp_another=1');
 
       const plugin = new OverridesPluginLite({
         context: mockContext,
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
       });
 
       await plugin.initialize();
@@ -114,13 +114,13 @@ describe('OverridesPluginLite', () => {
 
     it('should prefer query string over cookies', async () => {
       document.cookie = 'test_overrides=exp1:0';
-      (window as any).location = new URL('http://localhost?_exp_exp1=2');
+      (window as any).location = new URL('http://localhost?exp_exp1=2');
 
       const plugin = new OverridesPluginLite({
         context: mockContext,
         cookieName: 'test_overrides',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
       });
 
       await plugin.initialize();

@@ -38,7 +38,7 @@ export class OverridesPluginLite {
       context: config.context,
       cookieName: config.cookieName ?? 'absmartly_overrides',
       useQueryString: config.useQueryString ?? true,
-      queryPrefix: config.queryPrefix ?? '_exp_',
+      queryPrefix: config.queryPrefix ?? 'exp_',
       persistQueryToCookie: config.persistQueryToCookie ?? false,
       debug: config.debug ?? false,
     };

@@ -82,7 +82,7 @@ export class OverridesPlugin extends OverridesPluginLite {
       context: config.context,
       cookieName: config.cookieName,
       useQueryString: config.useQueryString ?? typeof window !== 'undefined',
-      queryPrefix: config.queryPrefix ?? '_exp_',
+      queryPrefix: config.queryPrefix ?? 'exp_',
       persistQueryToCookie: config.persistQueryToCookie ?? false,
       debug: config.debug ?? false,
     });
@@ -132,7 +132,7 @@ export class OverridesPlugin extends OverridesPluginLite {
       cookieAdapter: config.cookieAdapter,
       cookieOptions: config.cookieOptions ?? { path: '/' },
       useQueryString: config.useQueryString ?? !this.isServerSide,
-      queryPrefix: config.queryPrefix ?? '_exp_',
+      queryPrefix: config.queryPrefix ?? 'exp_',
       envParam: config.envParam ?? 'env',
       persistQueryToCookie: config.persistQueryToCookie ?? false,
       url: config.url,

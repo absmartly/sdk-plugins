@@ -1,6 +1,9 @@
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
 import { createTestSDK, createTestContext } from '../../__tests__/sdk-helper';
-import { createContextDataWithExperiments, extractVariantOverrides } from '../../__tests__/fixtures';
+import {
+  createContextDataWithExperiments,
+  extractVariantOverrides,
+} from '../../__tests__/fixtures';
 import { TestDataFactory } from '../../__tests__/test-utils';
 import type { DOMChange } from '../../types';
 

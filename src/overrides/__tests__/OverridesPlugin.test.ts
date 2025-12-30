@@ -219,10 +219,10 @@ describe('OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
       });
 
-      window.location.search = '?_exp_button_color=1&_exp_hero_title=0';
+      window.location.search = '?exp_button_color=1&exp_hero_title=0';
       await plugin.initialize();
 
       expect(mockContext.override).toHaveBeenCalledWith('button_color', 1);
@@ -234,10 +234,10 @@ describe('OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
       });
 
-      window.location.search = '?_exp_test1=1,1&_exp_test2=2,2,12345';
+      window.location.search = '?exp_test1=1,1&exp_test2=2,2,12345';
       await plugin.initialize();
 
       expect(mockContext.override).toHaveBeenCalledWith('test1', 1);
@@ -249,11 +249,11 @@ describe('OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
         envParam: 'env',
       });
 
-      window.location.search = '?env=staging&_exp_exp1=1,1&_exp_exp2=0,1';
+      window.location.search = '?env=staging&exp_exp1=1,1&exp_exp2=0,1';
 
       // Mock SDK dev endpoint response
       (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -292,12 +292,12 @@ describe('OverridesPlugin', () => {
         sdkEndpoint: 'https://demo-2.absmartly.io',
         cookieName: 'absmartly_overrides',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
       });
 
       // Set both cookie and query string with same experiment
       cookieStore['absmartly_overrides'] = 'test_exp:0';
-      window.location.search = '?_exp_test_exp=1';
+      window.location.search = '?exp_test_exp=1';
 
       await plugin.initialize();
 
@@ -315,7 +315,7 @@ describe('OverridesPlugin', () => {
       });
 
       cookieStore['absmartly_overrides'] = 'cookie_exp:2';
-      window.location.search = '?_exp_query_exp=1'; // Should be ignored
+      window.location.search = '?exp_query_exp=1'; // Should be ignored
 
       await plugin.initialize();
 
@@ -331,7 +331,7 @@ describe('OverridesPlugin', () => {
         queryPrefix: 'test_',
       });
 
-      window.location.search = '?test_custom=1&_exp_ignored=2';
+      window.location.search = '?test_custom=1&exp_ignored=2';
       await plugin.initialize();
 
       expect(mockContext.override).toHaveBeenCalledWith('custom', 1);
@@ -343,10 +343,10 @@ describe('OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
       });
 
-      window.location.search = '?other=value&_exp_exp1=1&another=param';
+      window.location.search = '?other=value&exp_exp1=1&another=param';
       await plugin.initialize();
 
       expect(mockContext.override).toHaveBeenCalledWith('exp1', 1);
@@ -360,11 +360,11 @@ describe('OverridesPlugin', () => {
         sdkEndpoint: 'https://demo-2.absmartly.io',
         cookieName: 'absmartly_overrides',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
         persistQueryToCookie: true,
       });
 
-      window.location.search = '?_exp_test=1';
+      window.location.search = '?exp_test=1';
       await plugin.initialize();
 
       expect(mockContext.override).toHaveBeenCalledWith('test', 1);
@@ -380,12 +380,12 @@ describe('OverridesPlugin', () => {
         context: mockContext,
         sdkEndpoint: 'https://demo-2.absmartly.io',
         useQueryString: true,
-        queryPrefix: '_exp_',
+        queryPrefix: 'exp_',
         // No cookieName provided
       });
 
       cookieStore['absmartly_overrides'] = 'should_be_ignored:1';
-      window.location.search = '?_exp_test=2';
+      window.location.search = '?exp_test=2';
       await plugin.initialize();
 
       expect(mockContext.override).toHaveBeenCalledWith('test', 2);

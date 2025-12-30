@@ -30,10 +30,10 @@ describe('ExposureTracker', () => {
 
   beforeEach(() => {
     document.body.innerHTML = '';
-    
+
     const { events, eventLogger } = createEventCapture('exposure');
     exposureEvents = events;
-    
+
     const sdk = createTestSDK(eventLogger);
     mockContext = createTestContext(sdk, createEmptyContextData());
 

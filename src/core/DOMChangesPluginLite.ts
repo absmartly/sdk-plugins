@@ -116,8 +116,12 @@ export class DOMChangesPluginLite {
 
     try {
       if (this.config.spa) {
+        // SPA mode: observe body for React/Vue hydration recovery
+        // and listen for URL changes to re-apply changes on navigation
         this.setupMutationObserver();
         this.setupURLChangeListener();
+      } else {
+        logDebug('[DOMChangesPluginLite] SPA mode disabled - skipping body observer');
       }
 
       if (this.config.autoApply) {
@@ -194,12 +198,30 @@ export class DOMChangesPluginLite {
       });
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    // Wait for document.body to exist before observing
+    // This prevents "parameter 1 is not of type 'Node'" errors when SDK loads in <head>
+    const startObserving = () => {
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      this.mutationObserver = observer;
+      logDebug('[DOMChangesPluginLite] MutationObserver started on document.body');
+    };
 
-    this.mutationObserver = observer;
+    if (document.body) {
+      startObserving();
+    } else {
+      // Use MutationObserver on documentElement to detect when body is added
+      const bodyObserver = new MutationObserver((_mutations, obs) => {
+        if (document.body) {
+          obs.disconnect();
+          startObserving();
+        }
+      });
+      bodyObserver.observe(document.documentElement, { childList: true });
+      logDebug('[DOMChangesPluginLite] Waiting for document.body...');
+    }
   }
 
   /**
