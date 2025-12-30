@@ -4,6 +4,9 @@
  * without requiring the full OverridesPlugin class
  */
 
+export const DEFAULT_OVERRIDE_COOKIE_NAME = 'absmartly_overrides';
+export const DEFAULT_OVERRIDE_QUERY_PREFIX = 'exp_';
+
 export interface SimpleOverride {
   variant: number;
   env?: number;
@@ -18,11 +21,11 @@ export interface OverrideOptions {
 
 /**
  * Parse query string parameters for experiment overrides
- * @param queryPrefix - Prefix for experiment parameters (e.g., '_exp_')
+ * @param queryPrefix - Prefix for experiment parameters (default: DEFAULT_OVERRIDE_QUERY_PREFIX)
  * @param searchParams - Optional URLSearchParams instance (defaults to window.location.search)
  */
 export function getQueryStringOverrides(
-  queryPrefix: string = '_exp_',
+  queryPrefix: string = DEFAULT_OVERRIDE_QUERY_PREFIX,
   searchParams?: URLSearchParams
 ): Record<string, number | SimpleOverride> {
   if (typeof window === 'undefined' && !searchParams) {
@@ -108,14 +111,19 @@ export function parseOverrideCookie(value: string): Record<string, number | Simp
 
 /**
  * Get experiment overrides from cookie
+ * @param cookieName - Name of the cookie to read (default: DEFAULT_OVERRIDE_COOKIE_NAME)
+ * @param cookieHeader - Optional cookie header string (for server-side use). If not provided, uses document.cookie
  */
 export function getCookieOverrides(
-  cookieName: string = 'absmartly_overrides'
+  cookieName: string = DEFAULT_OVERRIDE_COOKIE_NAME,
+  cookieHeader?: string
 ): Record<string, number | SimpleOverride> {
-  if (typeof document === 'undefined') return {};
+  // Use provided cookie header or fall back to document.cookie
+  const cookieString = cookieHeader ?? (typeof document !== 'undefined' ? document.cookie : '');
+  if (!cookieString) return {};
 
   const nameEQ = cookieName + '=';
-  const cookies = document.cookie.split(';');
+  const cookies = cookieString.split(';');
 
   for (let cookie of cookies) {
     cookie = cookie.trim();
@@ -158,7 +166,7 @@ export function persistOverridesToCookie(
 ): void {
   if (typeof document === 'undefined') return;
 
-  const cookieName = options.cookieName || 'absmartly_overrides';
+  const cookieName = options.cookieName || DEFAULT_OVERRIDE_COOKIE_NAME;
   const maxAge = options.maxAge || 86400; // 1 day default
 
   const cookieValue = serializeOverrides(overrides);
@@ -169,32 +177,36 @@ export function persistOverridesToCookie(
  * Get experiment overrides from query string or cookie
  * Returns normalized Record<string, number> for use with SDK createContext
  *
- * @param cookieName - Name of the cookie to read/write (default: 'absmartly_overrides')
- * @param queryPrefix - Prefix for query string parameters (default: '_exp_')
+ * @param cookieName - Name of the cookie to read/write (default: DEFAULT_OVERRIDE_COOKIE_NAME)
+ * @param queryPrefix - Prefix for query string parameters (default: DEFAULT_OVERRIDE_QUERY_PREFIX)
  * @param searchParams - Optional URLSearchParams instance (defaults to window.location.search)
+ * @param cookieHeader - Optional cookie header string (for server-side use). If not provided, uses document.cookie
  * @returns Normalized overrides as Record<string, number>
  */
 export function getOverrides(
-  cookieName: string = 'absmartly_overrides',
-  queryPrefix: string = '_exp_',
-  searchParams?: URLSearchParams
+  cookieName: string = DEFAULT_OVERRIDE_COOKIE_NAME,
+  queryPrefix: string = DEFAULT_OVERRIDE_QUERY_PREFIX,
+  searchParams?: URLSearchParams,
+  cookieHeader?: string
 ): Record<string, number> {
   // Try query string first
   const queryOverrides = getQueryStringOverrides(queryPrefix, searchParams);
 
   if (Object.keys(queryOverrides).length > 0) {
-    // Persist query overrides to cookie
-    persistOverridesToCookie(queryOverrides, {
-      cookieName,
-      maxAge: 86400, // 1 day
-    });
+    // Persist query overrides to cookie (only in browser)
+    if (typeof document !== 'undefined') {
+      persistOverridesToCookie(queryOverrides, {
+        cookieName,
+        maxAge: 86400, // 1 day
+      });
+    }
 
     // Normalize to Record<string, number>
     return normalizeOverrides(queryOverrides);
   }
 
   // Fall back to cookie
-  const cookieOverrides = getCookieOverrides(cookieName);
+  const cookieOverrides = getCookieOverrides(cookieName, cookieHeader);
   return normalizeOverrides(cookieOverrides);
 }
 

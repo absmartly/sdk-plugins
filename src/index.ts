@@ -35,6 +35,8 @@ export {
 
 // Export override utilities
 export {
+  DEFAULT_OVERRIDE_COOKIE_NAME,
+  DEFAULT_OVERRIDE_QUERY_PREFIX,
   getQueryStringOverrides,
   parseOverrideCookie,
   getCookieOverrides,
