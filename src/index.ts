@@ -3,10 +3,12 @@ import { OverridesPlugin } from './overrides/OverridesPlugin';
 import { BrowserCookieAdapter } from './overrides/BrowserCookieAdapter';
 import { CookiePlugin } from './cookies/CookiePlugin';
 import { WebVitalsPlugin } from './vitals/WebVitalsPlugin';
+import { URLRedirectPlugin } from './url-redirect/URLRedirectPlugin';
 
 // Re-export types for convenience
 export * from './types';
 export * from './overrides/types';
+export * from './url-redirect/types';
 export type { CookiePluginOptions } from './cookies/CookiePlugin';
 export type { CookieOptions } from './cookies/cookieUtils';
 export type { WebVitalsPluginOptions, Metric } from './vitals/WebVitalsPlugin';
@@ -21,6 +23,7 @@ export {
   BrowserCookieAdapter,
   CookiePlugin,
   WebVitalsPlugin,
+  URLRedirectPlugin,
 };
 
 // Export cookie utilities
@@ -45,6 +48,10 @@ export {
   getOverrides,
 } from './overrides/overridesUtils';
 export type { SimpleOverride, OverrideOptions } from './overrides/overridesUtils';
+
+// Export URL redirect utilities
+export { URLRedirectExtractor } from './url-redirect/URLRedirectExtractor';
+export { URLRedirectMatcher } from './url-redirect/URLRedirectMatcher';
 
 // Default export for UMD builds (backward compatibility)
 export default DOMChangesPluginLite;
