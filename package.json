@@ -6,6 +6,62 @@
   "module": "es/index.js",
   "browser": "dist/absmartly-sdk-plugins.min.js",
   "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./types/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    },
+    "./dom-changes": {
+      "source": "./src/core/DOMChangesPluginLite.ts",
+      "types": "./types/core/DOMChangesPluginLite.d.ts",
+      "import": "./es/core/DOMChangesPluginLite.js",
+      "require": "./lib/core/DOMChangesPluginLite.js"
+    },
+    "./cookie": {
+      "source": "./src/cookies/CookiePlugin.ts",
+      "types": "./types/cookies/CookiePlugin.d.ts",
+      "import": "./es/cookies/CookiePlugin.js",
+      "require": "./lib/cookies/CookiePlugin.js"
+    },
+    "./web-vitals": {
+      "source": "./src/vitals/WebVitalsPlugin.ts",
+      "types": "./types/vitals/WebVitalsPlugin.d.ts",
+      "import": "./es/vitals/WebVitalsPlugin.js",
+      "require": "./lib/vitals/WebVitalsPlugin.js"
+    },
+    "./overrides": {
+      "source": "./src/overrides/overridesUtils.ts",
+      "types": "./types/overrides/overridesUtils.d.ts",
+      "import": "./es/overrides/overridesUtils.js",
+      "require": "./lib/overrides/overridesUtils.js"
+    },
+    "./url-redirect": {
+      "source": "./src/url-redirect/URLRedirectPlugin.ts",
+      "types": "./types/url-redirect/URLRedirectPlugin.d.ts",
+      "import": "./es/url-redirect/URLRedirectPlugin.js",
+      "require": "./lib/url-redirect/URLRedirectPlugin.js"
+    },
+    "./core/dom-manipulator": {
+      "source": "./src/core/DOMManipulatorLite.ts",
+      "types": "./types/core/DOMManipulatorLite.d.ts",
+      "import": "./es/core/DOMManipulatorLite.js",
+      "require": "./lib/core/DOMManipulatorLite.js"
+    },
+    "./core/style-sheet-manager": {
+      "source": "./src/core/StyleSheetManager.ts",
+      "types": "./types/core/StyleSheetManager.d.ts",
+      "import": "./es/core/StyleSheetManager.js",
+      "require": "./lib/core/StyleSheetManager.js"
+    },
+    "./core/pending-change-manager": {
+      "source": "./src/core/PendingChangeManager.ts",
+      "types": "./types/core/PendingChangeManager.d.ts",
+      "import": "./es/core/PendingChangeManager.js",
+      "require": "./lib/core/PendingChangeManager.js"
+    }
+  },
   "files": [
     "lib",
     "es",
