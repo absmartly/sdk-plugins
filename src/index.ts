@@ -49,6 +49,15 @@ export {
 } from './overrides/overridesUtils';
 export type { SimpleOverride, OverrideOptions } from './overrides/overridesUtils';
 
+// Export plugin registry utilities
+export {
+  registerPlugin,
+  unregisterPlugin,
+  isPluginRegistered,
+  getRegisteredPlugins,
+} from './utils/plugin-registry';
+export type { PluginRegistry, PluginRegistryEntry } from './utils/plugin-registry';
+
 // Export URL redirect utilities
 export { URLRedirectExtractor } from './url-redirect/URLRedirectExtractor';
 export { URLRedirectMatcher } from './url-redirect/URLRedirectMatcher';

@@ -1,4 +1,5 @@
 import { logDebug } from '../utils/debug';
+import { registerPlugin, unregisterPlugin } from '../utils/plugin-registry';
 /**
  * Lightweight client-side version of OverridesPlugin
  * Minimal code for production websites - handles cookie and query string parsing
@@ -64,6 +65,7 @@ export class OverridesPluginLite {
 
     // Register with context
     this.registerWithContext();
+    this.registerGlobally();
 
     let overrides: Record<string, number | SimpleOverride> = {};
 
@@ -282,5 +284,35 @@ export class OverridesPluginLite {
   destroy(): void {
     this.initialized = false;
     this.unregisterFromContext();
+    this.unregisterGlobally();
+  }
+
+  /**
+   * Register plugin in global registry for detection
+   */
+  protected registerGlobally(): void {
+    registerPlugin('overrides', {
+      name: 'OverridesPluginLite',
+      version: '1.0.0',
+      initialized: true,
+      timestamp: Date.now(),
+      capabilities: ['cookie-overrides', 'query-overrides'],
+      instance: this,
+    });
+
+    if (this.config.debug) {
+      logDebug('[OverridesPluginLite] Registered in global window.__ABSMARTLY_PLUGINS__');
+    }
+  }
+
+  /**
+   * Unregister plugin from global registry
+   */
+  protected unregisterGlobally(): void {
+    unregisterPlugin('overrides');
+
+    if (this.config.debug) {
+      logDebug('[OverridesPluginLite] Unregistered from global registry');
+    }
   }
 }

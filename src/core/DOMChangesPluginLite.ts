@@ -15,6 +15,7 @@ import { HTMLInjector } from './HTMLInjector';
 import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
 import { DOMPersistenceManager } from '../utils/persistence';
+import { registerPlugin, unregisterPlugin } from '../utils/plugin-registry';
 
 declare const __VERSION__: string;
 
@@ -132,6 +133,7 @@ export class DOMChangesPluginLite {
       this.initialized = true;
 
       this.registerWithContext();
+      this.registerGlobally();
 
       this.emit('initialized');
 
@@ -921,6 +923,7 @@ export class DOMChangesPluginLite {
     this.exposedExperiments.clear();
 
     this.unregisterFromContext();
+    this.unregisterGlobally();
 
     this.initialized = false;
 
@@ -965,6 +968,35 @@ export class DOMChangesPluginLite {
       if (this.config.debug) {
         logDebug('[ABsmartly] DOMChangesPluginLite unregistered from context');
       }
+    }
+  }
+
+  /**
+   * Register plugin in global registry for detection
+   */
+  protected registerGlobally(): void {
+    registerPlugin('dom', {
+      name: 'DOMChangesPluginLite',
+      version: DOMChangesPluginLite.VERSION,
+      initialized: true,
+      timestamp: Date.now(),
+      capabilities: ['spa', 'visibility', 'auto-apply'],
+      instance: this,
+    });
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] DOMChangesPluginLite registered in global window.__ABSMARTLY_PLUGINS__');
+    }
+  }
+
+  /**
+   * Unregister plugin from global registry
+   */
+  protected unregisterGlobally(): void {
+    unregisterPlugin('dom');
+
+    if (this.config.debug) {
+      logDebug('[ABsmartly] DOMChangesPluginLite unregistered from global registry');
     }
   }
 
