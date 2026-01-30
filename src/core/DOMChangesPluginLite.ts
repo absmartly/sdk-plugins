@@ -448,6 +448,18 @@ export class DOMChangesPluginLite {
       // Apply visual changes only if URL matches for user's variant AND user has changes
       if (shouldApplyVisualChanges && changes && changes.length > 0) {
         for (const change of changes) {
+          // Skip delete changes with viewport triggers - they must be applied AFTER exposure
+          // Otherwise the element is removed before it can be observed
+          if (change.type === 'delete' && change.trigger_on_view) {
+            if (this.config.debug) {
+              logDebug(
+                `[ABsmartly] Deferring delete change until after viewport trigger for '${expName}'`,
+                { selector: change.selector }
+              );
+            }
+            continue;
+          }
+
           const success = this.domManipulator.applyChange(change, expName);
 
           if (success) {
@@ -985,7 +997,9 @@ export class DOMChangesPluginLite {
     });
 
     if (this.config.debug) {
-      logDebug('[ABsmartly] DOMChangesPluginLite registered in global window.__ABSMARTLY_PLUGINS__');
+      logDebug(
+        '[ABsmartly] DOMChangesPluginLite registered in global window.__ABSMARTLY_PLUGINS__'
+      );
     }
   }
 

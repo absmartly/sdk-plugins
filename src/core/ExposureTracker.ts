@@ -46,9 +46,10 @@ export class ExposureTracker {
     const viewportSelectors = new Set<string>();
     const moveParentSelectors = new Set<string>(); // Parent containers for move changes
 
-    // First pass: collect all move changes across all variants
+    // First pass: collect all move and delete changes across all variants
     // We need to track ALL possible positions where elements could be
     const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
+    const deleteElements = new Set<string>(); // selectors for delete changes
 
     allVariantsChanges.forEach(variantChanges => {
       variantChanges.forEach(change => {
@@ -62,8 +63,11 @@ export class ExposureTracker {
             if (change.targetSelector) {
               moveElements.get(change.selector)!.add(change.targetSelector);
             }
+          } else if (change.type === 'delete') {
+            // Track delete changes - need special handling for placeholders
+            deleteElements.add(change.selector);
           } else {
-            // For non-move changes, track the selector directly
+            // For other non-move, non-delete changes, track the selector directly
             viewportSelectors.add(change.selector);
           }
         }
@@ -127,6 +131,24 @@ export class ExposureTracker {
             move.position
           );
         });
+      }
+    });
+
+    // For cross-variant delete tracking, we need to handle elements that are deleted in some variants
+    // For variants with delete: replace element with 1px placeholder in the same position
+    // For variants without delete: track the actual element
+    deleteElements.forEach(selector => {
+      // Check if current variant has a delete for this selector
+      const currentVariantHasDelete = currentChanges.some(
+        c => c.type === 'delete' && c.selector === selector && c.trigger_on_view
+      );
+
+      if (currentVariantHasDelete) {
+        // Current variant will delete this element - replace with in-place placeholder
+        this.createInPlacePlaceholder(experimentName, selector);
+      } else {
+        // Current variant doesn't delete - track the real element
+        viewportSelectors.add(selector);
       }
     });
 
@@ -234,6 +256,63 @@ export class ExposureTracker {
         `[ABsmartly] Created placeholder for ${originalSelector} at ${targetSelector} (${position})`
       );
     }
+  }
+
+  /**
+   * Create an in-place placeholder that replaces a deleted element
+   * This allows viewport tracking for delete changes
+   */
+  private createInPlacePlaceholder(experimentName: string, selector: string): void {
+    const elements = document.querySelectorAll(selector);
+
+    elements.forEach((element, index) => {
+      // Create unique ID for the placeholder (remove special chars from selector for valid ID)
+      const selectorId = selector.replace(/[^a-zA-Z0-9-]/g, '_');
+      const placeholderId = `absmartly-delete-${experimentName}-${selectorId}-${index}`;
+      const placeholderKey = `${experimentName}-delete-${selector}-${index}`;
+
+      // Check if this element already has a placeholder
+      if (element.hasAttribute('data-absmartly-delete-placeholder')) {
+        return;
+      }
+
+      // Create minimal placeholder using inline styles
+      // This will be observable by IntersectionObserver but won't affect layout
+      const placeholder = document.createElement('span');
+      placeholder.id = placeholderId;
+      placeholder.style.cssText = `
+        display: inline-block;
+        width: 1px;
+        height: 1px;
+        position: relative;
+        left: -1px;
+        visibility: hidden;
+        pointer-events: none;
+        font-size: 0;
+        line-height: 0;
+        overflow: hidden;
+      `;
+      placeholder.setAttribute('data-absmartly-placeholder', 'true');
+      placeholder.setAttribute('data-absmartly-delete-placeholder', 'true');
+      placeholder.setAttribute('data-absmartly-original-selector', selector);
+      placeholder.setAttribute('data-absmartly-experiment', experimentName);
+      placeholder.setAttribute('aria-hidden', 'true');
+
+      // Insert placeholder before the element, then remove the element
+      element.parentElement?.insertBefore(placeholder, element);
+      element.remove();
+
+      this.placeholders.set(placeholderKey, placeholder);
+
+      // Track the placeholder for viewport visibility
+      this.trackElement(placeholder, experimentName);
+
+      if (this.debug) {
+        logDebug(
+          `[ABsmartly] Created in-place delete placeholder for ${selector} in experiment ${experimentName}`
+        );
+      }
+    });
   }
 
   /**
