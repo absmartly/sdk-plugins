@@ -35,9 +35,14 @@ export class DOMManipulatorLite {
     const isReapplying =
       !!(this.plugin as any).reapplyingElements &&
       Array.from((this.plugin as any).reapplyingElements).length > 0;
+
+    // Get user's variant for this experiment
+    const userVariant = (this.plugin as any).config?.context?.peek(experimentName);
+
     if (this.debug) {
-      logDebug(`[DOM-APPLY] ${isReapplying ? 'RE-APPLYING' : 'APPLYING'} change`, {
+      logDebug(`[DOM-APPLY] [${experimentName}] ${isReapplying ? 'RE-APPLYING' : 'APPLYING'} change`, {
         experimentName,
+        userVariant,
         selector: change.selector,
         type: change.type,
         timestamp: Date.now(),
@@ -131,13 +136,50 @@ export class DOMManipulatorLite {
 
         if (change.type === 'javascript') {
           if (change.value) {
+            const userVariant = (this.plugin as any).config?.context?.peek(experimentName);
             try {
+              if (this.debug) {
+                logDebug(`[JAVASCRIPT] [${experimentName}] Executing JavaScript change`, {
+                  experimentName,
+                  userVariant,
+                  selector: change.selector,
+                  element: element.tagName,
+                  code: String(change.value).substring(0, 100) + '...',
+                });
+              }
               const fn = new Function('element', String(change.value));
               fn(element);
               appliedElements.push(element);
+              if (this.debug) {
+                logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {
+                  experimentName,
+                  userVariant,
+                  selector: change.selector,
+                  element: element.tagName,
+                });
+              }
             } catch (error) {
-              logDebug('[ABsmartly] JavaScript execution error:', error);
+              logDebug(
+                `[JAVASCRIPT] [${experimentName}] ✗ JavaScript execution error:`,
+                {
+                  experimentName,
+                  userVariant,
+                  selector: change.selector,
+                  element: element.tagName,
+                  code: String(change.value),
+                  error: error instanceof Error ? error.message : String(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                }
+              );
             }
+          } else {
+            logDebug(
+              `[JAVASCRIPT] [${experimentName}] ✗ No JavaScript code provided in change.value`,
+              {
+                experimentName,
+                selector: change.selector,
+              }
+            );
           }
         } else if (change.type === 'move') {
           const targetSelector =
@@ -391,10 +433,35 @@ export class DOMManipulatorLite {
 
       if (change.type === 'javascript' && change.value) {
         try {
+          if (this.debug) {
+            logDebug(`[JAVASCRIPT] [${experimentName}] Executing JavaScript on specific element`, {
+              experimentName,
+              selector: change.selector,
+              element: element.tagName,
+              code: String(change.value).substring(0, 100) + '...',
+            });
+          }
           const fn = new Function('element', String(change.value));
           fn(element);
+          if (this.debug) {
+            logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {
+              experimentName,
+              selector: change.selector,
+              element: element.tagName,
+            });
+          }
         } catch (error) {
-          logDebug('[ABsmartly] JavaScript execution error:', error);
+          logDebug(
+            `[JAVASCRIPT] [${experimentName}] ✗ JavaScript execution error on specific element:`,
+            {
+              experimentName,
+              selector: change.selector,
+              element: element.tagName,
+              code: String(change.value),
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            }
+          );
           return false;
         }
       } else if (change.type === 'move') {

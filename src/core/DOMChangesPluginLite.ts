@@ -380,16 +380,41 @@ export class DOMChangesPluginLite {
     let totalApplied = 0;
     const experimentStats = new Map<string, { total: number; success: number; pending: number }>();
 
-    logDebug('[ABsmartly] Experiments to process:', Array.from(allExperiments.keys()));
-    logDebug('[ABsmartly] Total experiments with changes:', allExperiments.size);
+    logDebug('[APPLY-CHANGES] Experiments found with DOM changes:', {
+      experimentNames: Array.from(allExperiments.keys()),
+      totalCount: allExperiments.size,
+      currentURL,
+    });
+
+    if (allExperiments.size === 0) {
+      logDebug('[APPLY-CHANGES] ⚠️  No experiments found with DOM changes - nothing to process');
+    }
 
     for (const [expName, experimentData] of allExperiments) {
+      logDebug(`[APPLY-CHANGES] [${expName}] Starting to process experiment`, {
+        experimentName: expName,
+        currentURL,
+      });
+
       // Skip if filtering by specific experiment
       if (experimentName && expName !== experimentName) {
+        logDebug(`[APPLY-CHANGES] [${expName}] ⏭️  Skipping - filtering for different experiment`, {
+          filteringFor: experimentName,
+        });
         continue;
       }
 
       const currentVariant = this.config.context.peek(expName);
+
+      if (currentVariant === undefined || currentVariant === null) {
+        logDebug(`[APPLY-CHANGES] [${expName}] ⏭️  Skipping - no variant assigned (peek returned ${currentVariant})`, {
+          experimentName: expName,
+        });
+        continue;
+      }
+
+      logDebug(`[APPLY-CHANGES] [${expName}] User assigned to variant ${currentVariant}`);
+
       const { variantData, urlFilter, globalDefaults } = experimentData;
 
       // Check if ANY variant matches the current URL
@@ -397,10 +422,16 @@ export class DOMChangesPluginLite {
 
       if (!anyVariantMatchesURL) {
         logDebug(
-          `[ABsmartly] Skipping experiment '${expName}' - no variant matches URL: ${currentURL}`
+          `[APPLY-CHANGES] [${expName}] ⏭️  Skipping - no variant matches URL: ${currentURL}`,
+          {
+            experimentName: expName,
+            currentURL,
+          }
         );
         continue;
       }
+
+      logDebug(`[APPLY-CHANGES] [${expName}] ✓ At least one variant matches current URL`);
 
       // Determine if we should apply visual changes for the user's variant
       const shouldApplyVisualChanges = this.shouldApplyVisualChanges(
@@ -432,7 +463,9 @@ export class DOMChangesPluginLite {
       const stats = { total: changes?.length || 0, success: 0, pending: 0 };
 
       if (this.config.debug) {
-        logDebug(`[ABsmartly] Processing experiment '${expName}' (variant ${currentVariant}):`, {
+        logDebug(`[ABsmartly] Processing experiment '${expName}' - User is in variant ${currentVariant}:`, {
+          experimentName: expName,
+          userVariant: currentVariant,
           urlMatches: shouldApplyVisualChanges,
           changeCount: changes?.length || 0,
           userVariantHasChanges: (changes?.length || 0) > 0,
@@ -443,6 +476,16 @@ export class DOMChangesPluginLite {
               trigger: c.trigger_on_view ? 'viewport' : 'immediate',
             })) || [],
         });
+      }
+
+      // Log if user is in control variant (no changes)
+      if (!changes || changes.length === 0) {
+        if (this.config.debug) {
+          logDebug(`[ABsmartly] User is in control variant ${currentVariant} with no changes, but will still track for SRM prevention`, {
+            experimentName: expName,
+            currentVariant,
+          });
+        }
       }
 
       // Apply visual changes only if URL matches for user's variant AND user has changes
@@ -577,7 +620,16 @@ export class DOMChangesPluginLite {
 
       if (this.config.debug) {
         logDebug(
-          `[ABsmartly] Final trigger decision for '${expName}': hasImmediate=${hasAnyImmediateTriggerInAnyVariant}, hasViewport=${hasAnyViewportTriggerInAnyVariant}`
+          `[TRIGGER-DETECTION] [${expName}] Final trigger decision for '${expName}':`,
+          {
+            experimentName: expName,
+            userVariant: currentVariant,
+            hasImmediateTrigger: hasAnyImmediateTriggerInAnyVariant,
+            hasViewportTrigger: hasAnyViewportTriggerInAnyVariant,
+            willRegisterExperiment: hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant,
+            userChangesCount: changes?.length || 0,
+            allVariantsChangesCount: allVariantChanges.map(vc => vc.length),
+          }
         );
       }
 
@@ -585,6 +637,13 @@ export class DOMChangesPluginLite {
       // This prevents SRM even when user's variant doesn't match URL filter
       // Pass the URL-filtered trigger flags to ExposureTracker
       if (hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant) {
+        if (this.config.debug) {
+          logDebug(`[TRIGGER-DETECTION] [${expName}] ✓ Registering experiment with ExposureTracker`, {
+            experimentName: expName,
+            hasImmediateTrigger: hasAnyImmediateTriggerInAnyVariant,
+            hasViewportTrigger: hasAnyViewportTriggerInAnyVariant,
+          });
+        }
         this.exposureTracker.registerExperiment(
           expName,
           currentVariant || 0,
@@ -592,6 +651,16 @@ export class DOMChangesPluginLite {
           allVariantChanges,
           hasAnyImmediateTriggerInAnyVariant,
           hasAnyViewportTriggerInAnyVariant
+        );
+      } else {
+        logDebug(
+          `[TRIGGER-DETECTION] [${expName}] ⚠️  No triggers detected - experiment will NOT be registered!`,
+          {
+            experimentName: expName,
+            userVariant: currentVariant,
+            hasAnyChangesInAnyVariant,
+            allVariantsChangesCount: allVariantChanges.map(vc => vc.length),
+          }
         );
       }
 
@@ -641,7 +710,7 @@ export class DOMChangesPluginLite {
   private getAllExperimentsData(): Map<
     string,
     {
-      variantData: DOMChangesData;
+      variantData: DOMChangesData | null;
       urlFilter: any;
       globalDefaults: Partial<DOMChangesConfig>;
     }
@@ -649,9 +718,22 @@ export class DOMChangesPluginLite {
     const experiments = new Map();
     const allVariants = this.variantExtractor.extractAllChanges();
 
+    logDebug('[GET-EXPERIMENTS] Extracting experiment data from context', {
+      experimentsWithChanges: Array.from(allVariants.keys()),
+      totalCount: allVariants.size,
+    });
+
     for (const [expName] of allVariants) {
       const currentVariant = this.config.context.peek(expName);
+
+      logDebug(`[GET-EXPERIMENTS] [${expName}] Checking experiment`, {
+        experimentName: expName,
+        currentVariant,
+        variantIsValid: currentVariant !== undefined && currentVariant !== null,
+      });
+
       if (currentVariant === undefined || currentVariant === null) {
+        logDebug(`[GET-EXPERIMENTS] [${expName}] ⏭️  Skipping - context.peek() returned ${currentVariant}`);
         continue;
       }
 
@@ -659,8 +741,15 @@ export class DOMChangesPluginLite {
       const variantData = variantsData.get(currentVariant);
 
       if (!variantData) {
-        continue;
+        logDebug(`[GET-EXPERIMENTS] [${expName}] ⚠️  User's variant ${currentVariant} has no DOM changes (control variant)`, {
+          availableVariants: Array.from(variantsData.keys()),
+          note: 'Will still track for SRM prevention',
+        });
+        // Don't skip! Include experiments even if user's variant has no changes
+        // This is critical for SRM prevention - we need to track ALL experiments
       }
+
+      logDebug(`[GET-EXPERIMENTS] [${expName}] ✓ Including experiment (variant ${currentVariant})`);
 
       // Extract URL filter and global defaults if using wrapped format
       let urlFilter = null;
@@ -692,15 +781,19 @@ export class DOMChangesPluginLite {
    * Extract changes from DOMChangesData and apply global defaults
    */
   private extractChangesFromData(
-    data: DOMChangesData,
+    data: DOMChangesData | null,
     globalDefaults: Partial<DOMChangesConfig>
   ): DOMChange[] | null {
+    if (!data) {
+      return null;
+    }
+
     let changes: DOMChange[] | null = null;
 
     // Extract changes array
     if (Array.isArray(data)) {
       changes = data;
-    } else if (data && typeof data === 'object' && 'changes' in data) {
+    } else if (typeof data === 'object' && 'changes' in data) {
       changes = (data as DOMChangesConfig).changes;
     }
 
@@ -773,10 +866,15 @@ export class DOMChangesPluginLite {
    * Determine if visual changes should be applied based on URL filter
    */
   private shouldApplyVisualChanges(
-    variantData: DOMChangesData,
+    variantData: DOMChangesData | null,
     urlFilter: any,
     url: string
   ): boolean {
+    // No data for this variant - no changes to apply
+    if (!variantData) {
+      return false;
+    }
+
     // Legacy array format has no URL filter - always apply
     if (Array.isArray(variantData)) {
       return true;

@@ -123,15 +123,11 @@ export class VariantExtractor {
     const variantChanges = new Map<number, DOMChange[]>();
 
     logDebug(
-      '[DEBUG] Processing experiment:',
-      experiment.name,
-      'with',
-      experiment.variants?.length || 0,
-      'variants'
+      `[DEBUG] Processing experiment: ${experiment.name} with ${experiment.variants?.length || 0} variants`
     );
 
     if (!experiment.variants) {
-      logDebug('[DEBUG] No variants found for experiment:', experiment.name);
+      logDebug(`[DEBUG] No variants found for experiment: ${experiment.name}`);
       return variantChanges;
     }
 
@@ -148,30 +144,35 @@ export class VariantExtractor {
           const parsedConfig =
             typeof variant.config === 'string' ? JSON.parse(variant.config) : variant.config;
 
-          logDebug(`[VariantExtractor DEBUG] Parsed config for variant ${i}:`, parsedConfig);
+          logDebug(
+            `[VariantExtractor DEBUG] [${experiment.name}] Parsed config for variant ${i}:`,
+            parsedConfig
+          );
 
           // Look for __dom_changes inside the parsed config
           if (parsedConfig && parsedConfig[this.variableName]) {
             changesData = parsedConfig[this.variableName];
             logDebug(
-              `[VariantExtractor DEBUG] ✓ Found DOM changes in config[${this.variableName}]:`,
+              `[VariantExtractor DEBUG] [${experiment.name}] ✓ Found DOM changes in config[${this.variableName}]:`,
               changesData
             );
           } else {
             logDebug(
-              `[VariantExtractor DEBUG] ✗ No ${this.variableName} field found in parsed config for variant ${i}`
+              `[VariantExtractor DEBUG] [${experiment.name}] ✗ No ${this.variableName} field found in parsed config for variant ${i}`
             );
           }
         } catch (e) {
           logDebug(
-            `[VariantExtractor DEBUG] ✗ Failed to parse variant.config for variant ${i}:`,
+            `[VariantExtractor DEBUG] [${experiment.name}] ✗ Failed to parse variant.config for variant ${i}:`,
             e,
             'Raw config:',
             typeof variant.config === 'string' ? variant.config.substring(0, 100) : ''
           );
         }
       } else {
-        logDebug(`[VariantExtractor DEBUG] ✗ No config field found for variant ${i}`);
+        logDebug(
+          `[VariantExtractor DEBUG] [${experiment.name}] ✗ No config field found for variant ${i}`
+        );
       }
 
       if (changesData) {

@@ -39,7 +39,19 @@ export class ExposureTracker {
     hasViewportTrigger: boolean
   ): void {
     if (this.debug) {
-      logDebug(`[ABsmartly] Registering experiment ${experimentName} for exposure tracking`);
+      logDebug(`[EXPOSURE] [${experimentName}] Registering experiment for exposure tracking`, {
+        experimentName,
+        currentVariant,
+        hasImmediateTrigger,
+        hasViewportTrigger,
+        currentChangesCount: currentChanges.length,
+        allVariantsCount: allVariantsChanges.length,
+        currentChangeTypes: currentChanges.map(c => ({
+          type: c.type,
+          selector: c.selector,
+          trigger_on_view: c.trigger_on_view || false,
+        })),
+      });
     }
 
     // Collect all unique selectors that need viewport tracking across ALL variants
@@ -145,7 +157,19 @@ export class ExposureTracker {
 
       if (currentVariantHasDelete) {
         // Current variant will delete this element - replace with in-place placeholder
-        this.createInPlacePlaceholder(experimentName, selector);
+        const placeholdersCreated = this.createInPlacePlaceholder(experimentName, selector);
+
+        // If no placeholders created (element doesn't exist yet), track the selector
+        // so when element appears via MutationObserver, it will be tracked
+        if (placeholdersCreated === 0) {
+          viewportSelectors.add(selector);
+          if (this.debug) {
+            logDebug(
+              `[EXPOSURE] [${experimentName}] Delete element doesn't exist yet - tracking selector for when it appears`,
+              { selector }
+            );
+          }
+        }
       } else {
         // Current variant doesn't delete - track the real element
         viewportSelectors.add(selector);
@@ -177,14 +201,42 @@ export class ExposureTracker {
 
     // Trigger immediately if needed
     if (hasImmediateTrigger) {
+      if (this.debug) {
+        logDebug(`[EXPOSURE] [${experimentName}] Has immediate trigger - triggering exposure now`, {
+          experimentName,
+          currentVariant,
+        });
+      }
       // Don't await here to avoid blocking the tracking setup
       this.triggerExposure(experimentName).catch(error => {
-        logDebug(`[ABsmartly] Failed to trigger exposure for ${experimentName}:`, error);
+        logDebug(`[EXPOSURE] [${experimentName}] ✗ Failed to trigger exposure:`, error);
       });
     } else if (hasViewportTrigger) {
+      if (this.debug) {
+        logDebug(
+          `[EXPOSURE] [${experimentName}] Has viewport trigger - setting up viewport observers`,
+          {
+            experimentName,
+            selectorsToWatch: Array.from(tracking.allPossibleSelectors),
+          }
+        );
+      }
       // Only set up viewport observers if there's NO immediate trigger
       // If there's an immediate trigger, the experiment will be triggered and cleaned up right away
       this.observeSelectors(experimentName, tracking.allPossibleSelectors);
+    } else {
+      logDebug(
+        `[EXPOSURE] [${experimentName}] ⚠️  No immediate or viewport trigger detected - experiment will NOT be exposed!`,
+        {
+          experimentName,
+          hasImmediateTrigger,
+          hasViewportTrigger,
+          currentChanges: currentChanges.map(c => ({
+            type: c.type,
+            trigger_on_view: c.trigger_on_view,
+          })),
+        }
+      );
     }
   }
 
@@ -261,9 +313,22 @@ export class ExposureTracker {
   /**
    * Create an in-place placeholder that replaces a deleted element
    * This allows viewport tracking for delete changes
+   * Returns the number of placeholders created
    */
-  private createInPlacePlaceholder(experimentName: string, selector: string): void {
+  private createInPlacePlaceholder(experimentName: string, selector: string): number {
     const elements = document.querySelectorAll(selector);
+
+    if (elements.length === 0) {
+      if (this.debug) {
+        logDebug(
+          `[EXPOSURE] [${experimentName}] No elements found for delete placeholder - will track selector instead`,
+          { selector }
+        );
+      }
+      return 0;
+    }
+
+    let placeholdersCreated = 0;
 
     elements.forEach((element, index) => {
       // Create unique ID for the placeholder (remove special chars from selector for valid ID)
@@ -307,12 +372,16 @@ export class ExposureTracker {
       // Track the placeholder for viewport visibility
       this.trackElement(placeholder, experimentName);
 
+      placeholdersCreated++;
+
       if (this.debug) {
         logDebug(
           `[ABsmartly] Created in-place delete placeholder for ${selector} in experiment ${experimentName}`
         );
       }
     });
+
+    return placeholdersCreated;
   }
 
   /**
@@ -489,16 +558,38 @@ export class ExposureTracker {
    */
   private async triggerExposure(experimentName: string): Promise<void> {
     const experiment = this.experiments.get(experimentName);
-    if (!experiment || experiment.triggered) return;
+    if (!experiment) {
+      logDebug(`[EXPOSURE] [${experimentName}] ✗ Cannot trigger - experiment not found in tracker`);
+      return;
+    }
+
+    if (experiment.triggered) {
+      if (this.debug) {
+        logDebug(`[EXPOSURE] [${experimentName}] Already triggered, skipping`);
+      }
+      return;
+    }
+
+    if (this.debug) {
+      logDebug(`[EXPOSURE] [${experimentName}] Triggering exposure via context.treatment()`, {
+        experimentName,
+        variant: experiment.variant,
+      });
+    }
 
     // Ensure context is ready before calling treatment
     await this.context.ready();
+
     // Call treatment to trigger exposure
-    this.context.treatment(experimentName);
+    const treatment = this.context.treatment(experimentName);
     experiment.triggered = true;
 
     if (this.debug) {
-      logDebug(`[ABsmartly] Exposure triggered for experiment: ${experimentName}`);
+      logDebug(`[EXPOSURE] [${experimentName}] ✓ Exposure triggered successfully`, {
+        experimentName,
+        variant: experiment.variant,
+        treatment,
+      });
     }
 
     // Clean up tracking for this experiment

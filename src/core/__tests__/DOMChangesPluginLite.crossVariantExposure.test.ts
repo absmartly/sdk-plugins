@@ -1643,4 +1643,2638 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
       });
     });
   });
+
+  describe('Category 5: Variant with NO __dom_changes field (Real Production Case)', () => {
+    describe('5.1: v0 has NO __dom_changes field + v1 has immediate changes', () => {
+      it('should trigger immediately for user in v0 (no field at all)', async () => {
+        const experiment: ExperimentData = {
+          name: 'test_no_field_v0_immediate_v1',
+          variants: [
+            { variables: {} }, // v0: NO __dom_changes field at all (pure control)
+            {
+              variables: {
+                __dom_changes: [
+                  { selector: '.test', type: 'text', value: 'Changed', trigger_on_view: false },
+                ],
+              },
+            },
+          ],
+        };
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+          test_no_field_v0_immediate_v1: 0,
+        });
+        document.body.innerHTML = '<div class="test">Original</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        // CRITICAL: Should trigger immediately even though v0 has NO __dom_changes field
+        expect(treatmentSpy).toHaveBeenCalledWith('test_no_field_v0_immediate_v1');
+        expect(treatmentSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('should trigger immediately for user in v1 (has changes)', async () => {
+        const experiment: ExperimentData = {
+          name: 'test_no_field_v0_immediate_v1',
+          variants: [
+            { variables: {} }, // v0: NO __dom_changes field
+            {
+              variables: {
+                __dom_changes: [
+                  { selector: '.test', type: 'text', value: 'Changed', trigger_on_view: false },
+                ],
+              },
+            },
+          ],
+        };
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+          test_no_field_v0_immediate_v1: 1,
+        });
+        document.body.innerHTML = '<div class="test">Original</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(treatmentSpy).toHaveBeenCalledWith('test_no_field_v0_immediate_v1');
+        expect(treatmentSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('5.2: v0 has NO __dom_changes field + v1 has JavaScript change', () => {
+      it('should trigger for user in v0 even with NO field (matches user scenario)', async () => {
+        const experiment: ExperimentData = {
+          name: 'test_no_field_v0_javascript_v1',
+          variants: [
+            { variables: {} }, // v0: NO __dom_changes field (pure control - exactly like user config)
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: 'main',
+                    type: 'javascript',
+                    value: "(function applyComp() {alert('ola')})()",
+                    trigger_on_view: false,
+                  },
+                ],
+              },
+            },
+          ],
+        };
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+          test_no_field_v0_javascript_v1: 0,
+        });
+        document.body.innerHTML = '<main>Test</main>';
+
+        plugin = new DOMChangesPluginLite({
+          context: mockContext,
+          autoApply: true,
+          spa: false,
+          debug: true,
+        });
+        await plugin.ready();
+
+        // CRITICAL: Should trigger immediately for v0 (control with no field)
+        // This is the exact scenario from user production issue
+        expect(treatmentSpy).toHaveBeenCalledWith('test_no_field_v0_javascript_v1');
+        expect(treatmentSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('Category 6: Control Variant NO Field - Comprehensive Element State Matrix', () => {
+    /**
+     * COMPREHENSIVE TEST MATRIX for v0 (no __dom_changes field) + v1 (has changes)
+     *
+     * Testing all combinations of:
+     * - Trigger type: immediate vs viewport
+     * - Element state: exists visible, exists not visible, missing, appears later, never appears
+     * - User assignment: v0 vs v1
+     *
+     * Expected SRM behavior:
+     * - Immediate: Both variants trigger immediately regardless of element state
+     * - Viewport: Both variants trigger when element becomes visible (or never if element never visible)
+     */
+
+    describe('6A: Immediate Triggers - Element State Variations', () => {
+      describe('6A1: Element exists and visible', () => {
+        it('user in v0 - should trigger immediately', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a1_immediate_exists_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a1_immediate_exists_visible: 0,
+          });
+          document.body.innerHTML = '<div class="target">Original</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a1_immediate_exists_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')?.textContent).toBe('Original'); // v0 no changes
+        });
+
+        it('user in v1 - should trigger immediately + apply change', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a1_immediate_exists_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a1_immediate_exists_visible: 1,
+          });
+          document.body.innerHTML = '<div class="target">Original</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a1_immediate_exists_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')?.textContent).toBe('Changed'); // v1 has changes
+        });
+      });
+
+      describe('6A2: Element exists but not visible (below fold)', () => {
+        it('user in v0 - should trigger immediately (immediate ignores visibility)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a2_immediate_exists_hidden',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a2_immediate_exists_hidden: 0,
+          });
+          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          // Should trigger immediately even though element is not in viewport
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a2_immediate_exists_hidden');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately + apply (immediate ignores visibility)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a2_immediate_exists_hidden',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a2_immediate_exists_hidden: 1,
+          });
+          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a2_immediate_exists_hidden');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')?.textContent).toBe('Changed');
+        });
+      });
+
+      describe('6A3: Element doesn\'t exist', () => {
+        it('user in v0 - should trigger immediately (immediate ignores existence)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a3_immediate_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a3_immediate_missing: 0,
+          });
+          document.body.innerHTML = '<div>No target element</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          // Should trigger immediately even though element doesn't exist
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a3_immediate_missing');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately (change pending in SPA)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a3_immediate_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a3_immediate_missing: 1,
+          });
+          document.body.innerHTML = '<div>No target element</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a3_immediate_missing');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')).toBeNull(); // Element doesn't exist
+        });
+      });
+
+      describe('6A4: Element appears later (becomes visible)', () => {
+        it('user in v0 - should trigger immediately on page load (not when element appears)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a4_immediate_appears_later',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a4_immediate_appears_later: 0,
+          });
+          document.body.innerHTML = '<div>Empty initially</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          // Should trigger immediately on page load
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a4_immediate_appears_later');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+
+          // Add element later - should not trigger again
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Original';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(treatmentSpy).toHaveBeenCalledTimes(1); // No second trigger
+        });
+
+        it('user in v1 - should trigger immediately on page load + apply when element appears', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a4_immediate_appears_later',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a4_immediate_appears_later: 1,
+          });
+          document.body.innerHTML = '<div>Empty initially</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          // Should trigger immediately
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a4_immediate_appears_later');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+
+          // Add element later - change should be applied in SPA mode
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Original';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(document.querySelector('.target')?.textContent).toBe('Changed');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1); // Still only called once
+        });
+      });
+
+      describe('6A5: Element never appears', () => {
+        it('user in v0 - should trigger immediately', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a5_immediate_never_appears',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a5_immediate_never_appears: 0,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a5_immediate_never_appears');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+
+          // Wait to ensure no delayed trigger
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6a5_immediate_never_appears',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6a5_immediate_never_appears: 1,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6a5_immediate_never_appears');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
+
+    describe('6B: Viewport Triggers - Element State Variations', () => {
+      /**
+       * SRM VALIDATION: Compare v0 and v1 tests in each describe block.
+       * - Both should have SAME assertions (not.toHaveBeenCalled() initially)
+       * - Both should trigger at SAME point (when element visible)
+       * - This proves NO Sample Ratio Mismatch
+       */
+      describe('6B1: Element exists and visible', () => {
+        it('user in v0 - should trigger when element visible (tracks v1 element)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b1_viewport_exists_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b1_viewport_exists_visible: 0,
+          });
+          document.body.innerHTML = '<div class="target">Original</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          // Should NOT trigger yet
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger when visible
+          const element = document.querySelector('.target')!;
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6b1_viewport_exists_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')?.textContent).toBe('Original'); // v0 no changes
+        });
+
+        it('user in v1 - should trigger when visible + apply change', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b1_viewport_exists_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b1_viewport_exists_visible: 1,
+          });
+          document.body.innerHTML = '<div class="target">Original</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          const element = document.querySelector('.target')!;
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6b1_viewport_exists_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')?.textContent).toBe('Changed');
+        });
+      });
+
+      describe('6B2: Element exists but never becomes visible', () => {
+        it('user in v0 - should NOT trigger (element never visible)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b2_viewport_never_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b2_viewport_never_visible: 0,
+          });
+          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          // Should NOT trigger
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Wait to ensure no delayed trigger
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('user in v1 - should NOT trigger (element never visible)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b2_viewport_never_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b2_viewport_never_visible: 1,
+          });
+          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('6B3: Element doesn\'t exist initially', () => {
+        it('user in v0 - should NOT trigger (waiting for element)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b3_viewport_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b3_viewport_missing: 0,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('user in v1 - should NOT trigger (waiting for element)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b3_viewport_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b3_viewport_missing: 1,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('6B4: Element appears later and becomes visible', () => {
+        it('user in v0 - should trigger when element appears AND visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b4_viewport_appears_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b4_viewport_appears_visible: 0,
+          });
+          document.body.innerHTML = '<div>Empty initially</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Add element
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Original';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          // Still not triggered until visible
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger visibility
+          await triggerIntersection(newEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6b4_viewport_appears_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger when element appears AND visible + apply', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b4_viewport_appears_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b4_viewport_appears_visible: 1,
+          });
+          document.body.innerHTML = '<div>Empty initially</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Original';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          await triggerIntersection(newEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6b4_viewport_appears_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(newEl.textContent).toBe('Changed');
+        });
+      });
+
+      describe('6B5: Element appears later but never visible', () => {
+        it('user in v0 - should NOT trigger (element below fold)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b5_viewport_appears_hidden',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b5_viewport_appears_hidden: 0,
+          });
+          document.body.innerHTML = '<div>Empty initially</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Add element below fold
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Original';
+          newEl.style.cssText = 'position:absolute;top:9999px';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          // Should NOT trigger (element not visible)
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('user in v1 - should NOT trigger (element below fold)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b5_viewport_appears_hidden',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b5_viewport_appears_hidden: 1,
+          });
+          document.body.innerHTML = '<div>Empty initially</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Original';
+          newEl.style.cssText = 'position:absolute;top:9999px';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('6B6: Element never appears', () => {
+        it('user in v0 - should NEVER trigger', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b6_viewport_never_appears',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b6_viewport_never_appears: 0,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('user in v1 - should NEVER trigger', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6b6_viewport_never_appears',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6b6_viewport_never_appears: 1,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('6C: JavaScript Changes - Execution & Exposure', () => {
+      describe('6C1: JavaScript with immediate trigger', () => {
+        it('user in v0 - should trigger immediately (no JS execution)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6c1_js_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: 'main',
+                      type: 'javascript',
+                      value: "(function() {alert('test')})()",
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6c1_js_immediate: 0,
+          });
+          document.body.innerHTML = '<main>Test</main>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6c1_js_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately + execute JS', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6c1_js_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: 'main',
+                      type: 'javascript',
+                      value: "(function(el) {el.setAttribute('data-js-ran', 'true')})(element)",
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6c1_js_immediate: 1,
+          });
+          document.body.innerHTML = '<main>Test</main>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6c1_js_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('main')?.getAttribute('data-js-ran')).toBe('true');
+        });
+
+        it('user in v1 - should trigger immediately EVEN IF JS has syntax error', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6c1_js_immediate_error',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: 'main',
+                      type: 'javascript',
+                      value: "(function() {alert 'broken'})()", // Syntax error
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6c1_js_immediate_error: 1,
+          });
+          document.body.innerHTML = '<main>Test</main>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          // CRITICAL: Should trigger even though JS fails
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6c1_js_immediate_error');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6C2: JavaScript with viewport trigger', () => {
+        it('user in v0 - should trigger when element visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6c2_js_viewport',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: 'main',
+                      type: 'javascript',
+                      value: "(function() {alert('test')})()",
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6c2_js_viewport: 0,
+          });
+          document.body.innerHTML = '<main>Test</main>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          await triggerIntersection(document.querySelector('main')!, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6c2_js_viewport');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger when visible + execute JS', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6c2_js_viewport',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: 'main',
+                      type: 'javascript',
+                      value: "(function(el) {el.setAttribute('data-js-ran', 'true')})(element)",
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6c2_js_viewport: 1,
+          });
+          document.body.innerHTML = '<main>Test</main>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          await triggerIntersection(document.querySelector('main')!, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6c2_js_viewport');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('main')?.getAttribute('data-js-ran')).toBe('true');
+        });
+      });
+    });
+
+    describe('6D: Delete Changes - Comprehensive Placeholder Tracking', () => {
+      describe('6D1: Delete with viewport trigger - element exists and visible', () => {
+        it('user in v0 - should trigger when element visible (element stays)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d1_delete_viewport_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d1_delete_viewport_visible: 0,
+          });
+          document.body.innerHTML = '<div class="target">Will stay</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          const element = document.querySelector('.target')!;
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d1_delete_viewport_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')).not.toBeNull(); // Element stays in v0
+        });
+
+        it('user in v1 - should create placeholder, trigger when visible, element deleted', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d1_delete_viewport_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d1_delete_viewport_visible: 1,
+          });
+          document.body.innerHTML = '<div class="target">Will be deleted</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Should have created a placeholder (element deleted, placeholder in its place)
+          const placeholder = document.querySelector('[data-absmartly-delete-placeholder="true"]');
+          expect(placeholder).not.toBeNull();
+          expect(document.querySelector('.target')).toBeNull();
+
+          // Trigger placeholder visibility
+          await triggerIntersection(placeholder!, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d1_delete_viewport_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6D2: Delete with viewport trigger - element exists but never visible', () => {
+        it('user in v0 - should NOT trigger (element never visible)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d2_delete_viewport_hidden',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d2_delete_viewport_hidden: 0,
+          });
+          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Below fold</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          expect(document.querySelector('.target')).not.toBeNull(); // Element stays in v0
+        });
+
+        it('user in v1 - should NOT trigger (placeholder never visible)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d2_delete_viewport_hidden',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d2_delete_viewport_hidden: 1,
+          });
+          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Below fold</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Placeholder created but never visible
+          const placeholder = document.querySelector('[data-absmartly-delete-placeholder="true"]');
+          expect(placeholder).not.toBeNull();
+          expect(document.querySelector('.target')).toBeNull(); // Element deleted
+
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('6D3: Delete with viewport trigger - element doesn\'t exist', () => {
+        it('user in v0 - should NOT trigger (element never appears)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d3_delete_viewport_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d3_delete_viewport_missing: 0,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('user in v1 - should NOT trigger (no element to delete = no placeholder)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d3_delete_viewport_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d3_delete_viewport_missing: 1,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          expect(document.querySelector('[data-absmartly-delete-placeholder="true"]')).toBeNull();
+        });
+      });
+
+      describe('6D4: Delete with viewport trigger - element appears later and visible', () => {
+        it('user in v0 - should trigger when element appears and visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d4_delete_appears_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d4_delete_appears_visible: 0,
+          });
+          document.body.innerHTML = '<div>Empty</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Add element
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Test';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger visibility
+          await triggerIntersection(newEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d4_delete_appears_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')).not.toBeNull(); // Stays in v0
+        });
+
+        it('user in v1 - should track element when added, trigger when visible (delete deferred)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d4_delete_appears_visible',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d4_delete_appears_visible: 1,
+          });
+          document.body.innerHTML = '<div>Empty</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Add element - Placeholders are only created for elements that exist at initialization
+          // For elements that appear later, ExposureTracker tracks the actual element (not a placeholder)
+          const newEl = document.createElement('div');
+          newEl.className = 'target';
+          newEl.textContent = 'Test';
+          document.body.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          // Element should exist (delete is deferred, no placeholder for dynamic elements)
+          expect(document.querySelector('.target')).not.toBeNull();
+
+          // Trigger element visibility
+          await triggerIntersection(newEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d4_delete_appears_visible');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6D5: Delete with immediate trigger - element doesn\'t exist', () => {
+        it('user in v0 - should trigger immediately', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d5_delete_immediate_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d5_delete_immediate_missing: 0,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d5_delete_immediate_missing');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately (nothing to delete)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d5_delete_immediate_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d5_delete_immediate_missing: 1,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d5_delete_immediate_missing');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.target')).toBeNull();
+        });
+      });
+
+      describe('6D6: Delete with immediate trigger - multiple elements', () => {
+        it('user in v0 - should trigger immediately (all stay)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d6_delete_immediate_multi',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d6_delete_immediate_multi: 0,
+          });
+          document.body.innerHTML = '<div class="target">1</div><div class="target">2</div><div class="target">3</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d6_delete_immediate_multi');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelectorAll('.target').length).toBe(3);
+        });
+
+        it('user in v1 - should trigger immediately + delete all', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d6_delete_immediate_multi',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d6_delete_immediate_multi: 1,
+          });
+          document.body.innerHTML = '<div class="target">1</div><div class="target">2</div><div class="target">3</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d6_delete_immediate_multi');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelectorAll('.target').length).toBe(0);
+        });
+      });
+
+      describe('6D7: Delete with viewport - multiple elements', () => {
+        it('user in v0 - should trigger when ANY element visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d7_delete_viewport_multi',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d7_delete_viewport_multi: 0,
+          });
+          document.body.innerHTML = `
+            <div class="target">1</div>
+            <div class="target" style="position:absolute;top:9999px">2</div>
+            <div class="target">3</div>
+          `;
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger first element
+          const firstEl = document.querySelectorAll('.target')[0];
+          await triggerIntersection(firstEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d7_delete_viewport_multi');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelectorAll('.target').length).toBe(3); // All stay in v0
+        });
+
+        it('user in v1 - should create placeholders, trigger when ANY visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6d7_delete_viewport_multi',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'delete', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6d7_delete_viewport_multi: 1,
+          });
+          document.body.innerHTML = `
+            <div class="target">1</div>
+            <div class="target" style="position:absolute;top:9999px">2</div>
+            <div class="target">3</div>
+          `;
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // All elements deleted, 3 placeholders created
+          expect(document.querySelectorAll('.target').length).toBe(0);
+          expect(document.querySelectorAll('[data-absmartly-delete-placeholder="true"]').length).toBe(3);
+
+          // Trigger first placeholder
+          const placeholders = document.querySelectorAll('[data-absmartly-delete-placeholder="true"]');
+          await triggerIntersection(placeholders[0], true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6d7_delete_viewport_multi');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
+
+    describe('6H: Move Changes - Cross-Position Placeholder Tracking', () => {
+      describe('6H1: Move with viewport trigger - element exists and visible in original position', () => {
+        it('user in v0 - should trigger when element visible in ORIGINAL position', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h1_move_viewport_original',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h1_move_viewport_original: 0,
+          });
+          document.body.innerHTML = `
+            <div class="source"><div class="movable">Element</div></div>
+            <div class="target-container">Target</div>
+          `;
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Element in original position
+          const element = document.querySelector('.movable')!;
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h1_move_viewport_original');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(element.parentElement?.className).toBe('source'); // Stays in original position
+        });
+
+        it('user in v1 - should move element, trigger when visible in NEW position', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h1_move_viewport_new',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h1_move_viewport_new: 1,
+          });
+          document.body.innerHTML = `
+            <div class="source"><div class="movable">Element</div></div>
+            <div class="target-container">Target</div>
+          `;
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Element should be moved
+          const element = document.querySelector('.movable')!;
+          expect(element.parentElement?.className).toBe('target-container');
+
+          // Trigger visibility in new position
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h1_move_viewport_new');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6H2: Move with immediate trigger - element exists', () => {
+        it('user in v0 - should trigger immediately (element stays in original)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h2_move_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h2_move_immediate: 0,
+          });
+          document.body.innerHTML = `
+            <div class="source"><div class="movable">Element</div></div>
+            <div class="target-container">Target</div>
+          `;
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h2_move_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.movable')!.parentElement?.className).toBe('source');
+        });
+
+        it('user in v1 - should trigger immediately + move element', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h2_move_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h2_move_immediate: 1,
+          });
+          document.body.innerHTML = `
+            <div class="source"><div class="movable">Element</div></div>
+            <div class="target-container">Target</div>
+          `;
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h2_move_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.movable')!.parentElement?.className).toBe('target-container');
+        });
+      });
+
+      describe('6H3: Move with viewport trigger - element doesn\'t exist', () => {
+        it('user in v0 - should NOT trigger (element never appears)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h3_move_viewport_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h3_move_viewport_missing: 0,
+          });
+          document.body.innerHTML = '<div class="target-container">Target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('user in v1 - should NOT trigger (element never appears)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h3_move_viewport_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h3_move_viewport_missing: 1,
+          });
+          document.body.innerHTML = '<div class="target-container">Target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('6H4: Move with viewport trigger - target container doesn\'t exist', () => {
+        it('user in v0 - should trigger when element visible in original position', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h4_move_no_target',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h4_move_no_target: 0,
+          });
+          document.body.innerHTML = '<div class="source"><div class="movable">Element</div></div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Element in original position (can't be moved)
+          const element = document.querySelector('.movable')!;
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h4_move_no_target');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should track element in original position (move fails)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h4_move_no_target',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h4_move_no_target: 1,
+          });
+          document.body.innerHTML = '<div class="source"><div class="movable">Element</div></div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Element stays in original position (target doesn't exist)
+          const element = document.querySelector('.movable')!;
+          expect(element.parentElement?.className).toBe('source');
+
+          await triggerIntersection(element, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h4_move_no_target');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6H5: Move with immediate trigger - element doesn\'t exist', () => {
+        it('user in v0 - should trigger immediately', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h5_move_immediate_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h5_move_immediate_missing: 0,
+          });
+          document.body.innerHTML = '<div class="target-container">Target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h5_move_immediate_missing');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately (move pending)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h5_move_immediate_missing',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h5_move_immediate_missing: 1,
+          });
+          document.body.innerHTML = '<div class="target-container">Target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h5_move_immediate_missing');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6H6: Move with viewport trigger - element appears later', () => {
+        it('user in v0 - should trigger when element appears and visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h6_move_appears',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h6_move_appears: 0,
+          });
+          document.body.innerHTML = '<div class="source"></div><div class="target-container">Target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Add element
+          const newEl = document.createElement('div');
+          newEl.className = 'movable';
+          newEl.textContent = 'Element';
+          document.querySelector('.source')!.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger visibility
+          await triggerIntersection(newEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h6_move_appears');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(newEl.parentElement?.className).toBe('source'); // Stays in v0
+        });
+
+        it('user in v1 - should wait for element, move it, trigger when visible in new position', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6h6_move_appears',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.movable',
+                      type: 'move',
+                      targetSelector: '.target-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6h6_move_appears: 1,
+          });
+          document.body.innerHTML = '<div class="source"></div><div class="target-container">Target</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: true,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Add element - should be moved immediately
+          const newEl = document.createElement('div');
+          newEl.className = 'movable';
+          newEl.textContent = 'Element';
+          document.querySelector('.source')!.appendChild(newEl);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          expect(newEl.parentElement?.className).toBe('target-container'); // Moved
+
+          // Trigger visibility in new position
+          await triggerIntersection(newEl, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6h6_move_appears');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6H7: Move different positions - before, after, firstChild', () => {
+        it('user in v1 - should move to different positions correctly', async () => {
+          const positions: Array<'before' | 'after' | 'firstChild' | 'lastChild'> = [
+            'before',
+            'after',
+            'firstChild',
+            'lastChild',
+          ];
+
+          for (const position of positions) {
+            const experiment: ExperimentData = {
+              name: `test_6h7_move_${position}`,
+              variants: [
+                { variables: {} },
+                {
+                  variables: {
+                    __dom_changes: [
+                      {
+                        selector: '.movable',
+                        type: 'move',
+                        targetSelector: '.target',
+                        position,
+                        trigger_on_view: false,
+                      },
+                    ],
+                  },
+                },
+              ],
+            };
+
+            const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+              [`test_6h7_move_${position}`]: 1,
+            });
+            document.body.innerHTML = `
+              <div class="container">
+                <div class="movable">Move me</div>
+                <div class="target">Target</div>
+              </div>
+            `;
+
+            plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+            await plugin.ready();
+
+            expect(treatmentSpy).toHaveBeenCalledWith(`test_6h7_move_${position}`);
+
+            const movable = document.querySelector('.movable')!;
+            const target = document.querySelector('.target')!;
+
+            // Verify position
+            switch (position) {
+              case 'before':
+                expect(movable.nextElementSibling).toBe(target);
+                break;
+              case 'after':
+                expect(target.nextElementSibling).toBe(movable);
+                break;
+              case 'firstChild':
+                expect(target.firstElementChild).toBe(movable);
+                break;
+              case 'lastChild':
+                expect(target.lastElementChild).toBe(movable);
+                break;
+            }
+
+            plugin.destroy();
+          }
+        });
+      });
+    });
+
+    describe('6E: Multiple Changes in v1', () => {
+      describe('6E1: Multiple viewport changes on different elements', () => {
+        it('user in v0 - should trigger when ANY element visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6e1_multi_viewport',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.header', type: 'text', value: 'Header', trigger_on_view: true },
+                    { selector: '.footer', type: 'text', value: 'Footer', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6e1_multi_viewport: 0,
+          });
+          document.body.innerHTML = '<div class="header">H</div><div class="footer">F</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger footer (second element)
+          await triggerIntersection(document.querySelector('.footer')!, true);
+
+          // Should trigger for v0 when v1's footer is visible
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6e1_multi_viewport');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger when ANY element visible', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6e1_multi_viewport',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.header', type: 'text', value: 'Header', trigger_on_view: true },
+                    { selector: '.footer', type: 'text', value: 'Footer', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6e1_multi_viewport: 1,
+          });
+          document.body.innerHTML = '<div class="header">H</div><div class="footer">F</div>';
+
+          plugin = new DOMChangesPluginLite({
+            context: mockContext,
+            autoApply: true,
+            spa: false,
+            visibilityTracking: true,
+          });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Trigger header (first element)
+          await triggerIntersection(document.querySelector('.header')!, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6e1_multi_viewport');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6E2: Mixed immediate + viewport changes', () => {
+        it('user in v0 - should trigger immediately (immediate takes precedence)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6e2_mixed_triggers',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.header', type: 'text', value: 'Header', trigger_on_view: false },
+                    { selector: '.footer', type: 'text', value: 'Footer', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6e2_mixed_triggers: 0,
+          });
+          document.body.innerHTML = '<div class="header">H</div><div class="footer">F</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          // Immediate trigger takes precedence - triggers immediately
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6e2_mixed_triggers');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately (immediate takes precedence)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6e2_mixed_triggers',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.header', type: 'text', value: 'Header', trigger_on_view: false },
+                    { selector: '.footer', type: 'text', value: 'Footer', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6e2_mixed_triggers: 1,
+          });
+          document.body.innerHTML = '<div class="header">H</div><div class="footer">F</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6e2_mixed_triggers');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
+
+    describe('6F: Create Changes - Target Selector Tracking', () => {
+      describe('6F1: Create with immediate trigger', () => {
+        it('user in v0 - should trigger immediately (nothing created)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f1_create_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="new">New Element</div>',
+                      targetSelector: '.container',
+                      position: 'lastChild',
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f1_create_immediate: 0,
+          });
+          document.body.innerHTML = '<div class="container">Container</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f1_create_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.new')).toBeNull(); // Not created in v0
+        });
+
+        it('user in v1 - should trigger immediately + create element', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f1_create_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="new">New Element</div>',
+                      targetSelector: '.container',
+                      position: 'lastChild',
+                      trigger_on_view: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f1_create_immediate: 1,
+          });
+          document.body.innerHTML = '<div class="container">Container</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f1_create_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(document.querySelector('.new')).not.toBeNull(); // Created in v1
+        });
+      });
+    });
+
+    describe('6G: Edge Cases', () => {
+      describe('6G1: waitForElement with immediate trigger', () => {
+        it('user in v0 - should trigger immediately (waitForElement ignored for exposure)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6g1_wait_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.target',
+                      type: 'text',
+                      value: 'Changed',
+                      trigger_on_view: false,
+                      waitForElement: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6g1_wait_immediate: 0,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          // Should trigger immediately (waitForElement doesn't affect exposure timing)
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6g1_wait_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v1 - should trigger immediately (change pending)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6g1_wait_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '.target',
+                      type: 'text',
+                      value: 'Changed',
+                      trigger_on_view: false,
+                      waitForElement: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6g1_wait_immediate: 1,
+          });
+          document.body.innerHTML = '<div>No target</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6g1_wait_immediate');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6G2: SRM Validation - Explicit Same-Time Triggering', () => {
+        it('BOTH variants should trigger at EXACT same time for immediate', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6g2_srm_immediate',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const results: Array<{ variant: number; triggeredAt: 'ready' | 'viewport' | 'never' }> = [];
+
+          // Test BOTH variants
+          for (const userVariant of [0, 1]) {
+            const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+              test_6g2_srm_immediate: userVariant,
+            });
+            document.body.innerHTML = '<div class="target">Original</div>';
+
+            plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+            await plugin.ready();
+
+            // Check if triggered immediately
+            if (treatmentSpy.mock.calls.length > 0) {
+              results.push({ variant: userVariant, triggeredAt: 'ready' });
+            }
+
+            plugin.destroy();
+          }
+
+          // CRITICAL SRM VALIDATION: Both variants must trigger at same time
+          expect(results.length).toBe(2); // Both variants
+          expect(results[0].triggeredAt).toBe('ready'); // v0 immediate
+          expect(results[1].triggeredAt).toBe('ready'); // v1 immediate
+          expect(results[0].triggeredAt).toBe(results[1].triggeredAt); // SAME TIME
+        });
+
+        it('BOTH variants should trigger at EXACT same time for viewport', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6g2_srm_viewport',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.target', type: 'text', value: 'Changed', trigger_on_view: true },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const results: Array<{ variant: number; triggeredAt: 'ready' | 'viewport' | 'never' }> = [];
+
+          // Test BOTH variants
+          for (const userVariant of [0, 1]) {
+            const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+              test_6g2_srm_viewport: userVariant,
+            });
+            document.body.innerHTML = '<div class="target">Original</div>';
+
+            plugin = new DOMChangesPluginLite({
+              context: mockContext,
+              autoApply: true,
+              spa: false,
+              visibilityTracking: true,
+            });
+            await plugin.ready();
+
+            let triggerTime: 'ready' | 'viewport' | 'never' = 'never';
+
+            // Check if triggered at ready
+            if (treatmentSpy.mock.calls.length > 0) {
+              triggerTime = 'ready';
+            } else {
+              // Try viewport
+              const element = document.querySelector('.target')!;
+              await triggerIntersection(element, true);
+
+              if (treatmentSpy.mock.calls.length > 0) {
+                triggerTime = 'viewport';
+              }
+            }
+
+            results.push({ variant: userVariant, triggeredAt: triggerTime });
+            plugin.destroy();
+          }
+
+          // CRITICAL SRM VALIDATION: Both variants must trigger at same time
+          expect(results.length).toBe(2); // Both variants
+          expect(results[0].triggeredAt).toBe('viewport'); // v0 waits for viewport
+          expect(results[1].triggeredAt).toBe('viewport'); // v1 waits for viewport
+          expect(results[0].triggeredAt).toBe(results[1].triggeredAt); // SAME TIME
+        });
+      });
+
+      describe('6G3: Multiple change types in v1', () => {
+        it('user in v0/v1 - should trigger once for all change types', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6g2_multi_types',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    { selector: '.text-target', type: 'text', value: 'Changed', trigger_on_view: false },
+                    { selector: '.style-target', type: 'style', value: { color: 'red' }, trigger_on_view: false },
+                    { selector: '.class-target', type: 'class', add: ['new-class'], trigger_on_view: false },
+                  ],
+                },
+              },
+            ],
+          };
+
+          for (const userVariant of [0, 1]) {
+            const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+              test_6g2_multi_types: userVariant,
+            });
+            document.body.innerHTML = `
+              <div class="text-target">Text</div>
+              <div class="style-target">Style</div>
+              <div class="class-target">Class</div>
+            `;
+
+            plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+            await plugin.ready();
+
+            expect(treatmentSpy).toHaveBeenCalledWith('test_6g2_multi_types');
+            expect(treatmentSpy).toHaveBeenCalledTimes(1);
+
+            plugin.destroy();
+          }
+        });
+      });
+    });
+  });
 });
