@@ -715,6 +715,7 @@ export class DOMChangesPluginLite {
       this.showContent();
     }
 
+    logDebug('[ABsmartly] DOM changes applied');
     this.emit('changes-applied', { count: totalApplied, experimentName });
   }
 

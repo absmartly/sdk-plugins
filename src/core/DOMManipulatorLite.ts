@@ -150,8 +150,16 @@ export class DOMManipulatorLite {
                   code: String(change.value).substring(0, 100) + '...',
                 });
               }
-              const fn = new Function('element', String(change.value));
+              const codeString = String(change.value);
+              logDebug(`[JAVASCRIPT] [${experimentName}] Creating function with code: ${codeString}`);
+              const fn = new Function('element', codeString);
+              logDebug(`[JAVASCRIPT] [${experimentName}] Function created, now executing...`);
               fn(element);
+              logDebug(`[JAVASCRIPT] [${experimentName}] Function executed, element is:`, {
+                elementTag: element.tagName,
+                elementClass: (element as HTMLElement).className,
+                elementId: (element as HTMLElement).id,
+              });
               appliedElements.push(element);
               if (this.debug) {
                 logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {
@@ -159,6 +167,7 @@ export class DOMManipulatorLite {
                   userVariant,
                   selector: change.selector,
                   element: element.tagName,
+                  code: codeString,
                 });
               }
             } catch (error) {

@@ -148,23 +148,20 @@ export class PendingChangeManager {
 
     // Batch the work
     if (work.length > 0) {
-      this.batchWork(work);
+      // Use requestAnimationFrame instead of setTimeout to avoid timing issues with
+      // jsdom's MutationObserver in test environments. The original 32ms setTimeout
+      // batch delay caused hangs when combined with jsdom's async MutationObserver callbacks.
+      if (typeof requestAnimationFrame !== 'undefined') {
+        // Process using requestAnimationFrame for proper frame-based batching
+        requestAnimationFrame(() => {
+          this.processBatchedWork();
+        });
+        work.forEach(fn => this.batchedWork.add(fn));
+      } else {
+        // Fallback for non-browser environments: process immediately
+        work.forEach(fn => fn());
+      }
     }
-  }
-
-  private batchWork(work: Array<() => void>): void {
-    // Add work to batch
-    work.forEach(fn => this.batchedWork.add(fn));
-
-    // Clear existing timer
-    if (this.batchTimer) {
-      clearTimeout(this.batchTimer);
-    }
-
-    // Set new timer (32ms for ~2 frames)
-    this.batchTimer = setTimeout(() => {
-      this.processBatchedWork();
-    }, 32);
   }
 
   private processBatchedWork(): void {
