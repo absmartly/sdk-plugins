@@ -201,26 +201,28 @@ export class ExposureTracker {
 
     // Trigger immediately if needed
     if (hasImmediateTrigger) {
-      if (this.debug) {
-        logDebug(`[EXPOSURE] [${experimentName}] Has immediate trigger - triggering exposure now`, {
-          experimentName,
-          currentVariant,
-        });
-      }
+      logDebug(`[EXPOSURE] [${experimentName}] ✓ HAS IMMEDIATE TRIGGER - triggering exposure NOW`, {
+        experimentName,
+        currentVariant,
+        allVariantCounts: allVariantsChanges.map((vc, idx) => ({ variant: idx, count: vc.length })),
+      });
       // Don't await here to avoid blocking the tracking setup
       this.triggerExposure(experimentName).catch(error => {
         logDebug(`[EXPOSURE] [${experimentName}] ✗ Failed to trigger exposure:`, error);
       });
     } else if (hasViewportTrigger) {
-      if (this.debug) {
-        logDebug(
-          `[EXPOSURE] [${experimentName}] Has viewport trigger - setting up viewport observers`,
-          {
-            experimentName,
-            selectorsToWatch: Array.from(tracking.allPossibleSelectors),
-          }
-        );
-      }
+      logDebug(
+        `[EXPOSURE] [${experimentName}] ✓ HAS VIEWPORT TRIGGER - setting up viewport observers`,
+        {
+          experimentName,
+          currentVariant,
+          selectorsToWatch: Array.from(tracking.allPossibleSelectors),
+          allVariantCounts: allVariantsChanges.map((vc, idx) => ({
+            variant: idx,
+            count: vc.length,
+          })),
+        }
+      );
       // Only set up viewport observers if there's NO immediate trigger
       // If there's an immediate trigger, the experiment will be triggered and cleaned up right away
       this.observeSelectors(experimentName, tracking.allPossibleSelectors);
@@ -229,6 +231,7 @@ export class ExposureTracker {
         `[EXPOSURE] [${experimentName}] ⚠️  No immediate or viewport trigger detected - experiment will NOT be exposed!`,
         {
           experimentName,
+          currentVariant,
           hasImmediateTrigger,
           hasViewportTrigger,
           currentChanges: currentChanges.map(c => ({
@@ -564,18 +567,14 @@ export class ExposureTracker {
     }
 
     if (experiment.triggered) {
-      if (this.debug) {
-        logDebug(`[EXPOSURE] [${experimentName}] Already triggered, skipping`);
-      }
+      logDebug(`[EXPOSURE] [${experimentName}] Already triggered, skipping`);
       return;
     }
 
-    if (this.debug) {
-      logDebug(`[EXPOSURE] [${experimentName}] Triggering exposure via context.treatment()`, {
-        experimentName,
-        variant: experiment.variant,
-      });
-    }
+    logDebug(`[EXPOSURE] [${experimentName}] ✓ CALLING context.treatment() to trigger exposure`, {
+      experimentName,
+      variant: experiment.variant,
+    });
 
     // Ensure context is ready before calling treatment
     await this.context.ready();
@@ -584,13 +583,14 @@ export class ExposureTracker {
     const treatment = this.context.treatment(experimentName);
     experiment.triggered = true;
 
-    if (this.debug) {
-      logDebug(`[EXPOSURE] [${experimentName}] ✓ Exposure triggered successfully`, {
+    logDebug(
+      `[EXPOSURE] [${experimentName}] ✓✓ EXPOSURE TRIGGERED - context.treatment() completed`,
+      {
         experimentName,
         variant: experiment.variant,
         treatment,
-      });
-    }
+      }
+    );
 
     // Clean up tracking for this experiment
     this.cleanupExperiment(experimentName);

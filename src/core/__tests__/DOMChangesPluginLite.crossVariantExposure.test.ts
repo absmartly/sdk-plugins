@@ -1836,7 +1836,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6a2_immediate_exists_hidden: 0,
           });
-          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+          document.body.innerHTML =
+            '<div class="target" style="position:absolute;top:9999px">Original</div>';
 
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
           await plugin.ready();
@@ -1864,7 +1865,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6a2_immediate_exists_hidden: 1,
           });
-          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+          document.body.innerHTML =
+            '<div class="target" style="position:absolute;top:9999px">Original</div>';
 
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
           await plugin.ready();
@@ -1875,7 +1877,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         });
       });
 
-      describe('6A3: Element doesn\'t exist', () => {
+      describe("6A3: Element doesn't exist", () => {
         it('user in v0 - should trigger immediately (immediate ignores existence)', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a3_immediate_missing',
@@ -2177,7 +2179,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6b2_viewport_never_visible: 0,
           });
-          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+          document.body.innerHTML =
+            '<div class="target" style="position:absolute;top:9999px">Original</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -2213,7 +2216,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6b2_viewport_never_visible: 1,
           });
-          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Original</div>';
+          document.body.innerHTML =
+            '<div class="target" style="position:absolute;top:9999px">Original</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -2229,7 +2233,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         });
       });
 
-      describe('6B3: Element doesn\'t exist initially', () => {
+      describe("6B3: Element doesn't exist initially", () => {
         it('user in v0 - should NOT trigger (waiting for element)', async () => {
           const experiment: ExperimentData = {
             name: 'test_6b3_viewport_missing',
@@ -2736,9 +2740,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -2774,9 +2776,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -2818,9 +2818,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -2829,7 +2827,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6d2_delete_viewport_hidden: 0,
           });
-          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Below fold</div>';
+          document.body.innerHTML =
+            '<div class="target" style="position:absolute;top:9999px">Below fold</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -2852,9 +2851,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -2863,7 +2860,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6d2_delete_viewport_hidden: 1,
           });
-          document.body.innerHTML = '<div class="target" style="position:absolute;top:9999px">Below fold</div>';
+          document.body.innerHTML =
+            '<div class="target" style="position:absolute;top:9999px">Below fold</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -2885,7 +2883,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         });
       });
 
-      describe('6D3: Delete with viewport trigger - element doesn\'t exist', () => {
+      describe("6D3: Delete with viewport trigger - element doesn't exist", () => {
         it('user in v0 - should NOT trigger (element never appears)', async () => {
           const experiment: ExperimentData = {
             name: 'test_6d3_delete_viewport_missing',
@@ -2893,9 +2891,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -2926,9 +2922,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -2960,9 +2954,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -3007,9 +2999,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -3049,7 +3039,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         });
       });
 
-      describe('6D5: Delete with immediate trigger - element doesn\'t exist', () => {
+      describe("6D5: Delete with immediate trigger - element doesn't exist", () => {
         it('user in v0 - should trigger immediately', async () => {
           const experiment: ExperimentData = {
             name: 'test_6d5_delete_immediate_missing',
@@ -3057,9 +3047,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: false },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: false }],
                 },
               },
             ],
@@ -3084,9 +3072,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: false },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: false }],
                 },
               },
             ],
@@ -3114,9 +3100,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: false },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: false }],
                 },
               },
             ],
@@ -3125,7 +3109,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6d6_delete_immediate_multi: 0,
           });
-          document.body.innerHTML = '<div class="target">1</div><div class="target">2</div><div class="target">3</div>';
+          document.body.innerHTML =
+            '<div class="target">1</div><div class="target">2</div><div class="target">3</div>';
 
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
           await plugin.ready();
@@ -3142,9 +3127,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: false },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: false }],
                 },
               },
             ],
@@ -3153,7 +3136,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6d6_delete_immediate_multi: 1,
           });
-          document.body.innerHTML = '<div class="target">1</div><div class="target">2</div><div class="target">3</div>';
+          document.body.innerHTML =
+            '<div class="target">1</div><div class="target">2</div><div class="target">3</div>';
 
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
           await plugin.ready();
@@ -3172,9 +3156,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -3215,9 +3197,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    { selector: '.target', type: 'delete', trigger_on_view: true },
-                  ],
+                  __dom_changes: [{ selector: '.target', type: 'delete', trigger_on_view: true }],
                 },
               },
             ],
@@ -3244,10 +3224,14 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
 
           // All elements deleted, 3 placeholders created
           expect(document.querySelectorAll('.target').length).toBe(0);
-          expect(document.querySelectorAll('[data-absmartly-delete-placeholder="true"]').length).toBe(3);
+          expect(
+            document.querySelectorAll('[data-absmartly-delete-placeholder="true"]').length
+          ).toBe(3);
 
           // Trigger first placeholder
-          const placeholders = document.querySelectorAll('[data-absmartly-delete-placeholder="true"]');
+          const placeholders = document.querySelectorAll(
+            '[data-absmartly-delete-placeholder="true"]'
+          );
           await triggerIntersection(placeholders[0], true);
 
           expect(treatmentSpy).toHaveBeenCalledWith('test_6d7_delete_viewport_multi');
@@ -3429,11 +3413,13 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
 
           expect(treatmentSpy).toHaveBeenCalledWith('test_6h2_move_immediate');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
-          expect(document.querySelector('.movable')!.parentElement?.className).toBe('target-container');
+          expect(document.querySelector('.movable')!.parentElement?.className).toBe(
+            'target-container'
+          );
         });
       });
 
-      describe('6H3: Move with viewport trigger - element doesn\'t exist', () => {
+      describe("6H3: Move with viewport trigger - element doesn't exist", () => {
         it('user in v0 - should NOT trigger (element never appears)', async () => {
           const experiment: ExperimentData = {
             name: 'test_6h3_move_viewport_missing',
@@ -3513,7 +3499,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         });
       });
 
-      describe('6H4: Move with viewport trigger - target container doesn\'t exist', () => {
+      describe("6H4: Move with viewport trigger - target container doesn't exist", () => {
         it('user in v0 - should trigger when element visible in original position', async () => {
           const experiment: ExperimentData = {
             name: 'test_6h4_move_no_target',
@@ -3605,7 +3591,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
         });
       });
 
-      describe('6H5: Move with immediate trigger - element doesn\'t exist', () => {
+      describe("6H5: Move with immediate trigger - element doesn't exist", () => {
         it('user in v0 - should trigger immediately', async () => {
           const experiment: ExperimentData = {
             name: 'test_6h5_move_immediate_missing',
@@ -3698,7 +3684,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6h6_move_appears: 0,
           });
-          document.body.innerHTML = '<div class="source"></div><div class="target-container">Target</div>';
+          document.body.innerHTML =
+            '<div class="source"></div><div class="target-container">Target</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -3751,7 +3738,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
             test_6h6_move_appears: 1,
           });
-          document.body.innerHTML = '<div class="source"></div><div class="target-container">Target</div>';
+          document.body.innerHTML =
+            '<div class="source"></div><div class="target-container">Target</div>';
 
           plugin = new DOMChangesPluginLite({
             context: mockContext,
@@ -3821,7 +3809,11 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               </div>
             `;
 
-            plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+            plugin = new DOMChangesPluginLite({
+              context: mockContext,
+              autoApply: true,
+              spa: false,
+            });
             await plugin.ready();
 
             expect(treatmentSpy).toHaveBeenCalledWith(`test_6h7_move_${position}`);
@@ -4151,7 +4143,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             ],
           };
 
-          const results: Array<{ variant: number; triggeredAt: 'ready' | 'viewport' | 'never' }> = [];
+          const results: Array<{ variant: number; triggeredAt: 'ready' | 'viewport' | 'never' }> =
+            [];
 
           // Test BOTH variants
           for (const userVariant of [0, 1]) {
@@ -4160,7 +4153,11 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             });
             document.body.innerHTML = '<div class="target">Original</div>';
 
-            plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+            plugin = new DOMChangesPluginLite({
+              context: mockContext,
+              autoApply: true,
+              spa: false,
+            });
             await plugin.ready();
 
             // Check if triggered immediately
@@ -4193,7 +4190,8 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
             ],
           };
 
-          const results: Array<{ variant: number; triggeredAt: 'ready' | 'viewport' | 'never' }> = [];
+          const results: Array<{ variant: number; triggeredAt: 'ready' | 'viewport' | 'never' }> =
+            [];
 
           // Test BOTH variants
           for (const userVariant of [0, 1]) {
@@ -4246,9 +4244,24 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               {
                 variables: {
                   __dom_changes: [
-                    { selector: '.text-target', type: 'text', value: 'Changed', trigger_on_view: false },
-                    { selector: '.style-target', type: 'style', value: { color: 'red' }, trigger_on_view: false },
-                    { selector: '.class-target', type: 'class', add: ['new-class'], trigger_on_view: false },
+                    {
+                      selector: '.text-target',
+                      type: 'text',
+                      value: 'Changed',
+                      trigger_on_view: false,
+                    },
+                    {
+                      selector: '.style-target',
+                      type: 'style',
+                      value: { color: 'red' },
+                      trigger_on_view: false,
+                    },
+                    {
+                      selector: '.class-target',
+                      type: 'class',
+                      add: ['new-class'],
+                      trigger_on_view: false,
+                    },
                   ],
                 },
               },
@@ -4265,7 +4278,11 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               <div class="class-target">Class</div>
             `;
 
-            plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+            plugin = new DOMChangesPluginLite({
+              context: mockContext,
+              autoApply: true,
+              spa: false,
+            });
             await plugin.ready();
 
             expect(treatmentSpy).toHaveBeenCalledWith('test_6g2_multi_types');

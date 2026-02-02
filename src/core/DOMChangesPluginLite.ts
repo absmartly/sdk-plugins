@@ -407,9 +407,12 @@ export class DOMChangesPluginLite {
       const currentVariant = this.config.context.peek(expName);
 
       if (currentVariant === undefined || currentVariant === null) {
-        logDebug(`[APPLY-CHANGES] [${expName}] ⏭️  Skipping - no variant assigned (peek returned ${currentVariant})`, {
-          experimentName: expName,
-        });
+        logDebug(
+          `[APPLY-CHANGES] [${expName}] ⏭️  Skipping - no variant assigned (peek returned ${currentVariant})`,
+          {
+            experimentName: expName,
+          }
+        );
         continue;
       }
 
@@ -463,28 +466,34 @@ export class DOMChangesPluginLite {
       const stats = { total: changes?.length || 0, success: 0, pending: 0 };
 
       if (this.config.debug) {
-        logDebug(`[ABsmartly] Processing experiment '${expName}' - User is in variant ${currentVariant}:`, {
-          experimentName: expName,
-          userVariant: currentVariant,
-          urlMatches: shouldApplyVisualChanges,
-          changeCount: changes?.length || 0,
-          userVariantHasChanges: (changes?.length || 0) > 0,
-          changes:
-            changes?.map(c => ({
-              type: c.type,
-              selector: c.selector,
-              trigger: c.trigger_on_view ? 'viewport' : 'immediate',
-            })) || [],
-        });
+        logDebug(
+          `[ABsmartly] Processing experiment '${expName}' - User is in variant ${currentVariant}:`,
+          {
+            experimentName: expName,
+            userVariant: currentVariant,
+            urlMatches: shouldApplyVisualChanges,
+            changeCount: changes?.length || 0,
+            userVariantHasChanges: (changes?.length || 0) > 0,
+            changes:
+              changes?.map(c => ({
+                type: c.type,
+                selector: c.selector,
+                trigger: c.trigger_on_view ? 'viewport' : 'immediate',
+              })) || [],
+          }
+        );
       }
 
       // Log if user is in control variant (no changes)
       if (!changes || changes.length === 0) {
         if (this.config.debug) {
-          logDebug(`[ABsmartly] User is in control variant ${currentVariant} with no changes, but will still track for SRM prevention`, {
-            experimentName: expName,
-            currentVariant,
-          });
+          logDebug(
+            `[ABsmartly] User is in control variant ${currentVariant} with no changes, but will still track for SRM prevention`,
+            {
+              experimentName: expName,
+              currentVariant,
+            }
+          );
         }
       }
 
@@ -619,31 +628,36 @@ export class DOMChangesPluginLite {
       }
 
       if (this.config.debug) {
-        logDebug(
-          `[TRIGGER-DETECTION] [${expName}] Final trigger decision for '${expName}':`,
-          {
-            experimentName: expName,
-            userVariant: currentVariant,
-            hasImmediateTrigger: hasAnyImmediateTriggerInAnyVariant,
-            hasViewportTrigger: hasAnyViewportTriggerInAnyVariant,
-            willRegisterExperiment: hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant,
-            userChangesCount: changes?.length || 0,
-            allVariantsChangesCount: allVariantChanges.map(vc => vc.length),
-          }
-        );
+        logDebug(`[TRIGGER-DETECTION] [${expName}] Final trigger decision for '${expName}':`, {
+          experimentName: expName,
+          userVariant: currentVariant,
+          hasImmediateTrigger: hasAnyImmediateTriggerInAnyVariant,
+          hasViewportTrigger: hasAnyViewportTriggerInAnyVariant,
+          willRegisterExperiment:
+            hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant,
+          userChangesCount: changes?.length || 0,
+          allVariantsChangesCount: allVariantChanges.map(vc => vc.length),
+        });
       }
 
       // CRITICAL: Always register experiment for tracking if ANY variant has ANY trigger type
       // This prevents SRM even when user's variant doesn't match URL filter
       // Pass the URL-filtered trigger flags to ExposureTracker
       if (hasAnyViewportTriggerInAnyVariant || hasAnyImmediateTriggerInAnyVariant) {
-        if (this.config.debug) {
-          logDebug(`[TRIGGER-DETECTION] [${expName}] ✓ Registering experiment with ExposureTracker`, {
+        logDebug(
+          `[TRIGGER-DETECTION] [${expName}] ✓ REGISTERING EXPERIMENT - Calling exposureTracker.registerExperiment()`,
+          {
             experimentName: expName,
+            userVariant: currentVariant,
             hasImmediateTrigger: hasAnyImmediateTriggerInAnyVariant,
             hasViewportTrigger: hasAnyViewportTriggerInAnyVariant,
-          });
-        }
+            changesForUser: changes?.length || 0,
+            allVariantCounts: allVariantChanges.map((vc, idx) => ({
+              variant: idx,
+              count: vc.length,
+            })),
+          }
+        );
         this.exposureTracker.registerExperiment(
           expName,
           currentVariant || 0,
@@ -733,18 +747,33 @@ export class DOMChangesPluginLite {
       });
 
       if (currentVariant === undefined || currentVariant === null) {
-        logDebug(`[GET-EXPERIMENTS] [${expName}] ⏭️  Skipping - context.peek() returned ${currentVariant}`);
+        logDebug(
+          `[GET-EXPERIMENTS] [${expName}] ⏭️  Skipping - context.peek() returned ${currentVariant}`
+        );
         continue;
       }
 
       const variantsData = this.variantExtractor.getAllVariantsData(expName);
       const variantData = variantsData.get(currentVariant);
 
-      if (!variantData) {
-        logDebug(`[GET-EXPERIMENTS] [${expName}] ⚠️  User's variant ${currentVariant} has no DOM changes (control variant)`, {
-          availableVariants: Array.from(variantsData.keys()),
-          note: 'Will still track for SRM prevention',
+      if (this.config.debug) {
+        logDebug(`[GET-EXPERIMENTS] [${expName}] Variant data lookup:`, {
+          experimentName: expName,
+          userVariant: currentVariant,
+          variantDataExists: !!variantData,
+          allVariantsInMap: Array.from(variantsData.keys()),
+          userVariantInMap: variantsData.has(currentVariant),
         });
+      }
+
+      if (!variantData) {
+        logDebug(
+          `[GET-EXPERIMENTS] [${expName}] ⚠️  User's variant ${currentVariant} has no DOM changes (control variant)`,
+          {
+            availableVariants: Array.from(variantsData.keys()),
+            note: 'Will still track for SRM prevention',
+          }
+        );
         // Don't skip! Include experiments even if user's variant has no changes
         // This is critical for SRM prevention - we need to track ALL experiments
       }

@@ -430,6 +430,8 @@ export class VariantExtractor {
           }
         }
 
+        // Store ALL variants for cross-variant tracking, even if they have no DOM changes
+        // This is critical for SRM prevention - we must track ALL variants
         if (changesData) {
           // Parse JSON string if needed
           if (typeof changesData === 'string') {
@@ -443,6 +445,10 @@ export class VariantExtractor {
 
           // Store the raw data (could be array or wrapped format)
           variantsData.set(i, changesData as DOMChangesData);
+        } else {
+          // Store null/undefined for variants without changes
+          // This ensures the variant index exists in the map for cross-variant SRM tracking
+          variantsData.set(i, null as any);
         }
       }
     } catch (error) {

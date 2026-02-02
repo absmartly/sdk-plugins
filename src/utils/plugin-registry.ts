@@ -29,10 +29,7 @@ declare global {
 /**
  * Register a plugin in the global registry
  */
-export function registerPlugin(
-  pluginType: keyof PluginRegistry,
-  entry: PluginRegistryEntry
-): void {
+export function registerPlugin(pluginType: keyof PluginRegistry, entry: PluginRegistryEntry): void {
   if (typeof window === 'undefined') {
     return; // Not in browser environment
   }
@@ -65,10 +62,7 @@ export function isPluginRegistered(pluginType: keyof PluginRegistry): boolean {
     return false;
   }
 
-  return !!(
-    window.__ABSMARTLY_PLUGINS__ &&
-    window.__ABSMARTLY_PLUGINS__[pluginType]?.initialized
-  );
+  return !!(window.__ABSMARTLY_PLUGINS__ && window.__ABSMARTLY_PLUGINS__[pluginType]?.initialized);
 }
 
 /**

@@ -40,14 +40,17 @@ export class DOMManipulatorLite {
     const userVariant = (this.plugin as any).config?.context?.peek(experimentName);
 
     if (this.debug) {
-      logDebug(`[DOM-APPLY] [${experimentName}] ${isReapplying ? 'RE-APPLYING' : 'APPLYING'} change`, {
-        experimentName,
-        userVariant,
-        selector: change.selector,
-        type: change.type,
-        timestamp: Date.now(),
-        callStack: new Error().stack?.split('\n').slice(2, 4).join('\n'),
-      });
+      logDebug(
+        `[DOM-APPLY] [${experimentName}] ${isReapplying ? 'RE-APPLYING' : 'APPLYING'} change`,
+        {
+          experimentName,
+          userVariant,
+          selector: change.selector,
+          type: change.type,
+          timestamp: Date.now(),
+          callStack: new Error().stack?.split('\n').slice(2, 4).join('\n'),
+        }
+      );
     }
 
     try {
@@ -159,18 +162,15 @@ export class DOMManipulatorLite {
                 });
               }
             } catch (error) {
-              logDebug(
-                `[JAVASCRIPT] [${experimentName}] ✗ JavaScript execution error:`,
-                {
-                  experimentName,
-                  userVariant,
-                  selector: change.selector,
-                  element: element.tagName,
-                  code: String(change.value),
-                  error: error instanceof Error ? error.message : String(error),
-                  stack: error instanceof Error ? error.stack : undefined,
-                }
-              );
+              logDebug(`[JAVASCRIPT] [${experimentName}] ✗ JavaScript execution error:`, {
+                experimentName,
+                userVariant,
+                selector: change.selector,
+                element: element.tagName,
+                code: String(change.value),
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+              });
             }
           } else {
             logDebug(
