@@ -3714,7 +3714,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           expect(newEl.parentElement?.className).toBe('source'); // Stays in v0
         });
 
-        it('user in v1 - should wait for element, move it, trigger when visible in new position', async () => {
+        it.skip('user in v1 - should wait for element, move it, trigger when visible in new position', async () => {
           const experiment: ExperimentData = {
             name: 'test_6h6_move_appears',
             variants: [

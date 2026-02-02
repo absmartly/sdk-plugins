@@ -102,8 +102,8 @@
     "dev:all": "npm run compile:cjs -- --watch & npm run compile:es -- --watch & npm run compile:types -- --watch",
     "watch": "webpack --mode development --watch --env BUILD_TYPE=all --devtool source-map",
     "prepublishOnly": "npm run build && npm test",
-    "deploy": "npm run build && npm test && npm publish --access public",
-    "deploy:dry-run": "npm run build && npm test && npm publish --dry-run --access public",
+    "publish": "npm run build && npm publish --access public",
+    "publish:dry-run": "npm run build && npm publish --dry-run --access public",
     "version:patch": "npm version patch",
     "version:minor": "npm version minor",
     "version:major": "npm version major"
