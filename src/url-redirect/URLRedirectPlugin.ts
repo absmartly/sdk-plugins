@@ -4,12 +4,10 @@ import { URLRedirectExtractor } from './URLRedirectExtractor';
 import { URLRedirectMatcher } from './URLRedirectMatcher';
 import { URLMatcher } from '../utils/URLMatcher';
 import { logDebug } from '../utils/debug';
-
-declare const __VERSION__: string;
+import { BUILD_VERSION } from '../generated/buildInfo';
 
 export class URLRedirectPlugin {
-  public static readonly VERSION: string =
-    typeof __VERSION__ !== 'undefined' ? __VERSION__ : '1.0.0';
+  public static readonly VERSION: string = BUILD_VERSION;
 
   private config: Required<Omit<URLRedirectPluginConfig, 'onBeforeRedirect'>> & {
     onBeforeRedirect?: URLRedirectPluginConfig['onBeforeRedirect'];

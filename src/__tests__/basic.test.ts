@@ -2,6 +2,7 @@ import { DOMChangesPlugin } from '../index';
 import { SDK } from '@absmartly/javascript-sdk';
 import type { ContextData } from '@absmartly/javascript-sdk/types/context';
 import type { ABsmartlyContext } from '../types';
+import { BUILD_VERSION } from '../generated/buildInfo';
 
 describe('DOMChangesPlugin', () => {
   let sdk: typeof SDK.prototype;
@@ -18,7 +19,7 @@ describe('DOMChangesPlugin', () => {
   });
 
   it('should have a VERSION constant', () => {
-    expect(DOMChangesPlugin.VERSION).toBe('1.1.2');
+    expect(DOMChangesPlugin.VERSION).toBe(BUILD_VERSION);
   });
 
   it('should create an instance with DOMChangesPlugin alias', () => {

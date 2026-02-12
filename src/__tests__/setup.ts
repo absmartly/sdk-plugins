@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import '@testing-library/jest-dom';
 
-// Mock the DEBUG flag to be false in tests
-(global as any).__DEBUG__ = false;
-
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,

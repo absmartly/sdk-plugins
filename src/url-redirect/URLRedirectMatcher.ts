@@ -1,4 +1,5 @@
 import { URLRedirect, RedirectMatch } from './types';
+import { logDebug } from '../utils/debug';
 
 export class URLRedirectMatcher {
   static findMatch(
@@ -11,7 +12,7 @@ export class URLRedirectMatcher {
     try {
       parsedCurrent = new URL(currentUrl);
     } catch (error) {
-      console.error(`[ABsmartly URLRedirect] Invalid URL: ${currentUrl}`, error);
+      logDebug(`[ABsmartly URLRedirect] Invalid URL: ${currentUrl}`, error);
       return null;
     }
 
@@ -43,7 +44,7 @@ export class URLRedirectMatcher {
     try {
       fromUrl = new URL(redirect.from);
     } catch (error) {
-      console.error(`[ABsmartly URLRedirect] Invalid 'from' URL: ${redirect.from}`, error);
+      logDebug(`[ABsmartly URLRedirect] Invalid 'from' URL: ${redirect.from}`, error);
       return null;
     }
 
@@ -55,7 +56,7 @@ export class URLRedirectMatcher {
     try {
       toUrl = new URL(redirect.to);
     } catch (error) {
-      console.error(`[ABsmartly URLRedirect] Invalid 'to' URL: ${redirect.to}`, error);
+      logDebug(`[ABsmartly URLRedirect] Invalid 'to' URL: ${redirect.to}`, error);
       return null;
     }
 
@@ -73,7 +74,7 @@ export class URLRedirectMatcher {
     try {
       fromUrl = new URL(redirect.from);
     } catch (error) {
-      console.error(`[ABsmartly URLRedirect] Invalid 'from' URL: ${redirect.from}`, error);
+      logDebug(`[ABsmartly URLRedirect] Invalid 'from' URL: ${redirect.from}`, error);
       return null;
     }
 
@@ -85,7 +86,7 @@ export class URLRedirectMatcher {
     try {
       toUrl = new URL(redirect.to);
     } catch (error) {
-      console.error(`[ABsmartly URLRedirect] Invalid 'to' URL: ${redirect.to}`, error);
+      logDebug(`[ABsmartly URLRedirect] Invalid 'to' URL: ${redirect.to}`, error);
       return null;
     }
 

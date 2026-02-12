@@ -7,11 +7,14 @@ yarn-error.log*
 # Build outputs
 dist/
 build/
+src/generated/
 *.js
 *.js.map
 *.d.ts
 !jest.config.js
 !rollup.config.js
+!webpack.config.js
+!scripts/**/*.js
 
 # Test coverage
 coverage/

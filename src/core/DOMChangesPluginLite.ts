@@ -16,12 +16,10 @@ import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/
 import { URLMatcher } from '../utils/URLMatcher';
 import { DOMPersistenceManager } from '../utils/persistence';
 import { registerPlugin, unregisterPlugin } from '../utils/plugin-registry';
-
-declare const __VERSION__: string;
+import { BUILD_VERSION } from '../generated/buildInfo';
 
 export class DOMChangesPluginLite {
-  public static readonly VERSION: string =
-    typeof __VERSION__ !== 'undefined' ? __VERSION__ : '1.1.2';
+  public static readonly VERSION: string = BUILD_VERSION;
 
   protected config: Required<PluginConfig>;
   protected domManipulator: DOMManipulatorLite;

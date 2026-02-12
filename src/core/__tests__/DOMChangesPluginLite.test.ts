@@ -8,6 +8,7 @@ import {
   extractVariantOverrides,
 } from '../../__tests__/fixtures';
 import { DOMChange } from '../../types';
+import { BUILD_VERSION } from '../../generated/buildInfo';
 
 describe('DOMChangesPluginLite', () => {
   let pluginInstances: DOMChangesPluginLite[] = [];
@@ -45,7 +46,7 @@ describe('DOMChangesPluginLite', () => {
       const plugin = createPlugin({ context });
 
       expect(plugin).toBeInstanceOf(DOMChangesPluginLite);
-      expect(DOMChangesPluginLite.VERSION).toBe('1.1.2');
+      expect(DOMChangesPluginLite.VERSION).toBe(BUILD_VERSION);
     });
 
     it('should throw error if context is missing', () => {

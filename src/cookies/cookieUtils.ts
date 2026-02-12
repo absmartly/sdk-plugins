@@ -2,6 +2,7 @@
  * Cookie utility functions extracted from CookiePlugin
  * These can be used independently for lightweight cookie operations
  */
+import { logDebug } from '../utils/debug';
 
 export interface CookieOptions {
   domain?: string;
@@ -54,7 +55,7 @@ export function setCookie(
     document.cookie = cookieString;
     return true;
   } catch (e) {
-    console.error(`Unable to set cookie ${name}:`, e);
+    logDebug(`Unable to set cookie ${name}:`, e);
     return false;
   }
 }

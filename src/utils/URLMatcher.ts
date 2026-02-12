@@ -1,3 +1,5 @@
+import { logDebug } from './debug';
+
 export interface URLFilterConfig {
   include?: string[];
   exclude?: string[];
@@ -71,7 +73,7 @@ export class URLMatcher {
       }
     } catch (error) {
       // If URL parsing fails, return original string
-      console.error(`[ABsmartly] Failed to parse URL: ${url}`, error);
+      logDebug(`[ABsmartly] Failed to parse URL: ${url}`, error);
       return url;
     }
   }
@@ -86,7 +88,7 @@ export class URLMatcher {
         try {
           return new RegExp(pattern).test(url);
         } catch (error) {
-          console.error(`[ABsmartly] Invalid regex pattern: ${pattern}`, error);
+          logDebug(`[ABsmartly] Invalid regex pattern: ${pattern}`, error);
           return false;
         }
       }
@@ -107,7 +109,7 @@ export class URLMatcher {
     try {
       return new RegExp(`^${regexPattern}$`).test(url);
     } catch (error) {
-      console.error(`[ABsmartly] Invalid pattern: ${pattern}`, error);
+      logDebug(`[ABsmartly] Invalid pattern: ${pattern}`, error);
       return false;
     }
   }

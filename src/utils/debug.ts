@@ -1,11 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
-// This will be replaced by webpack DefinePlugin
-declare const __DEBUG__: boolean;
+import { BUILD_DEBUG } from '../generated/buildInfo';
 
-// Build-time debug flag - true in development, false in production
-// TEMPORARILY HARDCODED TO TRUE FOR DEBUGGING
-export const DEBUG = typeof __DEBUG__ !== 'undefined' ? __DEBUG__ : true;
+export const DEBUG = BUILD_DEBUG;
 
 export interface LogContext {
   experimentName?: string;
