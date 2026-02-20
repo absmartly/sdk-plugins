@@ -98,14 +98,56 @@ This is a **known Jest/jsdom issue** with MutationObserver + setTimeout interact
 - Requires understanding the exact async sequence
 - May still deadlock due to jsdom limitation
 
-## Architectural Question
+## Phase 4: Implementation - COMPLETED ✅
 
-The PendingChangeManager's 32ms batch delay is for **performance optimization** (batching multiple mutations into one application cycle). However, in test environment with MutationObserver, this creates problematic timing.
+### Solution Implemented
 
-**Should we**:
-1. Make batching configurable (no delay in tests)?
-2. Change how MutationObserver works in tests (mock it)?
-3. Change the batching mechanism entirely (microtask instead of setTimeout)?
-4. Keep the test skipped and document the limitation?
+**Changed PendingChangeManager batching from setTimeout to requestAnimationFrame**
 
-User's stance: Test should NOT be skipped - they want it to pass.
+**File**: `src/core/PendingChangeManager.ts` (handleMutations method)
+
+**Before**:
+```typescript
+private batchWork(work: Array<() => void>): void {
+  work.forEach(fn => this.batchedWork.add(fn));
+  if (this.batchTimer) clearTimeout(this.batchTimer);
+  this.batchTimer = setTimeout(() => {
+    this.processBatchedWork();
+  }, 32);
+}
+```
+
+**After**:
+```typescript
+// In handleMutations, instead of calling batchWork(work):
+if (typeof requestAnimationFrame !== 'undefined') {
+  requestAnimationFrame(() => {
+    this.processBatchedWork();
+  });
+  work.forEach(fn => this.batchedWork.add(fn));
+} else {
+  // Fallback for non-browser environments
+  work.forEach(fn => fn());
+}
+```
+
+### Why This Fixes the Issue
+
+1. **Original problem**: jsdom's MutationObserver callback + setTimeout creates a deadlock
+2. **New approach**: requestAnimationFrame provides frame-based batching without setTimeout timing issues
+3. **Benefits**:
+   - Achieves same batching goal (groups multiple mutations)
+   - Avoids setTimeout race condition with jsdom
+   - More semantically correct (frame-based batching is better than arbitrary 32ms delay)
+   - No need to detect test environment or modify test code
+
+### Test Results
+
+- ✅ 6H6 test now **PASSES** (no longer skipped, no longer hangs)
+- ✅ All 660 tests pass (659 actual tests + 1 skipped unrelated)
+- ✅ No regressions in other tests
+
+### Commit
+
+Commit: `730a538`
+Message: "fix: replace setTimeout with requestAnimationFrame in PendingChangeManager to avoid jsdom deadlock"

@@ -151,7 +151,9 @@ export class DOMManipulatorLite {
                 });
               }
               const codeString = String(change.value);
-              logDebug(`[JAVASCRIPT] [${experimentName}] Creating function with code: ${codeString}`);
+              logDebug(
+                `[JAVASCRIPT] [${experimentName}] Creating function with code: ${codeString}`
+              );
               const fn = new Function('element', codeString);
               logDebug(`[JAVASCRIPT] [${experimentName}] Function created, now executing...`);
               fn(element);

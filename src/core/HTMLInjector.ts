@@ -154,7 +154,8 @@ export class HTMLInjector {
   }
 
   private injectAtLocation(location: InjectionLocation, code: string): void {
-    const injectionId = `absmartly-inject-${location}-${Date.now()}-${Math.random()}`;
+    const codeHash = this.simpleHash(code);
+    const injectionId = `absmartly-inject-${location}-${codeHash}`;
 
     if (this.injectedIds.has(injectionId)) {
       return;
@@ -247,6 +248,16 @@ export class HTMLInjector {
     container.innerHTML = code;
 
     return container;
+  }
+
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
   }
 
   destroy(): void {

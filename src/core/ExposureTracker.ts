@@ -625,8 +625,9 @@ export class ExposureTracker {
       experiment.allPossibleSelectors.clear();
     }
 
-    // Clean up mutation observer if no experiments left
-    if (this.experiments.size === 0 && this.mutationObserver) {
+    // Clean up mutation observer if all experiments have been triggered
+    const allTriggered = Array.from(this.experiments.values()).every(exp => exp.triggered);
+    if (allTriggered && this.mutationObserver) {
       this.mutationObserver.disconnect();
       this.mutationObserver = null;
     }

@@ -35,6 +35,9 @@ export class DOMChangesPluginLite {
   protected antiFlickerTimeout: number | null = null;
   protected antiFlickerStyleId = 'absmartly-antiflicker';
   private readyPromise: Promise<void>;
+  private originalPushState: typeof history.pushState | null = null;
+  private originalReplaceState: typeof history.replaceState | null = null;
+  private popstateHandler: ((event: PopStateEvent) => void) | null = null;
 
   constructor(config: PluginConfig) {
     this.config = {
@@ -241,21 +244,26 @@ export class DOMChangesPluginLite {
     };
 
     // Listen to popstate (back/forward navigation)
-    window.addEventListener('popstate', handleURLChange);
+    this.popstateHandler = handleURLChange;
+    window.addEventListener('popstate', this.popstateHandler);
 
     // Intercept pushState and replaceState
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
+    this.originalPushState = history.pushState;
+    this.originalReplaceState = history.replaceState;
 
     history.pushState = function (...args) {
-      originalPushState.apply(history, args);
+      if (this.originalPushState) {
+        this.originalPushState.apply(history, args);
+      }
       handleURLChange();
-    };
+    }.bind(this);
 
     history.replaceState = function (...args) {
-      originalReplaceState.apply(history, args);
+      if (this.originalReplaceState) {
+        this.originalReplaceState.apply(history, args);
+      }
       handleURLChange();
-    };
+    }.bind(this);
 
     if (this.config.debug) {
       logDebug('[ABsmartly] URL change listener set up for SPA mode');
@@ -1055,6 +1063,20 @@ export class DOMChangesPluginLite {
     const antiFlickerStyle = document.getElementById(this.antiFlickerStyleId);
     if (antiFlickerStyle) {
       antiFlickerStyle.remove();
+    }
+
+    // Restore history methods
+    if (this.originalPushState) {
+      history.pushState = this.originalPushState;
+    }
+    if (this.originalReplaceState) {
+      history.replaceState = this.originalReplaceState;
+    }
+
+    // Remove popstate listener
+    if (this.popstateHandler) {
+      window.removeEventListener('popstate', this.popstateHandler);
+      this.popstateHandler = null;
     }
 
     this.eventListeners.clear();

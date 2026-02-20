@@ -100,7 +100,7 @@ export class URLRedirectExtractor {
   }
 
   private parseConfig(data: unknown): URLRedirectConfig | null {
-    if (!data || typeof data !== 'object') {
+    if (!data) {
       return null;
     }
 
@@ -111,6 +111,10 @@ export class URLRedirectExtractor {
         logDebug('[ABsmartly URLRedirectExtractor] Failed to parse config JSON:', error);
         return null;
       }
+    }
+
+    if (typeof data !== 'object') {
+      return null;
     }
 
     const obj = data as Record<string, unknown>;

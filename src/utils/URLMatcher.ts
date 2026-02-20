@@ -1,13 +1,5 @@
 import { logDebug } from './debug';
-
-export interface URLFilterConfig {
-  include?: string[];
-  exclude?: string[];
-  mode?: 'simple' | 'regex';
-  matchType?: 'full-url' | 'path' | 'domain' | 'query' | 'hash';
-}
-
-export type URLFilter = string | string[] | URLFilterConfig;
+import type { URLFilter, URLFilterConfig } from '../types';
 
 export class URLMatcher {
   /**
