@@ -335,7 +335,8 @@ export class ExposureTracker {
 
     let placeholdersCreated = 0;
 
-    elements.forEach((element, index) => {
+    for (let index = 0; index < elements.length; index++) {
+      const element = elements[index];
       // Create unique ID for the placeholder (remove special chars from selector for valid ID)
       const selectorId = selector.replace(/[^a-zA-Z0-9-]/g, '_');
       const placeholderId = `absmartly-delete-${experimentName}-${selectorId}-${index}`;
@@ -343,7 +344,7 @@ export class ExposureTracker {
 
       // Check if this element already has a placeholder
       if (element.hasAttribute('data-absmartly-delete-placeholder')) {
-        return;
+        continue;
       }
 
       // Create minimal placeholder using inline styles
@@ -384,7 +385,7 @@ export class ExposureTracker {
           `[ABsmartly] Created in-place delete placeholder for ${selector} in experiment ${experimentName}`
         );
       }
-    });
+    }
 
     return placeholdersCreated;
   }
@@ -431,19 +432,19 @@ export class ExposureTracker {
    * Set up observers for the given selectors
    */
   private observeSelectors(experimentName: string, selectors: Set<string>): void {
-    selectors.forEach(selector => {
+    for (const selector of selectors) {
       // Try to find existing elements
       const elements = document.querySelectorAll(selector);
 
       if (elements.length > 0) {
-        elements.forEach(element => {
+        for (const element of elements) {
           this.trackElement(element, experimentName);
-        });
+        }
       } else {
         // Element doesn't exist yet, set up mutation observer to watch for it
         this.watchForSelector(selector, experimentName);
       }
-    });
+    }
   }
 
   /**
@@ -480,11 +481,11 @@ export class ExposureTracker {
   private setupIntersectionObserver(): void {
     this.observer = new IntersectionObserver(
       entries => {
-        entries.forEach(entry => {
+        for (const entry of entries) {
           if (entry.isIntersecting) {
             this.handleElementVisible(entry.target);
           }
-        });
+        }
       },
       {
         threshold: 0.01, // Trigger when even 1% is visible
@@ -498,14 +499,14 @@ export class ExposureTracker {
    */
   private setupMutationObserver(): void {
     this.mutationObserver = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
           if (node instanceof Element) {
             // Check if this element or its children match any tracked selectors
             this.checkNewElement(node);
           }
-        });
-      });
+        }
+      }
     });
 
     this.mutationObserver.observe(document.body, {
@@ -518,18 +519,18 @@ export class ExposureTracker {
    * Check if a newly added element needs tracking
    */
   private checkNewElement(element: Element): void {
-    this.experiments.forEach((tracking, experimentName) => {
-      tracking.allPossibleSelectors.forEach(selector => {
+    for (const [experimentName, tracking] of this.experiments) {
+      for (const selector of tracking.allPossibleSelectors) {
         if (element.matches(selector)) {
           this.trackElement(element, experimentName);
         }
 
         // Also check children
-        element.querySelectorAll(selector).forEach(child => {
+        for (const child of element.querySelectorAll(selector)) {
           this.trackElement(child, experimentName);
-        });
-      });
-    });
+        }
+      }
+    }
   }
 
   /**
@@ -539,7 +540,7 @@ export class ExposureTracker {
     const tracked = this.trackedElements.get(element);
     if (!tracked) return;
 
-    tracked.experiments.forEach(experimentName => {
+    for (const experimentName of tracked.experiments) {
       const experiment = this.experiments.get(experimentName);
 
       if (experiment && !experiment.triggered) {
@@ -555,7 +556,7 @@ export class ExposureTracker {
           logDebug(`[ABsmartly] Triggering exposure for ${experimentName} via ${selector}`);
         }
       }
-    });
+    }
   }
 
   /**
@@ -603,22 +604,22 @@ export class ExposureTracker {
    */
   private cleanupExperiment(experimentName: string): void {
     // Remove from tracked elements
-    this.trackedElements.forEach((tracked, element) => {
+    for (const [element, tracked] of this.trackedElements) {
       tracked.experiments.delete(experimentName);
 
       if (tracked.experiments.size === 0) {
         this.observer.unobserve(element);
         this.trackedElements.delete(element);
       }
-    });
+    }
 
     // Remove placeholders
-    this.placeholders.forEach((placeholder, key) => {
+    for (const [key, placeholder] of this.placeholders) {
       if (key.startsWith(`${experimentName}-`)) {
         placeholder.remove();
         this.placeholders.delete(key);
       }
-    });
+    }
 
     // Don't delete the experiment - keep it in the map so isTriggered() can still return true
     // Just clear the selectors since we don't need to track them anymore

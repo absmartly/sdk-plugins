@@ -138,9 +138,9 @@ export class PendingChangeManager {
 
             // Check descendants
             const found = node.querySelectorAll(change.selector);
-            found.forEach(el => {
+            for (const el of found) {
               work.push(() => this.applyChange(el, pending));
-            });
+            }
           }
         }
       }
@@ -156,10 +156,14 @@ export class PendingChangeManager {
         requestAnimationFrame(() => {
           this.processBatchedWork();
         });
-        work.forEach(fn => this.batchedWork.add(fn));
+        for (const fn of work) {
+          this.batchedWork.add(fn);
+        }
       } else {
         // Fallback for non-browser environments: process immediately
-        work.forEach(fn => fn());
+        for (const fn of work) {
+          fn();
+        }
       }
     }
   }
@@ -174,7 +178,9 @@ export class PendingChangeManager {
     }
 
     // Apply all changes
-    work.forEach(fn => fn());
+    for (const fn of work) {
+      fn();
+    }
   }
 
   private applyChange(element: Element, pendingChange: PendingChange): void {
@@ -276,7 +282,7 @@ export class PendingChangeManager {
     }
 
     // Clean up observers with no pending changes
-    rootsToClean.forEach(rootKey => {
+    for (const rootKey of rootsToClean) {
       const observer = this.observers.get(rootKey);
       if (observer) {
         observer.disconnect();
@@ -286,7 +292,7 @@ export class PendingChangeManager {
           logDebug('[ABsmartly] Cleaned up observer for root:', rootKey);
         }
       }
-    });
+    }
   }
 
   destroy(): void {
