@@ -161,10 +161,14 @@ export class WebVitalsPlugin {
       this.metricsTracked = true;
     } catch (error) {
       logDebug('[WebVitalsPlugin] Error tracking page metrics:', error);
-      ctx.track('metrics_tracking_error', {
-        error: (error as Error).message,
-        type: (error as Error).name,
-      });
+      try {
+        ctx.track('metrics_tracking_error', {
+          error: (error as Error).message,
+          type: (error as Error).name,
+        });
+      } catch (reportError) {
+        logDebug('[WebVitalsPlugin] Error reporting metrics tracking error:', reportError);
+      }
     }
   }
 

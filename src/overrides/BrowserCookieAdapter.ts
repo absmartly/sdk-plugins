@@ -3,7 +3,8 @@ import { getCookie } from '../cookies/cookieUtils';
 
 export class BrowserCookieAdapter implements CookieAdapter {
   get(name: string): string | null {
-    return getCookie(name);
+    const value = getCookie(name);
+    return value ? decodeURIComponent(value) : null;
   }
 
   set(name: string, value: string, options?: CookieOptions): void {

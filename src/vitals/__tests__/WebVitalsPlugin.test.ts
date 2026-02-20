@@ -37,6 +37,13 @@ describe('WebVitalsPlugin', () => {
   beforeEach(() => {
     mockContext = createMockContext();
     jest.clearAllMocks();
+    // Ensure performance.getEntriesByType exists for mocking in jsdom
+    if (!('getEntriesByType' in performance)) {
+      Object.defineProperty(performance, 'getEntriesByType', {
+        configurable: true,
+        value: jest.fn(() => []),
+      });
+    }
   });
 
   afterEach(() => {
