@@ -15,6 +15,10 @@ import {
   CookieOverrides,
   OverrideValue,
 } from './types';
+import {
+  getQueryStringOverrides as getQueryStringOverridesUtil,
+  parseOverrideCookie,
+} from './overridesUtils';
 
 // Internal context structure for endpoint extraction
 interface ContextInternal {
@@ -246,7 +250,7 @@ export class OverridesPlugin extends OverridesPluginLite {
         urlParams = new URLSearchParams(window.location.search);
       }
 
-      const overrides: CookieOverrides = {};
+      const overrides = getQueryStringOverridesUtil(this.fullConfig.queryPrefix, urlParams);
       let devEnv: string | null = null;
 
       // Get environment from query param
@@ -254,30 +258,6 @@ export class OverridesPlugin extends OverridesPluginLite {
         const env = urlParams.get(this.fullConfig.envParam);
         if (env) {
           devEnv = env;
-        }
-      }
-
-      // Check for experiment parameters with prefix
-      const prefix = this.fullConfig.queryPrefix;
-      for (const [key, value] of urlParams.entries()) {
-        if (key.startsWith(prefix)) {
-          const experimentName = key.substring(prefix.length);
-          if (experimentName) {
-            const parts = value.split(',');
-            const variant = parseInt(parts[0], 10);
-
-            if (!isNaN(variant)) {
-              if (parts.length === 1) {
-                overrides[experimentName] = variant;
-              } else {
-                overrides[experimentName] = {
-                  variant,
-                  env: parts[1] ? parseInt(parts[1], 10) : undefined,
-                  id: parts[2] ? parseInt(parts[2], 10) : undefined,
-                };
-              }
-            }
-          }
         }
       }
 
@@ -343,32 +323,7 @@ export class OverridesPlugin extends OverridesPluginLite {
         experimentsStr = parts[1] || '';
       }
 
-      const overrides: CookieOverrides = {};
-      if (experimentsStr) {
-        const experiments = experimentsStr.split(',');
-
-        for (const exp of experiments) {
-          const [name, values] = exp.split(':');
-          if (!name || !values) continue;
-
-          const decodedName = decodeURIComponent(name);
-          const parts = values.split('.');
-          const variant = parseInt(parts[0], 10);
-
-          // Skip if variant is not a valid number
-          if (isNaN(variant)) continue;
-
-          if (parts.length === 1) {
-            overrides[decodedName] = variant;
-          } else {
-            overrides[decodedName] = {
-              variant,
-              env: parts[1] ? parseInt(parts[1], 10) : undefined,
-              id: parts[2] ? parseInt(parts[2], 10) : undefined,
-            };
-          }
-        }
-      }
+      const overrides = experimentsStr ? parseOverrideCookie(experimentsStr) : {};
 
       return { overrides, devEnv };
     } catch (error) {

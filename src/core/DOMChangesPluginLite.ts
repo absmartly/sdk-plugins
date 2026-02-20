@@ -251,6 +251,7 @@ export class DOMChangesPluginLite {
     this.originalPushState = history.pushState;
     this.originalReplaceState = history.replaceState;
 
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
     history.pushState = function (data: any, unused: string, url?: string | URL | null) {
       if (self.originalPushState) {

@@ -1,16 +1,18 @@
 import { logDebug } from '../utils/debug';
 import { registerPlugin, unregisterPlugin } from '../utils/plugin-registry';
+import {
+  getQueryStringOverrides as getQueryStringOverridesUtil,
+  getCookieOverrides as getCookieOverridesUtil,
+  serializeOverrides,
+  persistOverridesToCookie as persistOverridesToCookieUtil,
+  SimpleOverride,
+} from './overridesUtils';
+
 /**
  * Lightweight client-side version of OverridesPlugin
  * Minimal code for production websites - handles cookie and query string parsing
  * No API fetching, no dev environment support to keep bundle size small
  */
-
-interface SimpleOverride {
-  variant: number;
-  env?: number;
-  id?: number;
-}
 
 interface ABSmartlyContextLite {
   override?: (experimentName: string, variant: number) => void;
@@ -125,33 +127,7 @@ export class OverridesPluginLite {
   private getQueryStringOverrides(): Record<string, number | SimpleOverride> {
     if (typeof window === 'undefined' || !window.location) return {};
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const overrides: Record<string, number | SimpleOverride> = {};
-    const prefix = this.config.queryPrefix;
-
-    // Check for experiment parameters with prefix
-    for (const [key, value] of urlParams.entries()) {
-      if (key.startsWith(prefix)) {
-        const experimentName = key.substring(prefix.length);
-        if (experimentName) {
-          // Parse value as variant[,env][,id]
-          const parts = value.split(',');
-          const variant = parseInt(parts[0], 10);
-
-          if (!isNaN(variant)) {
-            if (parts.length === 1) {
-              overrides[experimentName] = variant;
-            } else {
-              overrides[experimentName] = {
-                variant,
-                env: parts[1] ? parseInt(parts[1], 10) : undefined,
-                id: parts[2] ? parseInt(parts[2], 10) : undefined,
-              };
-            }
-          }
-        }
-      }
-    }
+    const overrides = getQueryStringOverridesUtil(this.config.queryPrefix);
 
     if (this.config.debug && Object.keys(overrides).length > 0) {
       logDebug('[OverridesPluginLite] Query string overrides:', overrides);
@@ -163,87 +139,16 @@ export class OverridesPluginLite {
   private getCookieOverrides(): Record<string, number | SimpleOverride> {
     if (typeof document === 'undefined') return {};
 
-    const nameEQ = this.config.cookieName + '=';
-    const cookies = document.cookie.split(';');
-
-    for (let cookie of cookies) {
-      cookie = cookie.trim();
-      if (cookie.indexOf(nameEQ) === 0) {
-        const value = decodeURIComponent(cookie.substring(nameEQ.length));
-        return this.parseCookieValue(value);
-      }
-    }
-
-    return {};
-  }
-
-  private parseCookieValue(value: string): Record<string, number | SimpleOverride> {
-    if (!value) return {};
-
-    const overrides: Record<string, number | SimpleOverride> = {};
-
-    // Skip dev environment if present (Lite doesn't handle it)
-    let experimentsStr = value;
-    if (value.includes('|')) {
-      const parts = value.split('|');
-      // Take the last part which has the experiments
-      experimentsStr = parts[parts.length - 1];
-    }
-
-    if (!experimentsStr) return {};
-
-    // Parse comma-separated experiments
-    const experiments = experimentsStr.split(',');
-
-    for (const exp of experiments) {
-      const [name, values] = exp.split(':');
-      if (!name || !values) continue;
-
-      const decodedName = decodeURIComponent(name);
-
-      // Parse dot-separated values (variant.env.id)
-      const parts = values.split('.');
-      const variant = parseInt(parts[0], 10);
-
-      if (!isNaN(variant)) {
-        if (parts.length === 1) {
-          overrides[decodedName] = variant;
-        } else {
-          overrides[decodedName] = {
-            variant,
-            env: parts[1] ? parseInt(parts[1], 10) : undefined,
-            id: parts[2] ? parseInt(parts[2], 10) : undefined,
-          };
-        }
-      }
-    }
-
-    return overrides;
+    return getCookieOverridesUtil(this.config.cookieName);
   }
 
   private persistOverridesToCookie(overrides: Record<string, number | SimpleOverride>): void {
     if (!this.config.cookieName || typeof document === 'undefined') return;
 
-    const parts: string[] = [];
-    for (const [name, value] of Object.entries(overrides)) {
-      const encodedName = encodeURIComponent(name);
-      if (typeof value === 'number') {
-        parts.push(`${encodedName}:${value}`);
-      } else {
-        let str = `${encodedName}:${value.variant}`;
-        if (value.env !== undefined) str += `.${value.env}`;
-        if (value.id !== undefined) str += `.${value.id}`;
-        parts.push(str);
-      }
-    }
-
-    const cookieValue = parts.join(',');
-    const maxAge = 86400; // 1 day
-    document.cookie = `${this.config.cookieName}=${encodeURIComponent(
-      cookieValue
-    )};path=/;max-age=${maxAge}`;
+    persistOverridesToCookieUtil(overrides, { cookieName: this.config.cookieName });
 
     if (this.config.debug) {
+      const cookieValue = serializeOverrides(overrides);
       logDebug('[OverridesPluginLite] Persisted to cookie:', cookieValue);
     }
   }

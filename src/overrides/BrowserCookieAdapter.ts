@@ -1,18 +1,9 @@
 import { CookieAdapter, CookieOptions } from './types';
+import { getCookie } from '../cookies/cookieUtils';
 
 export class BrowserCookieAdapter implements CookieAdapter {
   get(name: string): string | null {
-    const nameEQ = name + '=';
-    const cookies = document.cookie.split(';');
-
-    for (let cookie of cookies) {
-      cookie = cookie.trim();
-      if (cookie.indexOf(nameEQ) === 0) {
-        return decodeURIComponent(cookie.substring(nameEQ.length));
-      }
-    }
-
-    return null;
+    return getCookie(name);
   }
 
   set(name: string, value: string, options?: CookieOptions): void {

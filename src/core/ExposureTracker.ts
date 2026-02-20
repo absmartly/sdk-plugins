@@ -674,7 +674,9 @@ export class ExposureTracker {
     }
 
     // Remove all placeholders
-    this.placeholders.forEach(placeholder => placeholder.remove());
+    for (const placeholder of this.placeholders.values()) {
+      placeholder.remove();
+    }
 
     // Clear all tracking
     this.experiments.clear();
