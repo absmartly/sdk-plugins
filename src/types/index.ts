@@ -220,6 +220,9 @@ export interface EventCallbackData {
   error?: string;
   removedChanges?: AppliedChange[];
   change?: DOMChange;
+  // Error handling properties
+  type?: string;
+  reason?: string;
 }
 
 // Message handler type

@@ -148,8 +148,12 @@ export class DOMChangesPluginLite {
       if (this.config.debug) {
         logDebug('[ABsmartly] DOM Changes Plugin Lite initialized with debug mode');
       }
-    } catch (error) {
+    } catch (error: any) {
       logDebug('[ABsmartly] Failed to initialize plugin:', error);
+      this.emit('error', {
+        type: 'initialization_error',
+        error: error?.message || String(error),
+      });
       throw error;
     }
   }
@@ -941,13 +945,23 @@ export class DOMChangesPluginLite {
           experimentName,
           change,
         });
+      } else {
+        this.emit('change_failed', {
+          experimentName,
+          change,
+          reason: 'selector_not_found_or_apply_failed',
+        });
       }
 
       return success;
-    } catch (error) {
-      if (this.config.debug) {
-        logDebug('[ABsmartly] Error applying change:', error);
-      }
+    } catch (error: any) {
+      logDebug('[ABsmartly] Error applying change:', error);
+      this.emit('error', {
+        type: 'change_apply_error',
+        experimentName,
+        change,
+        error: error?.message || String(error),
+      });
       return false;
     }
   }
