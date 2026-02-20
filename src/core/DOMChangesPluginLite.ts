@@ -157,24 +157,24 @@ export class DOMChangesPluginLite {
   private setupMutationObserver(): void {
     const observer = new MutationObserver(mutations => {
       // Re-apply ALL changes to elements that were replaced by React (hydration mismatch)
-      mutations.forEach(mutation => {
+      for (const mutation of mutations) {
         if (mutation.type === 'childList') {
           // Check if any added nodes match our applied change selectors
-          mutation.addedNodes.forEach(node => {
+          for (const node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const element = node as Element;
 
               // Check all experiments with applied changes (not just style changes)
               const appliedChanges = this.persistenceManager?.getAppliedChanges() || new Map();
-              appliedChanges.forEach((changes: DOMChange[], experimentName: string) => {
-                changes.forEach((change: DOMChange) => {
+              for (const [experimentName, changes] of appliedChanges) {
+                for (const change of changes) {
                   try {
                     // Check if this new element or any of its descendants match the selector
                     const matchingElements = element.matches(change.selector)
                       ? [element]
                       : Array.from(element.querySelectorAll(change.selector));
 
-                    matchingElements.forEach(matchingEl => {
+                    for (const matchingEl of matchingElements) {
                       if (this.config.debug) {
                         logDebug(
                           '[SPA-REAPPLY] Re-applying change to newly added element (React hydration recovery)',
@@ -189,16 +189,16 @@ export class DOMChangesPluginLite {
 
                       // Re-apply the change to the new element (ALL types: style, class, attribute, html, text, etc.)
                       this.domManipulator.applyChange(change, experimentName);
-                    });
+                    }
                   } catch (e) {
                     // Invalid selector, skip
                   }
-                });
-              });
+                }
+              }
             }
-          });
+          }
         }
-      });
+      }
     });
 
     // Wait for document.body to exist before observing
@@ -251,19 +251,20 @@ export class DOMChangesPluginLite {
     this.originalPushState = history.pushState;
     this.originalReplaceState = history.replaceState;
 
-    history.pushState = function (...args) {
-      if (this.originalPushState) {
-        this.originalPushState.apply(history, args);
+    const self = this;
+    history.pushState = function (data: any, unused: string, url?: string | URL | null) {
+      if (self.originalPushState) {
+        self.originalPushState.call(history, data, unused, url);
       }
       handleURLChange();
-    }.bind(this);
+    } as typeof history.pushState;
 
-    history.replaceState = function (...args) {
-      if (this.originalReplaceState) {
-        this.originalReplaceState.apply(history, args);
+    history.replaceState = function (data: any, unused: string, url?: string | URL | null) {
+      if (self.originalReplaceState) {
+        self.originalReplaceState.call(history, data, unused, url);
       }
       handleURLChange();
-    }.bind(this);
+    } as typeof history.replaceState;
 
     if (this.config.debug) {
       logDebug('[ABsmartly] URL change listener set up for SPA mode');
@@ -561,7 +562,7 @@ export class DOMChangesPluginLite {
         );
 
         // Log the structure of each variant's data
-        allVariantsData.forEach((data, idx) => {
+        for (const [idx, data] of allVariantsData) {
           logDebug(`[ABsmartly] Variant ${idx} data structure:`, {
             isArray: Array.isArray(data),
             isObject: typeof data === 'object',
@@ -570,7 +571,7 @@ export class DOMChangesPluginLite {
             keys:
               data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
           });
-        });
+        }
       }
 
       // Loop through ALL variants (not just ones with changes)
@@ -1042,7 +1043,9 @@ export class DOMChangesPluginLite {
     this.exposureTracker.destroy();
     this.htmlInjector.destroy();
 
-    this.styleManagers.forEach(manager => manager.destroy());
+    for (const manager of this.styleManagers.values()) {
+      manager.destroy();
+    }
     this.styleManagers.clear();
 
     if (this.mutationObserver) {

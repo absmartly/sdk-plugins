@@ -63,8 +63,8 @@ export class ExposureTracker {
     const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
     const deleteElements = new Set<string>(); // selectors for delete changes
 
-    allVariantsChanges.forEach(variantChanges => {
-      variantChanges.forEach(change => {
+    for (const variantChanges of allVariantsChanges) {
+      for (const change of variantChanges) {
         if (change.trigger_on_view) {
           if (change.type === 'move') {
             if (!moveElements.has(change.selector)) {
@@ -83,13 +83,13 @@ export class ExposureTracker {
             viewportSelectors.add(change.selector);
           }
         }
-      });
-    });
+      }
+    }
 
     // For cross-variant move tracking, we need to track the EXACT POSITION where
     // elements would appear in other variants. We use container-based invisible elements
     // positioned exactly where the element would be, using CSS positioning.
-    moveElements.forEach((_targetParents, selector) => {
+    for (const [selector] of moveElements) {
       // Collect all move changes for this element across ALL variants
       const allMovesForElement: Array<{
         targetSelector: string;
@@ -97,7 +97,8 @@ export class ExposureTracker {
         variantIndex: number;
       }> = [];
 
-      allVariantsChanges.forEach((variantChanges, variantIndex) => {
+      for (let variantIndex = 0; variantIndex < allVariantsChanges.length; variantIndex++) {
+        const variantChanges = allVariantsChanges[variantIndex];
         const moveChange = variantChanges.find(
           c => c.type === 'move' && c.selector === selector && c.trigger_on_view
         );
@@ -109,7 +110,7 @@ export class ExposureTracker {
             variantIndex,
           });
         }
-      });
+      }
 
       // Check if current variant has a move for this element
       const currentMoveIndex = allMovesForElement.findIndex(m => m.variantIndex === currentVariant);
@@ -119,7 +120,8 @@ export class ExposureTracker {
         viewportSelectors.add(selector);
 
         // For all OTHER variant positions, create container-based placeholders
-        allMovesForElement.forEach((move, index) => {
+        for (let index = 0; index < allMovesForElement.length; index++) {
+          const move = allMovesForElement[index];
           if (index !== currentMoveIndex) {
             // Create placeholder at the position where element WOULD be in another variant
             this.createContainerPlaceholder(
@@ -129,27 +131,27 @@ export class ExposureTracker {
               move.position
             );
           }
-        });
+        }
       } else {
         // Current variant does NOT have a move - element stays in original position
         viewportSelectors.add(selector);
 
         // For ALL variant moves, create placeholders at those positions
-        allMovesForElement.forEach(move => {
+        for (const move of allMovesForElement) {
           this.createContainerPlaceholder(
             experimentName,
             selector,
             move.targetSelector,
             move.position
           );
-        });
+        }
       }
-    });
+    }
 
     // For cross-variant delete tracking, we need to handle elements that are deleted in some variants
     // For variants with delete: replace element with 1px placeholder in the same position
     // For variants without delete: track the actual element
-    deleteElements.forEach(selector => {
+    for (const selector of deleteElements) {
       // Check if current variant has a delete for this selector
       const currentVariantHasDelete = currentChanges.some(
         c => c.type === 'delete' && c.selector === selector && c.trigger_on_view
@@ -174,7 +176,7 @@ export class ExposureTracker {
         // Current variant doesn't delete - track the real element
         viewportSelectors.add(selector);
       }
-    });
+    }
 
     // Trigger flags are now passed in from DOMChangesPluginLite after URL filtering
     // This ensures only variants matching the current URL determine trigger behavior
