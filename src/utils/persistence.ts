@@ -37,10 +37,10 @@ export class DOMPersistenceManager {
       if (this.config.debug) {
         const currentStyles: Record<string, string> = {};
         if (change.value && typeof change.value === 'object') {
-          Object.keys(change.value).forEach(prop => {
+          for (const prop of Object.keys(change.value)) {
             const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
             currentStyles[cssProp] = (element as HTMLElement).style.getPropertyValue(cssProp);
-          });
+          }
         }
         logDebug('[WATCH-ELEMENT] Started watching element for persistence', {
           experimentName,
@@ -108,7 +108,7 @@ export class DOMPersistenceManager {
         });
       }
 
-      mutations.forEach(mutation => {
+      for (const mutation of mutations) {
         const element = mutation.target as Element;
 
         if (this.reapplyingElements.has(element)) {
@@ -117,7 +117,7 @@ export class DOMPersistenceManager {
               element: element.tagName,
             });
           }
-          return;
+          continue;
         }
 
         const experiments = this.watchedElements.get(element);
@@ -141,11 +141,11 @@ export class DOMPersistenceManager {
             }
           }
 
-          experiments.forEach(experimentName => {
+          for (const experimentName of experiments) {
             const appliedChanges = this.appliedChanges.get(experimentName);
 
             if (appliedChanges) {
-              appliedChanges.forEach(change => {
+              for (const change of appliedChanges) {
                 let needsReapply = false;
 
                 if (
@@ -207,11 +207,11 @@ export class DOMPersistenceManager {
                     this.reapplyingElements.delete(element);
                   }, 0);
                 }
-              });
+              }
             }
-          });
+          }
         }
-      });
+      }
     });
 
     this.persistenceObserver.observe(document.body, {

@@ -101,14 +101,14 @@ export class DOMManipulatorLite {
         return false;
       }
 
-      elements.forEach(element => {
+      for (const element of elements) {
         if (this.debug && change.type === 'style') {
           const oldStyles: Record<string, string> = {};
           if (change.value && typeof change.value === 'object') {
-            Object.keys(change.value).forEach(prop => {
+            for (const prop of Object.keys(change.value)) {
               const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
               oldStyles[cssProp] = (element as HTMLElement).style.getPropertyValue(cssProp);
-            });
+            }
           }
           logDebug(`[DOM-BEFORE-APPLY] Element styles before change`, {
             experimentName,
@@ -124,10 +124,10 @@ export class DOMManipulatorLite {
         if (this.debug && change.type === 'style') {
           const appliedStyles: Record<string, string> = {};
           if (change.value && typeof change.value === 'object') {
-            Object.keys(change.value).forEach(prop => {
+            for (const prop of Object.keys(change.value)) {
               const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
               appliedStyles[cssProp] = (element as HTMLElement).style.getPropertyValue(cssProp);
-            });
+            }
           }
           logDebug(`[DOM-AFTER-APPLY] Element styles after change`, {
             experimentName,
@@ -233,7 +233,7 @@ export class DOMManipulatorLite {
             spaMode: (this.plugin as any).config?.spa,
           });
         }
-      });
+      }
 
       if (appliedElements.length > 0) {
         this.trackAppliedChange(experimentName, change);
@@ -388,11 +388,11 @@ export class DOMManipulatorLite {
         break;
       case 'style':
         if (change.value && typeof change.value === 'object') {
-          Object.entries(change.value).forEach(([property, value]) => {
+          for (const [property, value] of Object.entries(change.value)) {
             const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
             const priority = change.important === true ? 'important' : '';
             (element as HTMLElement).style.setProperty(cssProperty, String(value), priority);
-          });
+          }
         }
         break;
       case 'class':
@@ -405,13 +405,13 @@ export class DOMManipulatorLite {
         break;
       case 'attribute':
         if (change.value && typeof change.value === 'object') {
-          Object.entries(change.value).forEach(([attr, value]) => {
+          for (const [attr, value] of Object.entries(change.value)) {
             if (value === null || value === undefined) {
               element.removeAttribute(attr);
             } else {
               element.setAttribute(attr, String(value));
             }
-          });
+          }
         }
         break;
       case 'move':

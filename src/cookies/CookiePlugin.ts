@@ -181,22 +181,22 @@ export class CookiePlugin {
     const params: Record<string, string> = {};
     const searchParams = new URLSearchParams(window.location.search);
 
-    this.utmParams.forEach(param => {
+    for (const param of this.utmParams) {
       const value = searchParams.get(param);
       if (value) {
         params[param] = value;
       }
-    });
+    }
 
     if (Object.keys(params).length === 0 && document.referrer) {
       try {
         const referrerUrl = new URL(document.referrer);
-        this.utmParams.forEach(param => {
+        for (const param of this.utmParams) {
           const value = referrerUrl.searchParams.get(param);
           if (value) {
             params[param] = value;
           }
-        });
+        }
       } catch (e) {
         this.debugLog('Error parsing referrer URL:', e);
       }
@@ -283,11 +283,11 @@ export class CookiePlugin {
       this.storeUtmParams(utmParams);
     }
 
-    Object.entries(utmParams).forEach(([param, value]) => {
+    for (const [param, value] of Object.entries(utmParams)) {
       const attributeName = param.slice(4);
       ctx.attribute(attributeName, value);
       this.debugLog(`Set attribute ${attributeName}:`, value);
-    });
+    }
   }
 
   public clearAllCookies(): void {
