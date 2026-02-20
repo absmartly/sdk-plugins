@@ -44,23 +44,24 @@ export class VariantExtractor {
     try {
       const contextData = this.context.data() as ContextData;
 
-      // Always log the raw context data structure for debugging
-      logDebug('[VariantExtractor DEBUG] Raw context data structure:', {
-        hasData: !!contextData,
-        contextKeys: contextData ? Object.keys(contextData) : [],
-        experimentCount: contextData?.experiments?.length || 0,
-        firstExperiment: contextData?.experiments?.[0]
-          ? {
-              name: contextData.experiments[0].name,
-              // id: contextData.experiments[0].id, // id field might not exist
-              variantCount: contextData.experiments[0].variants?.length || 0,
-              firstVariantStructure: contextData.experiments[0].variants?.[0]
-                ? Object.keys(contextData.experiments[0].variants[0])
-                : [],
-            }
-          : null,
-        rawContextData: JSON.stringify(contextData).substring(0, 500) + '...',
-      });
+      if (this.debug) {
+        logDebug('[VariantExtractor DEBUG] Raw context data structure:', {
+          hasData: !!contextData,
+          contextKeys: contextData ? Object.keys(contextData) : [],
+          experimentCount: contextData?.experiments?.length || 0,
+          firstExperiment: contextData?.experiments?.[0]
+            ? {
+                name: contextData.experiments[0].name,
+                // id: contextData.experiments[0].id, // id field might not exist
+                variantCount: contextData.experiments[0].variants?.length || 0,
+                firstVariantStructure: contextData.experiments[0].variants?.[0]
+                  ? Object.keys(contextData.experiments[0].variants[0])
+                  : [],
+              }
+            : null,
+          rawContextData: JSON.stringify(contextData).substring(0, 500) + '...',
+        });
+      }
 
       if (this.debug) {
         logDebug('[ABsmartly VariantExtractor] Extracting changes from context:', {
@@ -122,9 +123,11 @@ export class VariantExtractor {
   private extractAllVariantsForExperiment(experiment: ExperimentData): Map<number, DOMChange[]> {
     const variantChanges = new Map<number, DOMChange[]>();
 
-    logDebug(
-      `[DEBUG] Processing experiment: ${experiment.name} with ${experiment.variants?.length || 0} variants`
-    );
+    if (this.debug) {
+      logDebug(
+        `[DEBUG] Processing experiment: ${experiment.name} with ${experiment.variants?.length || 0} variants`
+      );
+    }
 
     if (!experiment.variants) {
       logDebug(`[DEBUG] No variants found for experiment: ${experiment.name}`);

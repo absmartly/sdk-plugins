@@ -277,22 +277,17 @@ export class DOMChangesPluginLite {
    * Used when URL changes in SPA mode
    */
   private async removeAllChanges(): Promise<void> {
-    // Clear exposed experiments - ExposureTracker will re-register on next applyChanges
+    // ExposureTracker will re-register on next applyChanges
     this.exposedExperiments.clear();
 
-    // Clear style managers - StyleSheetManager doesn't have a remove method
-    // The stylesheets will be reused or cleared on next applyChanges
+    // StyleSheetManager doesn't have a remove method, stylesheets will be reused on next applyChanges
     this.styleManagers.clear();
 
-    // Clear applied changes
     if (this.persistenceManager) {
       this.persistenceManager.clearAll();
     }
 
-    // Clear HTML injections
     this.htmlInjector.destroy();
-
-    // Clear variant extractor cache to force re-extraction
     this.variantExtractor.clearCache();
 
     if (this.config.debug) {
