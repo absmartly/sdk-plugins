@@ -302,9 +302,7 @@ describe('BrowserCookieAdapter', () => {
       // Note: Cookie names are case-insensitive in HTTP headers,
       // but JavaScript might preserve case
       // Some browsers preserve case, some don't - just verify it's retrievable somehow
-      expect(
-        adapter.get('MyCookie') === 'value' || adapter.get('mycookie') === 'value'
-      ).toBe(true);
+      expect(adapter.get('MyCookie') === 'value' || adapter.get('mycookie') === 'value').toBe(true);
     });
 
     it('should handle very long cookie values', () => {

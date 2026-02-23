@@ -296,9 +296,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: mockContext,
@@ -326,9 +324,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         trackPageMetrics: true,
@@ -356,9 +352,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: mockContext,
@@ -387,9 +381,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: mockContext,
@@ -418,9 +410,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: mockContext,
@@ -466,9 +456,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: errorContext,
@@ -496,9 +484,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: mockContext,
@@ -582,9 +568,7 @@ describe('WebVitalsPlugin', () => {
         decodedBodySize: 10000,
       };
 
-      jest
-        .spyOn(performance, 'getEntriesByType')
-        .mockReturnValue([mockNavigation as any]);
+      jest.spyOn(performance, 'getEntriesByType').mockReturnValue([mockNavigation as any]);
 
       const plugin = new WebVitalsPlugin({
         context: mockContext,

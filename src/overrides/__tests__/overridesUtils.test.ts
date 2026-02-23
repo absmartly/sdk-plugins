@@ -414,11 +414,7 @@ describe('overridesUtils', () => {
   describe('getOverrides', () => {
     it('should get overrides from query string if present', () => {
       const params = new URLSearchParams('exp_test=1');
-      const overrides = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        params
-      );
+      const overrides = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', params);
 
       expect(overrides).toEqual({ test: 1 });
     });
@@ -427,22 +423,14 @@ describe('overridesUtils', () => {
       const params = new URLSearchParams('');
       persistOverridesToCookie({ cookie_test: 2 });
 
-      const overrides = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        params
-      );
+      const overrides = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', params);
 
       expect(overrides).toEqual({ cookie_test: 2 });
     });
 
     it('should normalize SimpleOverride to variant number', () => {
       const params = new URLSearchParams('exp_test=1,3,42');
-      const overrides = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        params
-      );
+      const overrides = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', params);
 
       expect(overrides).toEqual({ test: 1 });
     });
@@ -458,11 +446,7 @@ describe('overridesUtils', () => {
 
     it('should return empty object if no overrides found', () => {
       const params = new URLSearchParams('');
-      const overrides = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        params
-      );
+      const overrides = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', params);
 
       expect(typeof overrides).toBe('object');
     });
@@ -476,12 +460,7 @@ describe('overridesUtils', () => {
 
     it('should use provided cookieHeader for server-side', () => {
       const cookieHeader = 'absmartly_overrides=test%3A1';
-      const overrides = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        undefined,
-        cookieHeader
-      );
+      const overrides = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', undefined, cookieHeader);
 
       expect(overrides).toEqual({ test: 1 });
     });
@@ -513,11 +492,7 @@ describe('overridesUtils', () => {
 
       // Use with getOverrides
       const params = new URLSearchParams('');
-      const final = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        params
-      );
+      const final = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', params);
 
       expect(final).toEqual(overrides);
     });
@@ -528,11 +503,7 @@ describe('overridesUtils', () => {
 
       // Get with query string
       const params = new URLSearchParams('exp_query_test=2');
-      const overrides = getOverrides(
-        DEFAULT_OVERRIDE_COOKIE_NAME,
-        'exp_',
-        params
-      );
+      const overrides = getOverrides(DEFAULT_OVERRIDE_COOKIE_NAME, 'exp_', params);
 
       expect(overrides).toEqual({ query_test: 2 });
 
