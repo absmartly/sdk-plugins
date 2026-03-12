@@ -248,7 +248,7 @@ export class URLRedirectPlugin {
         name: 'URLRedirectPlugin',
         version: URLRedirectPlugin.VERSION,
         initialized: true,
-        capabilities: ['redirect', 'domain-redirect', 'page-redirect'],
+        capabilities: ['redirect', 'domain-redirect', 'page-redirect', 'path-prefix-redirect', 'pattern-redirect'],
         instance: this,
         timestamp: Date.now(),
       } as PluginRegistration;

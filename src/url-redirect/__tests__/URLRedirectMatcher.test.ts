@@ -171,6 +171,380 @@ describe('URLRedirectMatcher', () => {
     });
   });
 
+  describe('path-prefix redirects', () => {
+    const pathPrefixRedirect: URLRedirect = {
+      from: 'https://example.com',
+      to: 'https://example.com/v1',
+      type: 'path-prefix',
+      preservePath: true,
+    };
+
+    it('should prepend path prefix to current path', () => {
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about',
+        [pathPrefixRedirect],
+        'test-exp',
+        1
+      );
+
+      expect(match).not.toBeNull();
+      expect(match?.targetUrl).toBe('https://example.com/v1/about');
+    });
+
+    it('should handle root path', () => {
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/',
+        [pathPrefixRedirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/');
+    });
+
+    it('should preserve query string and hash', () => {
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/pricing?plan=pro#features',
+        [pathPrefixRedirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/pricing?plan=pro#features');
+    });
+
+    it('should handle deep paths', () => {
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/blog/2024/my-post',
+        [pathPrefixRedirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/blog/2024/my-post');
+    });
+
+    it('should not match different domain', () => {
+      const match = URLRedirectMatcher.findMatch(
+        'https://other.com/about',
+        [pathPrefixRedirect],
+        'test-exp',
+        1
+      );
+
+      expect(match).toBeNull();
+    });
+
+    it('should not preserve query when preservePath is false', () => {
+      const redirect: URLRedirect = {
+        ...pathPrefixRedirect,
+        preservePath: false,
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about?ref=test',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/about');
+    });
+
+    it('should work with cross-domain prefix redirect', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com',
+        to: 'https://dev.example.com',
+        type: 'path-prefix',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://dev.example.com/about');
+    });
+
+    it('should handle trailing slash in prefix', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com',
+        to: 'https://example.com/v1/',
+        type: 'path-prefix',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/about');
+    });
+  });
+
+  describe('pattern redirects', () => {
+    it('should match wildcard pattern and replace in target', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://dev.example.com/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match).not.toBeNull();
+      expect(match?.targetUrl).toBe('https://dev.example.com/about');
+    });
+
+    it('should handle root path with wildcard', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://example.com/v1/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/');
+    });
+
+    it('should handle deep paths', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://example.com/v1/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/blog/2024/post',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/blog/2024/post');
+    });
+
+    it('should match path prefix pattern', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/blog/*',
+        to: 'https://example.com/v2/blog/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/blog/my-post',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v2/blog/my-post');
+    });
+
+    it('should not match non-matching prefix', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/blog/*',
+        to: 'https://example.com/v2/blog/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match).toBeNull();
+    });
+
+    it('should not match different domain', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://dev.example.com/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://other.com/about',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match).toBeNull();
+    });
+
+    it('should preserve query string and hash', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://dev.example.com/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/page?utm=test#section',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://dev.example.com/page?utm=test#section');
+    });
+
+    it('should not preserve query when preservePath is false', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://dev.example.com/*',
+        type: 'pattern',
+        preservePath: false,
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/page?utm=test#section',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://dev.example.com/page');
+    });
+
+    it('should handle multiple wildcards', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*/items/*',
+        to: 'https://example.com/v2/*/products/*',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/shop/items/shoes',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v2/shop/products/shoes');
+    });
+
+    it('should support $1 $2 indexed references to reorder captures', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*/items/*',
+        to: 'https://example.com/v2/$2/by-shop/$1',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/shop/items/shoes',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v2/shoes/by-shop/shop');
+    });
+
+    it('should support $1 reference with single capture', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://example.com/v1/$1',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/about',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/v1/about');
+    });
+
+    it('should support reusing same capture multiple times', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://example.com/$1/mirror/$1',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/page',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/page/mirror/page');
+    });
+
+    it('should treat out-of-range $N references as empty string', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/*',
+        to: 'https://example.com/$1/extra/$2',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/page',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/page/extra/');
+    });
+
+    it('should handle exact path with no wildcard', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/old',
+        to: 'https://example.com/new',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/old',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match?.targetUrl).toBe('https://example.com/new');
+    });
+
+    it('should not match exact path pattern against different path', () => {
+      const redirect: URLRedirect = {
+        from: 'https://example.com/old',
+        to: 'https://example.com/new',
+        type: 'pattern',
+      };
+
+      const match = URLRedirectMatcher.findMatch(
+        'https://example.com/other',
+        [redirect],
+        'test-exp',
+        1
+      );
+
+      expect(match).toBeNull();
+    });
+  });
+
   describe('buildTargetUrl', () => {
     it('should build target URL for matching redirect', () => {
       const redirect: URLRedirect = {

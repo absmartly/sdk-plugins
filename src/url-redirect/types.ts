@@ -1,6 +1,6 @@
 import type { URLFilter } from '../types';
 
-export type RedirectType = 'domain' | 'page';
+export type RedirectType = 'domain' | 'page' | 'path-prefix' | 'pattern';
 
 export type ControlBehavior = 'redirect-same' | 'no-redirect';
 
