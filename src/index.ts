@@ -62,5 +62,8 @@ export type { PluginRegistry, PluginRegistryEntry } from './utils/plugin-registr
 export { URLRedirectExtractor } from './url-redirect/URLRedirectExtractor';
 export { URLRedirectMatcher } from './url-redirect/URLRedirectMatcher';
 
+export { AnalyticsPlugin } from './analytics/index';
+export type { AnalyticsPluginConfig } from './analytics/types';
+
 // Default export for UMD builds (backward compatibility)
 export default DOMChangesPluginLite;

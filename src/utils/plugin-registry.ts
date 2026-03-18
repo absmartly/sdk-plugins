@@ -18,6 +18,7 @@ export interface PluginRegistry {
   cookie?: PluginRegistryEntry;
   vitals?: PluginRegistryEntry;
   urlRedirect?: PluginRegistryEntry;
+  analytics?: PluginRegistryEntry;
 }
 
 declare global {
