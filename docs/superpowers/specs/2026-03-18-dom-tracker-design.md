@@ -93,6 +93,7 @@ interface TrackerContext {
   querySelectorAll(selector: string): Element[];
   onElementAdded(selector: string, callback: (el: Element) => void): () => void;   // returns unsubscribe fn
   onElementRemoved(selector: string, callback: (el: Element) => void): () => void; // returns unsubscribe fn
+  getPageName(): string;  // returns current page name using pageName config or default derivation
 }
 ```
 
