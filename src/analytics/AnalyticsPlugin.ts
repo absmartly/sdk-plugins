@@ -1,8 +1,10 @@
+import { DOMTracker } from '@absmartly/dom-tracker';
+import type { EventHandler, AttributeHandler } from '@absmartly/dom-tracker';
 import type { AnalyticsPluginConfig } from './types';
 import { registerPlugin, unregisterPlugin } from '../utils/plugin-registry';
 
 export class AnalyticsPlugin {
-  private tracker: any;
+  private tracker: DOMTracker;
   private readonly context: any;
   private destroyed = false;
 
@@ -10,20 +12,21 @@ export class AnalyticsPlugin {
     const { context, onEvent, onAttribute, ...trackerConfig } = config;
     this.context = context;
 
-    const eventHandlers = [
+    const eventHandlers: EventHandler[] = [
       (event: string, props: Record<string, unknown>) => context.track(event, props),
       ...normalizeToArray(onEvent ?? []),
     ];
 
-    const attrHandlers = [
+    const attrHandlers: AttributeHandler[] = [
       (attrs: Record<string, unknown>) => context.attributes(attrs),
       ...normalizeToArray(onAttribute ?? []),
     ];
 
-    this.tracker = {
-      config: { ...trackerConfig, onEvent: eventHandlers, onAttribute: attrHandlers },
-      destroy: () => {},
-    };
+    this.tracker = new DOMTracker({
+      ...trackerConfig,
+      onEvent: eventHandlers,
+      onAttribute: attrHandlers,
+    });
 
     if (!context.__plugins) context.__plugins = {};
     context.__plugins.analytics = {
@@ -44,17 +47,17 @@ export class AnalyticsPlugin {
         capabilities: ['tracking', 'attributes'],
         instance: this,
       });
-    } catch {}
+    } catch (_e) { /* plugin registry may not be initialized */ }
   }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    if (this.tracker?.destroy) this.tracker.destroy();
+    this.tracker.destroy();
     if (this.context.__plugins) delete this.context.__plugins.analytics;
     try {
       unregisterPlugin('analytics');
-    } catch {}
+    } catch (_e) { /* ignore */ }
   }
 }
 
