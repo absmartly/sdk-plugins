@@ -156,7 +156,10 @@ export class DOMManipulatorLite {
               );
               const sourceTag = `absmartly-experiment-${experimentName || 'unknown'}.js`;
               const debugPrelude = `var _debug = (typeof _debug !== 'undefined' ? _debug : { debugLog: console.log.bind(console), debugWarn: console.warn.bind(console), debugError: console.error.bind(console) });\n`;
-              const fn = new Function('element', debugPrelude + codeString + `\n//# sourceURL=${sourceTag}`);
+              const fn = new Function(
+                'element',
+                debugPrelude + codeString + `\n//# sourceURL=${sourceTag}`
+              );
               logDebug(`[JAVASCRIPT] [${experimentName}] Function created, now executing...`);
               fn(element);
               logDebug(`[JAVASCRIPT] [${experimentName}] Function executed, element is:`, {
@@ -458,7 +461,10 @@ export class DOMManipulatorLite {
           }
           const sourceTag = `absmartly-experiment-${experimentName || 'unknown'}.js`;
           const debugPrelude = `var _debug = (typeof _debug !== 'undefined' ? _debug : { debugLog: console.log.bind(console), debugWarn: console.warn.bind(console), debugError: console.error.bind(console) });\n`;
-          const fn = new Function('element', debugPrelude + String(change.value) + `\n//# sourceURL=${sourceTag}`);
+          const fn = new Function(
+            'element',
+            debugPrelude + String(change.value) + `\n//# sourceURL=${sourceTag}`
+          );
           fn(element);
           if (this.debug) {
             logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {

@@ -364,11 +364,7 @@ describe('DOMChangesPluginLite - Persistence', () => {
         value: 'element.style.color = "red"',
       };
 
-      const experiment = TestDataFactory.createExperiment(
-        'script_default_test',
-        [jsChange],
-        1
-      );
+      const experiment = TestDataFactory.createExperiment('script_default_test', [jsChange], 1);
       const sdk = createTestSDK();
       const overrides = extractVariantOverrides([experiment]);
       const context = createTestContext(
@@ -407,11 +403,7 @@ describe('DOMChangesPluginLite - Persistence', () => {
         persistScript: false,
       };
 
-      const experiment = TestDataFactory.createExperiment(
-        'no_script_persist_test',
-        [jsChange],
-        1
-      );
+      const experiment = TestDataFactory.createExperiment('no_script_persist_test', [jsChange], 1);
       const sdk = createTestSDK();
       const overrides = extractVariantOverrides([experiment]);
       const context = createTestContext(

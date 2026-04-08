@@ -530,7 +530,8 @@ describe('URLRedirectPlugin', () => {
       context = createTestContext(sdk, { experiments: [experiment] }, 'test-user', {
         'redirect-exp': 1,
       });
-      const publishSpy = jest.spyOn(context, 'publish')
+      const publishSpy = jest
+        .spyOn(context, 'publish')
         .mockRejectedValueOnce(new Error('beacon failed'))
         .mockResolvedValueOnce(undefined as any);
       mockLocation('https://example.com/page');

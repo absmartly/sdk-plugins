@@ -190,7 +190,10 @@ export class URLRedirectPlugin {
         await this.config.context.publish();
       }
     } catch (error) {
-      logProductionWarn('[ABsmartly URLRedirectPlugin] Failed to publish exposure before redirect:', error);
+      logProductionWarn(
+        '[ABsmartly URLRedirectPlugin] Failed to publish exposure before redirect:',
+        error
+      );
     }
 
     if (match.targetUrl !== window.location.href) {
@@ -209,14 +212,19 @@ export class URLRedirectPlugin {
     };
 
     if (typeof context.publish !== 'function') {
-      logProductionWarn('[ABsmartly URLRedirectPlugin] context.publish is not a function - exposure will not be recorded');
+      logProductionWarn(
+        '[ABsmartly URLRedirectPlugin] context.publish is not a function - exposure will not be recorded'
+      );
       return;
     }
 
     try {
       await context.publish({ useBeacon: true });
     } catch (error) {
-      logProductionWarn('[ABsmartly URLRedirectPlugin] Beacon publish failed, falling back to regular publish:', error);
+      logProductionWarn(
+        '[ABsmartly URLRedirectPlugin] Beacon publish failed, falling back to regular publish:',
+        error
+      );
       await context.publish();
     }
   }
