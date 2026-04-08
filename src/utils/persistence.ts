@@ -169,7 +169,14 @@ export class DOMPersistenceManager {
                       }
                     }
                   }
-                } else if (change.type === 'javascript' && change.persistScript !== false) {
+                } else if (
+                  change.type === 'javascript' &&
+                  change.persistScript === true &&
+                  change.value &&
+                  typeof change.value === 'string'
+                ) {
+                  // JavaScript changes have arbitrary side effects that cannot be introspected,
+                  // so we re-execute on any style/class mutation rather than checking specific values.
                   needsReapply =
                     mutation.attributeName === 'style' || mutation.attributeName === 'class';
                 }
@@ -204,11 +211,22 @@ export class DOMPersistenceManager {
                     }
                   }
 
-                  this.config.onReapply(change, experimentName);
-
-                  setTimeout(() => {
-                    this.reapplyingElements.delete(element);
-                  }, 0);
+                  try {
+                    this.config.onReapply(change, experimentName);
+                  } catch (error) {
+                    if (this.config.debug) {
+                      logDebug('[REAPPLY-ERROR] Error during change re-application', {
+                        experimentName,
+                        selector: change.selector,
+                        changeType: change.type,
+                        error: error instanceof Error ? error.message : String(error),
+                      });
+                    }
+                  } finally {
+                    setTimeout(() => {
+                      this.reapplyingElements.delete(element);
+                    }, 0);
+                  }
                 }
               }
             }
@@ -226,7 +244,7 @@ export class DOMPersistenceManager {
     if (this.config.debug) {
       logDebug('[PERSISTENCE-OBSERVER] Setup complete - now observing mutations', {
         target: 'document.body',
-        attributeFilter: ['style', 'class'],
+        observedAttributes: 'all (filtered in handler to style/class)',
         subtree: true,
         timestamp: Date.now(),
       });

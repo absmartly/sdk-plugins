@@ -195,3 +195,11 @@ export function logPerformance(operation: string, duration: number, details?: an
     });
   }
 }
+
+/**
+ * Logs a production-visible warning. NOT gated by DEBUG.
+ * Use for situations where data loss or silent failures would otherwise go unnoticed.
+ */
+export function logProductionWarn(message: string, ...args: unknown[]): void {
+  console.warn(message, ...args);
+}

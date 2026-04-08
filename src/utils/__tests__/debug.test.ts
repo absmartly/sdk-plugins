@@ -9,6 +9,7 @@ import {
   logVisibilityEvent,
   logMessage,
   logPerformance,
+  logProductionWarn,
   DEBUG,
   LogContext,
 } from '../debug';
@@ -389,6 +390,27 @@ describe('Debug Utilities', () => {
       expect(context.customProp1).toBe('value1');
       expect(context.customProp2).toBe(123);
       expect(context.customArray).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('logProductionWarn', () => {
+    it('should always call console.warn regardless of DEBUG flag', () => {
+      const mockConsoleWarn = jest.fn();
+      console.warn = mockConsoleWarn;
+
+      logProductionWarn('[ABsmartly] Test warning');
+
+      expect(mockConsoleWarn).toHaveBeenCalledWith('[ABsmartly] Test warning');
+    });
+
+    it('should pass through additional arguments', () => {
+      const mockConsoleWarn = jest.fn();
+      console.warn = mockConsoleWarn;
+      const error = new Error('test');
+
+      logProductionWarn('[ABsmartly] Failed:', error);
+
+      expect(mockConsoleWarn).toHaveBeenCalledWith('[ABsmartly] Failed:', error);
     });
   });
 });

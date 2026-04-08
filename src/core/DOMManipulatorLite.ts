@@ -217,19 +217,21 @@ export class DOMManipulatorLite {
           appliedElements.push(element);
         }
 
-        // Watch element for React hydration recovery (ALL types) OR style persistence (styles only)
+        // Watch element for persistence or SPA hydration recovery
         const shouldWatch =
-          (change.type === 'style' && change.persistStyle) || // Explicit style persistence
+          (change.type === 'style' && change.persistStyle) ||
+          (change.type === 'attribute' && change.persistAttribute) ||
+          (change.type === 'javascript' && change.persistScript === true) ||
           (this.plugin as any).config?.spa; // SPA mode watches ALL types for hydration recovery
 
         if (shouldWatch) {
           this.plugin.watchElement(element, experimentName, change);
-        } else if (change.type === 'style' && this.debug) {
-          logDebug(`[WATCH-SKIP] NOT watching element - persistStyle and SPA both disabled`, {
+        } else if (this.debug) {
+          logDebug(`[WATCH-SKIP] NOT watching element - no persist flag and SPA disabled`, {
             experimentName,
             selector: change.selector,
             element: element.tagName,
-            persistStyle: change.persistStyle,
+            changeType: change.type,
             spaMode: (this.plugin as any).config?.spa,
           });
         }
@@ -497,9 +499,11 @@ export class DOMManipulatorLite {
         }
       }
 
-      // Watch element for React hydration recovery (ALL types) OR style persistence (styles only)
+      // Watch element for persistence or SPA hydration recovery
       const shouldWatch =
-        (change.type === 'style' && change.persistStyle) || // Explicit style persistence
+        (change.type === 'style' && change.persistStyle) ||
+        (change.type === 'attribute' && change.persistAttribute) ||
+        (change.type === 'javascript' && change.persistScript === true) ||
         (this.plugin as any).config?.spa; // SPA mode watches ALL types for hydration recovery
 
       if (shouldWatch) {

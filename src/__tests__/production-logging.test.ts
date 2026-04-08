@@ -37,7 +37,7 @@ describe('Production logging policy', () => {
     const relativePath = path.relative(SRC_DIR, filePath);
 
     if (relativePath === 'utils/debug.ts') {
-      it(`${relativePath} - console calls are gated by DEBUG`, () => {
+      it(`${relativePath} - console calls are gated by DEBUG or are production warnings`, () => {
         const content = fs.readFileSync(filePath, 'utf-8');
         const lines = content.split('\n');
         for (let i = 0; i < lines.length; i++) {
@@ -47,12 +47,15 @@ describe('Production logging policy', () => {
             const insideDebugGuard = lines
               .slice(0, i)
               .some(prev => prev.includes('if (DEBUG)') || prev.includes('if (BUILD_DEBUG)'));
+            const isProductionWarn = lines
+              .slice(Math.max(0, i - 5), i)
+              .some(prev => prev.includes('logProductionWarn'));
             expect({
               file: relativePath,
               line: i + 1,
               code: line.trim(),
-              insideDebugGuard,
-            }).toEqual(expect.objectContaining({ insideDebugGuard: true }));
+              allowed: insideDebugGuard || isProductionWarn,
+            }).toEqual(expect.objectContaining({ allowed: true }));
           }
           CONSOLE_PATTERN.lastIndex = 0;
         }

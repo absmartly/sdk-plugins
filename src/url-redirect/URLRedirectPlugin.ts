@@ -3,7 +3,7 @@ import { URLRedirectConfig, URLRedirectPluginConfig, RedirectMatch } from './typ
 import { URLRedirectExtractor } from './URLRedirectExtractor';
 import { URLRedirectMatcher } from './URLRedirectMatcher';
 import { URLMatcher } from '../utils/URLMatcher';
-import { logDebug } from '../utils/debug';
+import { logDebug, logProductionWarn } from '../utils/debug';
 import { BUILD_VERSION } from '../generated/buildInfo';
 
 export class URLRedirectPlugin {
@@ -190,7 +190,7 @@ export class URLRedirectPlugin {
         await this.config.context.publish();
       }
     } catch (error) {
-      logDebug('[URLRedirectPlugin] Failed to publish exposure:', error);
+      logProductionWarn('[ABsmartly URLRedirectPlugin] Failed to publish exposure before redirect:', error);
     }
 
     if (match.targetUrl !== window.location.href) {
@@ -208,13 +208,16 @@ export class URLRedirectPlugin {
       publish: (options?: { useBeacon?: boolean }) => Promise<void>;
     };
 
-    if (typeof context.publish === 'function') {
-      try {
-        await context.publish({ useBeacon: true });
-      } catch (error) {
-        logDebug('[URLRedirectPlugin] Beacon publish failed, falling back to regular publish');
-        await context.publish();
-      }
+    if (typeof context.publish !== 'function') {
+      logProductionWarn('[ABsmartly URLRedirectPlugin] context.publish is not a function - exposure will not be recorded');
+      return;
+    }
+
+    try {
+      await context.publish({ useBeacon: true });
+    } catch (error) {
+      logProductionWarn('[ABsmartly URLRedirectPlugin] Beacon publish failed, falling back to regular publish:', error);
+      await context.publish();
     }
   }
 

@@ -480,4 +480,76 @@ describe('URLRedirectPlugin', () => {
       expect(match?.experimentName).toBe('exp2');
     });
   });
+
+  describe('publishViaBeacon error handling', () => {
+    it('should warn when context.publish is not a function', async () => {
+      const experiment = createTestExperiment('redirect-exp', [
+        { config: null },
+        {
+          config: {
+            __url_redirect: {
+              redirects: [{ from: 'https://example.com', to: 'https://new.com', type: 'domain' }],
+            },
+          },
+        },
+      ]);
+
+      context = createTestContext(sdk, { experiments: [experiment] }, 'test-user', {
+        'redirect-exp': 1,
+      });
+      // Remove publish to simulate missing function
+      (context as any).publish = undefined;
+      mockLocation('https://example.com/page');
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const plugin = new URLRedirectPlugin({ context, autoApply: false, useBeacon: true });
+      await plugin.ready();
+
+      const match = plugin.findRedirectMatch()!;
+      await plugin.executeRedirect(match);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('context.publish is not a function')
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('should fall back to regular publish when beacon fails', async () => {
+      const experiment = createTestExperiment('redirect-exp', [
+        { config: null },
+        {
+          config: {
+            __url_redirect: {
+              redirects: [{ from: 'https://example.com', to: 'https://new.com', type: 'domain' }],
+            },
+          },
+        },
+      ]);
+
+      context = createTestContext(sdk, { experiments: [experiment] }, 'test-user', {
+        'redirect-exp': 1,
+      });
+      const publishSpy = jest.spyOn(context, 'publish')
+        .mockRejectedValueOnce(new Error('beacon failed'))
+        .mockResolvedValueOnce(undefined as any);
+      mockLocation('https://example.com/page');
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const plugin = new URLRedirectPlugin({ context, autoApply: false, useBeacon: true });
+      await plugin.ready();
+
+      const match = plugin.findRedirectMatch()!;
+      await plugin.executeRedirect(match);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Beacon publish failed'),
+        expect.any(Error)
+      );
+      // Should have been called twice: beacon attempt + fallback
+      expect(publishSpy).toHaveBeenCalledTimes(2);
+      warnSpy.mockRestore();
+    });
+  });
 });

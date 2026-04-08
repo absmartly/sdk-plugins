@@ -803,6 +803,8 @@ export class DOMChangesPluginLite {
         globalDefaults = {
           waitForElement: config.waitForElement,
           persistStyle: config.persistStyle,
+          persistAttribute: config.persistAttribute,
+          persistScript: config.persistScript,
           important: config.important,
           observerRoot: config.observerRoot,
         };
@@ -843,6 +845,8 @@ export class DOMChangesPluginLite {
       ...change,
       waitForElement: change.waitForElement ?? globalDefaults.waitForElement,
       persistStyle: change.persistStyle ?? globalDefaults.persistStyle,
+      persistAttribute: change.persistAttribute ?? globalDefaults.persistAttribute,
+      persistScript: change.persistScript ?? globalDefaults.persistScript,
       important: change.important ?? globalDefaults.important,
       observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
     }));
@@ -879,6 +883,8 @@ export class DOMChangesPluginLite {
         globalDefaults = {
           waitForElement: config.waitForElement,
           persistStyle: config.persistStyle,
+          persistAttribute: config.persistAttribute,
+          persistScript: config.persistScript,
           important: config.important,
           observerRoot: config.observerRoot,
         };
@@ -889,6 +895,8 @@ export class DOMChangesPluginLite {
         ...change,
         waitForElement: change.waitForElement ?? globalDefaults.waitForElement,
         persistStyle: change.persistStyle ?? globalDefaults.persistStyle,
+        persistAttribute: change.persistAttribute ?? globalDefaults.persistAttribute,
+        persistScript: change.persistScript ?? globalDefaults.persistScript,
         important: change.important ?? globalDefaults.important,
         observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
       }));

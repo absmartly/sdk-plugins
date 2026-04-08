@@ -38,18 +38,14 @@ export class AnalyticsPlugin {
       instance: this,
     };
 
-    try {
-      registerPlugin('analytics', {
-        name: 'analytics',
-        version: '0.1.0',
-        initialized: true,
-        timestamp: Date.now(),
-        capabilities: ['tracking', 'attributes'],
-        instance: this,
-      });
-    } catch (_e) {
-      /* plugin registry may not be initialized */
-    }
+    registerPlugin('analytics', {
+      name: 'analytics',
+      version: '0.1.0',
+      initialized: true,
+      timestamp: Date.now(),
+      capabilities: ['tracking', 'attributes'],
+      instance: this,
+    });
   }
 
   destroy(): void {
@@ -57,11 +53,7 @@ export class AnalyticsPlugin {
     this.destroyed = true;
     this.tracker.destroy();
     if (this.context.__plugins) delete this.context.__plugins.analytics;
-    try {
-      unregisterPlugin('analytics');
-    } catch (_e) {
-      /* ignore */
-    }
+    unregisterPlugin('analytics');
   }
 }
 
