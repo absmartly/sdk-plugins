@@ -312,12 +312,7 @@ describe('URLRedirectMatcher', () => {
         type: 'pattern',
       };
 
-      const match = URLRedirectMatcher.findMatch(
-        'https://example.com/',
-        [redirect],
-        'test-exp',
-        1
-      );
+      const match = URLRedirectMatcher.findMatch('https://example.com/', [redirect], 'test-exp', 1);
 
       expect(match?.targetUrl).toBe('https://example.com/v1/');
     });

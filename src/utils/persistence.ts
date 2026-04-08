@@ -169,6 +169,9 @@ export class DOMPersistenceManager {
                       }
                     }
                   }
+                } else if (change.type === 'javascript' && change.persistScript !== false) {
+                  needsReapply =
+                    mutation.attributeName === 'style' || mutation.attributeName === 'class';
                 }
 
                 if (needsReapply) {

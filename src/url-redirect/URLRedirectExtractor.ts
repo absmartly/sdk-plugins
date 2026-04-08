@@ -156,7 +156,10 @@ export class URLRedirectExtractor {
     return (
       typeof obj.from === 'string' &&
       typeof obj.to === 'string' &&
-      (obj.type === 'domain' || obj.type === 'page' || obj.type === 'path-prefix' || obj.type === 'pattern')
+      (obj.type === 'domain' ||
+        obj.type === 'page' ||
+        obj.type === 'path-prefix' ||
+        obj.type === 'pattern')
     );
   }
 

@@ -165,7 +165,9 @@ export class URLRedirectMatcher {
     }
 
     const toOrigin = `${toUrl.protocol}//${toUrl.hostname}${toUrl.port ? ':' + toUrl.port : ''}`;
-    const toPathTemplate = new URL(redirect.to.replace(/\*/g, '__WILDCARD__').replace(/\$\d+/g, '__WILDCARD__')).pathname;
+    const toPathTemplate = new URL(
+      redirect.to.replace(/\*/g, '__WILDCARD__').replace(/\$\d+/g, '__WILDCARD__')
+    ).pathname;
 
     const hasIndexedRefs = /\$\d+/.test(redirect.to);
     let resultPath: string;

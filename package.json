@@ -60,6 +60,12 @@
       "types": "./types/core/PendingChangeManager.d.ts",
       "import": "./es/core/PendingChangeManager.js",
       "require": "./lib/core/PendingChangeManager.js"
+    },
+    "./utils/persistence": {
+      "source": "./src/utils/persistence.ts",
+      "types": "./types/utils/persistence.d.ts",
+      "import": "./es/utils/persistence.js",
+      "require": "./lib/utils/persistence.js"
     }
   },
   "files": [

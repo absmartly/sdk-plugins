@@ -47,7 +47,9 @@ export class AnalyticsPlugin {
         capabilities: ['tracking', 'attributes'],
         instance: this,
       });
-    } catch (_e) { /* plugin registry may not be initialized */ }
+    } catch (_e) {
+      /* plugin registry may not be initialized */
+    }
   }
 
   destroy(): void {
@@ -57,7 +59,9 @@ export class AnalyticsPlugin {
     if (this.context.__plugins) delete this.context.__plugins.analytics;
     try {
       unregisterPlugin('analytics');
-    } catch (_e) { /* ignore */ }
+    } catch (_e) {
+      /* ignore */
+    }
   }
 }
 
