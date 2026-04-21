@@ -487,11 +487,11 @@ describe('DOMManipulatorLite', () => {
 
   describe('JavaScript Changes — CSP fallback & error surfacing', () => {
     const originalFunction = global.Function;
-    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
 
     afterEach(() => {
       global.Function = originalFunction;
-      console.error = originalConsoleError;
+      console.warn = originalConsoleWarn;
     });
 
     it('falls back to <script> tag injection when new Function() is blocked by CSP', () => {
@@ -502,7 +502,9 @@ describe('DOMManipulatorLite', () => {
       (global as any).Function = function (this: any, ...args: unknown[]) {
         callCount++;
         if (callCount === 1) {
-          const err = new EvalError("Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive.");
+          const err = new EvalError(
+            "Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive."
+          );
           throw err;
         }
         return (originalFn as any).apply(this, args);
@@ -521,11 +523,13 @@ describe('DOMManipulatorLite', () => {
       expect(document.querySelector('.target')?.textContent).toBe('Fallback executed');
     });
 
-    it('logs at console.error and dispatches absmartly:js-error when both eval paths fail', () => {
+    it('logs a production warning and dispatches absmartly:js-error when both eval paths fail', () => {
       document.body.innerHTML = '<div class="target">Content</div>';
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const errorEvents: CustomEvent[] = [];
-      const handler = (e: Event) => { errorEvents.push(e as CustomEvent); };
+      const handler = (e: Event) => {
+        errorEvents.push(e as CustomEvent);
+      };
       document.addEventListener('absmartly:js-error', handler);
 
       try {
@@ -551,11 +555,11 @@ describe('DOMManipulatorLite', () => {
           HTMLHeadElement.prototype.appendChild = originalAppend;
         }
 
-        expect(errorSpy).toHaveBeenCalled();
-        const errorArg = String(errorSpy.mock.calls[0][0]);
-        expect(errorArg).toContain('csp');
-        expect(errorArg).toContain('csp_exp');
-        expect(errorArg).toContain('.target');
+        expect(warnSpy).toHaveBeenCalled();
+        const warnArg = String(warnSpy.mock.calls[0][0]);
+        expect(warnArg).toContain('csp');
+        expect(warnArg).toContain('csp_exp');
+        expect(warnArg).toContain('.target');
 
         expect(errorEvents.length).toBe(1);
         expect(errorEvents[0].detail.reason).toBe('csp');
@@ -566,11 +570,55 @@ describe('DOMManipulatorLite', () => {
       }
     });
 
+    it('reports a CSP failure when the inline <script> fallback is silently blocked (sentinel never flips)', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorEvents: CustomEvent[] = [];
+      const handler = (e: Event) => {
+        errorEvents.push(e as CustomEvent);
+      };
+      document.addEventListener('absmartly:js-error', handler);
+
+      try {
+        const originalFn = global.Function;
+        (global as any).Function = function () {
+          throw new EvalError("Refused to evaluate: CSP blocks 'unsafe-eval'");
+        } as any;
+        (global as any).Function.prototype = originalFn.prototype;
+
+        // Stub appendChild so the <script> is attached but never executes — mirrors CSP
+        // behavior where Chrome silently refuses inline execution without throwing.
+        const originalAppend = HTMLHeadElement.prototype.appendChild;
+        HTMLHeadElement.prototype.appendChild = function (node: Node): any {
+          return node;
+        } as any;
+
+        try {
+          const change: DOMChange = {
+            selector: '.target',
+            type: 'javascript',
+            value: 'element.textContent = "never";',
+          };
+          manipulator.applyChange(change, 'silent_csp_exp');
+        } finally {
+          HTMLHeadElement.prototype.appendChild = originalAppend;
+        }
+
+        expect(errorEvents.length).toBe(1);
+        expect(errorEvents[0].detail.reason).toBe('csp');
+        expect(errorEvents[0].detail.error).toMatch(/inline <script> did not execute/);
+      } finally {
+        document.removeEventListener('absmartly:js-error', handler);
+      }
+    });
+
     it('reports runtime errors (non-CSP) via absmartly:js-error with reason=runtime', () => {
       document.body.innerHTML = '<div class="target">Content</div>';
-      jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
       const errorEvents: CustomEvent[] = [];
-      const handler = (e: Event) => { errorEvents.push(e as CustomEvent); };
+      const handler = (e: Event) => {
+        errorEvents.push(e as CustomEvent);
+      };
       document.addEventListener('absmartly:js-error', handler);
 
       try {

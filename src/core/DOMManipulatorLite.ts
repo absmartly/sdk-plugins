@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChange } from '../types';
-import { logDebug, logChangeApplication } from '../utils/debug';
+import { logDebug, logChangeApplication, logProductionWarn } from '../utils/debug';
 import type { DOMChangesPluginLite } from './DOMChangesPluginLite';
 import { PendingChangeManager } from './PendingChangeManager';
 
@@ -72,20 +72,42 @@ export class DOMManipulatorLite {
       }
 
       // Fallback: inline <script> tag that binds the element through a temporary window slot.
+      // When CSP blocks inline scripts, appendChild does NOT throw — Chrome silently refuses
+      // execution and logs a console violation. We detect that by flipping a sentinel inside
+      // the injected script and checking it after append.
       try {
         const slotId = `__absmartly_js_target_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
+        const sentinelId = `${slotId}_ran`;
         (window as any)[slotId] = element;
+        (window as any)[sentinelId] = false;
         const script = document.createElement('script');
         script.textContent =
           `(function(element){${debugPrelude}${code}\n})(window['${slotId}']);\n` +
+          `window['${sentinelId}'] = true;\n` +
           `try { delete window['${slotId}']; } catch(_e) { window['${slotId}'] = undefined; }\n` +
           `//# sourceURL=${sourceTag}`;
         const parent = document.head || document.documentElement;
         parent.appendChild(script);
         script.remove();
+        const ran = (window as any)[sentinelId] === true;
+        try {
+          delete (window as any)[sentinelId];
+        } catch {
+          (window as any)[sentinelId] = undefined;
+        }
+        if (!ran) {
+          this.reportJsExecutionFailure({
+            experimentName,
+            selector,
+            reason: 'csp',
+            error: `CSP blocked dynamic script execution. eval(): ${evalMessage}; inline <script> did not execute (likely blocked by script-src without 'unsafe-inline').`,
+          });
+          return false;
+        }
         return true;
       } catch (scriptError) {
-        const scriptMessage = scriptError instanceof Error ? scriptError.message : String(scriptError);
+        const scriptMessage =
+          scriptError instanceof Error ? scriptError.message : String(scriptError);
         this.reportJsExecutionFailure({
           experimentName,
           selector,
@@ -110,8 +132,7 @@ export class DOMManipulatorLite {
     stack?: string;
   }): void {
     try {
-      // eslint-disable-next-line no-console
-      console.error(
+      logProductionWarn(
         `[ABsmartly] JavaScript DOM change failed (${detail.reason}) for "${detail.experimentName}" selector "${detail.selector}": ${detail.error}`,
         detail.stack ? { stack: detail.stack } : undefined
       );
@@ -121,9 +142,7 @@ export class DOMManipulatorLite {
 
     try {
       if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
-        document.dispatchEvent(
-          new CustomEvent('absmartly:js-error', { detail })
-        );
+        document.dispatchEvent(new CustomEvent('absmartly:js-error', { detail }));
       }
     } catch {
       // environments without CustomEvent support
