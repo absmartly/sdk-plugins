@@ -22,6 +22,114 @@ export class DOMManipulatorLite {
     }, debug);
   }
 
+  /**
+   * Execute a user-authored JavaScript DOM change against an element.
+   *
+   * Strategy:
+   *   1. Primary path uses `new Function(...)`. On pages whose CSP includes
+   *      `unsafe-eval` this succeeds and keeps the fast debug-friendly path
+   *      with a `//# sourceURL` tag.
+   *   2. When CSP blocks dynamic code evaluation the fallback injects a
+   *      one-shot `<script>` element that calls an anonymous IIFE with the
+   *      target element bound through a temporary `window` slot. This path
+   *      works on pages that allow inline scripts but not eval.
+   *   3. If both paths fail, the error is logged unconditionally at
+   *      `console.error` and surfaced via a `CustomEvent('absmartly:js-error', ...)`
+   *      on `document` so hosting code (browser extension preview, telemetry,
+   *      etc.) can distinguish CSP failures from runtime errors.
+   *
+   * Returns true when the code executed successfully through either path.
+   */
+  private executeUserJavaScript(
+    code: string,
+    element: HTMLElement,
+    experimentName: string,
+    selector: string
+  ): boolean {
+    const sourceTag = `absmartly-experiment-${experimentName || 'unknown'}.js`;
+    const debugPrelude = `var _debug = (typeof _debug !== 'undefined' ? _debug : { debugLog: console.log.bind(console), debugWarn: console.warn.bind(console), debugError: console.error.bind(console) });\n`;
+
+    try {
+      const fn = new Function('element', debugPrelude + code + `\n//# sourceURL=${sourceTag}`);
+      fn(element);
+      return true;
+    } catch (evalError) {
+      const evalMessage = evalError instanceof Error ? evalError.message : String(evalError);
+      const cspBlockedEval =
+        evalError instanceof EvalError ||
+        /unsafe-eval|Content Security Policy|CSP|refused to evaluate/i.test(evalMessage);
+
+      if (!cspBlockedEval) {
+        // Runtime error in user code — don't try the fallback, surface immediately.
+        this.reportJsExecutionFailure({
+          experimentName,
+          selector,
+          reason: 'runtime',
+          error: evalMessage,
+          stack: evalError instanceof Error ? evalError.stack : undefined,
+        });
+        return false;
+      }
+
+      // Fallback: inline <script> tag that binds the element through a temporary window slot.
+      try {
+        const slotId = `__absmartly_js_target_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
+        (window as any)[slotId] = element;
+        const script = document.createElement('script');
+        script.textContent =
+          `(function(element){${debugPrelude}${code}\n})(window['${slotId}']);\n` +
+          `try { delete window['${slotId}']; } catch(_e) { window['${slotId}'] = undefined; }\n` +
+          `//# sourceURL=${sourceTag}`;
+        const parent = document.head || document.documentElement;
+        parent.appendChild(script);
+        script.remove();
+        return true;
+      } catch (scriptError) {
+        const scriptMessage = scriptError instanceof Error ? scriptError.message : String(scriptError);
+        this.reportJsExecutionFailure({
+          experimentName,
+          selector,
+          reason: 'csp',
+          error: `CSP blocked dynamic script execution. eval(): ${evalMessage}; inline <script>: ${scriptMessage}`,
+          stack: scriptError instanceof Error ? scriptError.stack : undefined,
+        });
+        return false;
+      }
+    }
+  }
+
+  /**
+   * Report a JavaScript execution failure to listeners, without relying on this.debug.
+   * Always logs at `console.error` and dispatches a `CustomEvent` on `document`.
+   */
+  private reportJsExecutionFailure(detail: {
+    experimentName: string;
+    selector: string;
+    reason: 'csp' | 'runtime';
+    error: string;
+    stack?: string;
+  }): void {
+    try {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[ABsmartly] JavaScript DOM change failed (${detail.reason}) for "${detail.experimentName}" selector "${detail.selector}": ${detail.error}`,
+        detail.stack ? { stack: detail.stack } : undefined
+      );
+    } catch {
+      // console unavailable; ignore
+    }
+
+    try {
+      if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
+        document.dispatchEvent(
+          new CustomEvent('absmartly:js-error', { detail })
+        );
+      }
+    } catch {
+      // environments without CustomEvent support
+    }
+  }
+
   applyChange(change: DOMChange, experimentName: string): boolean {
     if (!change.enabled && change.enabled !== undefined) {
       logDebug(`Skipping disabled change for experiment: ${experimentName}`, {
@@ -140,33 +248,23 @@ export class DOMManipulatorLite {
         if (change.type === 'javascript') {
           if (change.value) {
             const userVariant = (this.plugin as any).config?.context?.peek(experimentName);
-            try {
-              if (this.debug) {
-                logDebug(`[JAVASCRIPT] [${experimentName}] Executing JavaScript change`, {
-                  experimentName,
-                  userVariant,
-                  selector: change.selector,
-                  element: element.tagName,
-                  code: String(change.value).substring(0, 100) + '...',
-                });
-              }
-              const codeString = String(change.value);
-              logDebug(
-                `[JAVASCRIPT] [${experimentName}] Creating function with code: ${codeString}`
-              );
-              const sourceTag = `absmartly-experiment-${experimentName || 'unknown'}.js`;
-              const debugPrelude = `var _debug = (typeof _debug !== 'undefined' ? _debug : { debugLog: console.log.bind(console), debugWarn: console.warn.bind(console), debugError: console.error.bind(console) });\n`;
-              const fn = new Function(
-                'element',
-                debugPrelude + codeString + `\n//# sourceURL=${sourceTag}`
-              );
-              logDebug(`[JAVASCRIPT] [${experimentName}] Function created, now executing...`);
-              fn(element);
-              logDebug(`[JAVASCRIPT] [${experimentName}] Function executed, element is:`, {
-                elementTag: element.tagName,
-                elementClass: (element as HTMLElement).className,
-                elementId: (element as HTMLElement).id,
+            if (this.debug) {
+              logDebug(`[JAVASCRIPT] [${experimentName}] Executing JavaScript change`, {
+                experimentName,
+                userVariant,
+                selector: change.selector,
+                element: element.tagName,
+                code: String(change.value).substring(0, 100) + '...',
               });
+            }
+            const codeString = String(change.value);
+            const executed = this.executeUserJavaScript(
+              codeString,
+              element as HTMLElement,
+              experimentName,
+              change.selector
+            );
+            if (executed) {
               appliedElements.push(element);
               if (this.debug) {
                 logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {
@@ -177,16 +275,6 @@ export class DOMManipulatorLite {
                   code: codeString,
                 });
               }
-            } catch (error) {
-              logDebug(`[JAVASCRIPT] [${experimentName}] ✗ JavaScript execution error:`, {
-                experimentName,
-                userVariant,
-                selector: change.selector,
-                element: element.tagName,
-                code: String(change.value),
-                error: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error ? error.stack : undefined,
-              });
             }
           } else {
             logDebug(
@@ -450,42 +538,29 @@ export class DOMManipulatorLite {
       this.applyChangeToElement(element, change);
 
       if (change.type === 'javascript' && change.value) {
-        try {
-          if (this.debug) {
-            logDebug(`[JAVASCRIPT] [${experimentName}] Executing JavaScript on specific element`, {
-              experimentName,
-              selector: change.selector,
-              element: element.tagName,
-              code: String(change.value).substring(0, 100) + '...',
-            });
-          }
-          const sourceTag = `absmartly-experiment-${experimentName || 'unknown'}.js`;
-          const debugPrelude = `var _debug = (typeof _debug !== 'undefined' ? _debug : { debugLog: console.log.bind(console), debugWarn: console.warn.bind(console), debugError: console.error.bind(console) });\n`;
-          const fn = new Function(
-            'element',
-            debugPrelude + String(change.value) + `\n//# sourceURL=${sourceTag}`
-          );
-          fn(element);
-          if (this.debug) {
-            logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {
-              experimentName,
-              selector: change.selector,
-              element: element.tagName,
-            });
-          }
-        } catch (error) {
-          logDebug(
-            `[JAVASCRIPT] [${experimentName}] ✗ JavaScript execution error on specific element:`,
-            {
-              experimentName,
-              selector: change.selector,
-              element: element.tagName,
-              code: String(change.value),
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-            }
-          );
+        if (this.debug) {
+          logDebug(`[JAVASCRIPT] [${experimentName}] Executing JavaScript on specific element`, {
+            experimentName,
+            selector: change.selector,
+            element: element.tagName,
+            code: String(change.value).substring(0, 100) + '...',
+          });
+        }
+        const executed = this.executeUserJavaScript(
+          String(change.value),
+          element,
+          experimentName,
+          change.selector
+        );
+        if (!executed) {
           return false;
+        }
+        if (this.debug) {
+          logDebug(`[JAVASCRIPT] [${experimentName}] ✓ JavaScript executed successfully`, {
+            experimentName,
+            selector: change.selector,
+            element: element.tagName,
+          });
         }
       } else if (change.type === 'move') {
         const targetSelector =

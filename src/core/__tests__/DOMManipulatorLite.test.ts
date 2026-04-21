@@ -485,6 +485,111 @@ describe('DOMManipulatorLite', () => {
     });
   });
 
+  describe('JavaScript Changes — CSP fallback & error surfacing', () => {
+    const originalFunction = global.Function;
+    const originalConsoleError = console.error;
+
+    afterEach(() => {
+      global.Function = originalFunction;
+      console.error = originalConsoleError;
+    });
+
+    it('falls back to <script> tag injection when new Function() is blocked by CSP', () => {
+      document.body.innerHTML = '<div class="target">Original</div>';
+
+      let callCount = 0;
+      const originalFn = global.Function;
+      (global as any).Function = function (this: any, ...args: unknown[]) {
+        callCount++;
+        if (callCount === 1) {
+          const err = new EvalError("Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive.");
+          throw err;
+        }
+        return (originalFn as any).apply(this, args);
+      } as any;
+      (global as any).Function.prototype = originalFn.prototype;
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'javascript',
+        value: 'element.textContent = "Fallback executed";',
+      };
+
+      const result = manipulator.applyChange(change, 'csp_exp');
+
+      expect(result).toBe(true);
+      expect(document.querySelector('.target')?.textContent).toBe('Fallback executed');
+    });
+
+    it('logs at console.error and dispatches absmartly:js-error when both eval paths fail', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const errorEvents: CustomEvent[] = [];
+      const handler = (e: Event) => { errorEvents.push(e as CustomEvent); };
+      document.addEventListener('absmartly:js-error', handler);
+
+      try {
+        const originalFn = global.Function;
+        (global as any).Function = function () {
+          throw new EvalError("Refused to evaluate: CSP blocks 'unsafe-eval'");
+        } as any;
+        (global as any).Function.prototype = originalFn.prototype;
+
+        const originalAppend = HTMLHeadElement.prototype.appendChild;
+        HTMLHeadElement.prototype.appendChild = function () {
+          throw new Error('Refused to execute inline script: CSP blocks unsafe-inline');
+        } as any;
+
+        try {
+          const change: DOMChange = {
+            selector: '.target',
+            type: 'javascript',
+            value: 'element.textContent = "never";',
+          };
+          manipulator.applyChange(change, 'csp_exp');
+        } finally {
+          HTMLHeadElement.prototype.appendChild = originalAppend;
+        }
+
+        expect(errorSpy).toHaveBeenCalled();
+        const errorArg = String(errorSpy.mock.calls[0][0]);
+        expect(errorArg).toContain('csp');
+        expect(errorArg).toContain('csp_exp');
+        expect(errorArg).toContain('.target');
+
+        expect(errorEvents.length).toBe(1);
+        expect(errorEvents[0].detail.reason).toBe('csp');
+        expect(errorEvents[0].detail.experimentName).toBe('csp_exp');
+        expect(errorEvents[0].detail.selector).toBe('.target');
+      } finally {
+        document.removeEventListener('absmartly:js-error', handler);
+      }
+    });
+
+    it('reports runtime errors (non-CSP) via absmartly:js-error with reason=runtime', () => {
+      document.body.innerHTML = '<div class="target">Content</div>';
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const errorEvents: CustomEvent[] = [];
+      const handler = (e: Event) => { errorEvents.push(e as CustomEvent); };
+      document.addEventListener('absmartly:js-error', handler);
+
+      try {
+        const change: DOMChange = {
+          selector: '.target',
+          type: 'javascript',
+          value: 'throw new TypeError("kaboom in user code");',
+        };
+        manipulator.applyChange(change, 'runtime_exp');
+
+        expect(errorEvents.length).toBe(1);
+        expect(errorEvents[0].detail.reason).toBe('runtime');
+        expect(errorEvents[0].detail.error).toContain('kaboom in user code');
+      } finally {
+        document.removeEventListener('absmartly:js-error', handler);
+      }
+    });
+  });
+
   describe('Move Changes', () => {
     it('should move element to lastChild position', () => {
       document.body.innerHTML = `
