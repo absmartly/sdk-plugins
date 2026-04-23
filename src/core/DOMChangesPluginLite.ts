@@ -58,6 +58,13 @@ export class DOMChangesPluginLite {
 
     console.log(`[ABsmartly] DOMChangesPluginLite v${DOMChangesPluginLite.VERSION} initialized`);
 
+    // Publish presence markers synchronously so detection tools (e.g. the
+    // browser extension) can see the plugin is loaded even while
+    // context.ready() is still pending or if initialize() later throws.
+    // initialize() will re-register with initialized=true on success.
+    this.registerWithContext(false);
+    this.registerGlobally(false);
+
     if (this.config.hideUntilReady) {
       this.hideContent();
     }
@@ -1113,7 +1120,7 @@ export class DOMChangesPluginLite {
     }
   }
 
-  protected registerWithContext(): void {
+  protected registerWithContext(initialized: boolean = true): void {
     if (this.config.context) {
       if (!this.config.context.__plugins) {
         this.config.context.__plugins = {};
@@ -1122,7 +1129,7 @@ export class DOMChangesPluginLite {
       this.config.context.__plugins.domPlugin = {
         name: 'DOMChangesPluginLite',
         version: DOMChangesPluginLite.VERSION,
-        initialized: true,
+        initialized,
         capabilities: ['spa', 'visibility'],
         instance: this,
         timestamp: Date.now(),
@@ -1131,7 +1138,9 @@ export class DOMChangesPluginLite {
       this.config.context.__domPlugin = this.config.context.__plugins.domPlugin;
 
       if (this.config.debug) {
-        logDebug('[ABsmartly] DOMChangesPluginLite registered with context at __plugins.domPlugin');
+        logDebug(
+          `[ABsmartly] DOMChangesPluginLite registered with context at __plugins.domPlugin (initialized=${initialized})`
+        );
       }
     }
   }
@@ -1155,11 +1164,11 @@ export class DOMChangesPluginLite {
   /**
    * Register plugin in global registry for detection
    */
-  protected registerGlobally(): void {
+  protected registerGlobally(initialized: boolean = true): void {
     registerPlugin('dom', {
       name: 'DOMChangesPluginLite',
       version: DOMChangesPluginLite.VERSION,
-      initialized: true,
+      initialized,
       timestamp: Date.now(),
       capabilities: ['spa', 'visibility', 'auto-apply'],
       instance: this,
@@ -1167,7 +1176,7 @@ export class DOMChangesPluginLite {
 
     if (this.config.debug) {
       logDebug(
-        '[ABsmartly] DOMChangesPluginLite registered in global window.__ABSMARTLY_PLUGINS__'
+        `[ABsmartly] DOMChangesPluginLite registered in global window.__ABSMARTLY_PLUGINS__ (initialized=${initialized})`
       );
     }
   }
