@@ -1878,7 +1878,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
       });
 
       describe("6A3: Element doesn't exist", () => {
-        it('user in v0 - should trigger immediately (immediate ignores existence)', async () => {
+        it('user in v0 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a3_immediate_missing',
             variants: [
@@ -1901,12 +1901,10 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          // Should trigger immediately even though element doesn't exist
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6a3_immediate_missing');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
 
-        it('user in v1 - should trigger immediately (change pending in SPA)', async () => {
+        it('user in v1 - should not trigger while the change is pending', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a3_immediate_missing',
             variants: [
@@ -1929,14 +1927,13 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6a3_immediate_missing');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
-          expect(document.querySelector('.target')).toBeNull(); // Element doesn't exist
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          expect(document.querySelector('.target')).toBeNull();
         });
       });
 
       describe('6A4: Element appears later (becomes visible)', () => {
-        it('user in v0 - should trigger immediately on page load (not when element appears)', async () => {
+        it('user in v0 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a4_immediate_appears_later',
             variants: [
@@ -1959,9 +1956,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          // Should trigger immediately on page load
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6a4_immediate_appears_later');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
 
           // Add element later - should not trigger again
           const newEl = document.createElement('div');
@@ -1970,10 +1965,10 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           document.body.appendChild(newEl);
           await new Promise(resolve => setTimeout(resolve, 50));
 
-          expect(treatmentSpy).toHaveBeenCalledTimes(1); // No second trigger
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
 
-        it('user in v1 - should trigger immediately on page load + apply when element appears', async () => {
+        it('user in v1 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a4_immediate_appears_later',
             variants: [
@@ -1996,9 +1991,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          // Should trigger immediately
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6a4_immediate_appears_later');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
 
           // Add element later - change should be applied in SPA mode
           const newEl = document.createElement('div');
@@ -2008,12 +2001,12 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           await new Promise(resolve => setTimeout(resolve, 50));
 
           expect(document.querySelector('.target')?.textContent).toBe('Changed');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1); // Still only called once
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
       });
 
       describe('6A5: Element never appears', () => {
-        it('user in v0 - should trigger immediately', async () => {
+        it('user in v0 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a5_immediate_never_appears',
             variants: [
@@ -2036,15 +2029,14 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6a5_immediate_never_appears');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
 
           // Wait to ensure no delayed trigger
           await new Promise(resolve => setTimeout(resolve, 100));
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
 
-        it('user in v1 - should trigger immediately', async () => {
+        it('user in v1 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6a5_immediate_never_appears',
             variants: [
@@ -2067,8 +2059,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6a5_immediate_never_appears');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
       });
     });
@@ -3040,7 +3031,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
       });
 
       describe("6D5: Delete with immediate trigger - element doesn't exist", () => {
-        it('user in v0 - should trigger immediately', async () => {
+        it('user in v0 - should trigger immediately (all stay)', async () => {
           const experiment: ExperimentData = {
             name: 'test_6d5_delete_immediate_missing',
             variants: [
@@ -3061,11 +3052,10 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6d5_delete_immediate_missing');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
 
-        it('user in v1 - should trigger immediately (nothing to delete)', async () => {
+        it('user in v1 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6d5_delete_immediate_missing',
             variants: [
@@ -3086,14 +3076,13 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6d5_delete_immediate_missing');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
           expect(document.querySelector('.target')).toBeNull();
         });
       });
 
       describe('6D6: Delete with immediate trigger - multiple elements', () => {
-        it('user in v0 - should trigger immediately (all stay)', async () => {
+        it('user in v0 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6d6_delete_immediate_multi',
             variants: [
@@ -3120,7 +3109,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           expect(document.querySelectorAll('.target').length).toBe(3);
         });
 
-        it('user in v1 - should trigger immediately + delete all', async () => {
+        it('user in v1 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6d6_delete_immediate_multi',
             variants: [
@@ -3142,8 +3131,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6d6_delete_immediate_multi');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
           expect(document.querySelectorAll('.target').length).toBe(0);
         });
       });
