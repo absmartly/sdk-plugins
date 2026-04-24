@@ -3592,7 +3592,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
       });
 
       describe("6H5: Move with immediate trigger - element doesn't exist", () => {
-        it('user in v0 - should trigger immediately', async () => {
+        it('user in v0 - should not trigger without a matched element', async () => {
           const experiment: ExperimentData = {
             name: 'test_6h5_move_immediate_missing',
             variants: [
@@ -3621,11 +3621,10 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6h5_move_immediate_missing');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
 
-        it('user in v1 - should trigger immediately (move pending)', async () => {
+        it('user in v1 - should not trigger while move is pending', async () => {
           const experiment: ExperimentData = {
             name: 'test_6h5_move_immediate_missing',
             variants: [
@@ -3654,8 +3653,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          expect(treatmentSpy).toHaveBeenCalledWith('test_6h5_move_immediate_missing');
-          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+          expect(treatmentSpy).not.toHaveBeenCalled();
         });
       });
 
@@ -4059,7 +4057,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
 
     describe('6G: Edge Cases', () => {
       describe('6G1: waitForElement with immediate trigger', () => {
-        it('user in v0 - should trigger immediately (waitForElement ignored for exposure)', async () => {
+        it('user in v0 - should trigger immediately (body is the default observer root)', async () => {
           const experiment: ExperimentData = {
             name: 'test_6g1_wait_immediate',
             variants: [
@@ -4088,12 +4086,11 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
           await plugin.ready();
 
-          // Should trigger immediately (waitForElement doesn't affect exposure timing)
           expect(treatmentSpy).toHaveBeenCalledWith('test_6g1_wait_immediate');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('user in v1 - should trigger immediately (change pending)', async () => {
+        it('user in v1 - should trigger immediately while the change is pending', async () => {
           const experiment: ExperimentData = {
             name: 'test_6g1_wait_immediate',
             variants: [

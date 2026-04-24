@@ -144,6 +144,139 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('should call treatment() immediately when waitForElement falls back to body as the exposure anchor', async () => {
+      const experiment: ExperimentData = {
+        name: 'immediate_missing_anchor_test',
+        variants: [
+          { variables: { __dom_changes: [] } },
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.missing-target',
+                  type: 'text',
+                  value: 'Treatment',
+                  trigger_on_view: false,
+                  waitForElement: true,
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+        immediate_missing_anchor_test: 1,
+      });
+      document.body.innerHTML = '<div class="other">Original</div>';
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.ready();
+
+      expect(treatmentSpy).toHaveBeenCalledWith('immediate_missing_anchor_test');
+      expect(treatmentSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call treatment() immediately when a move change has no source element', async () => {
+      const experiment: ExperimentData = {
+        name: 'immediate_missing_move_source_test',
+        variants: [
+          { variables: { __dom_changes: [] } },
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.movable',
+                  type: 'move',
+                  targetSelector: '.target-container',
+                  position: 'lastChild',
+                  trigger_on_view: false,
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+        immediate_missing_move_source_test: 1,
+      });
+      document.body.innerHTML = '<div class="target-container">Target</div>';
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.ready();
+
+      expect(treatmentSpy).not.toHaveBeenCalled();
+    });
+
+    it('should call treatment() immediately when waitForElement has an observerRoot anchor', async () => {
+      const experiment: ExperimentData = {
+        name: 'immediate_wait_observer_root_test',
+        variants: [
+          { variables: { __dom_changes: [] } },
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.lazy-target',
+                  type: 'text',
+                  value: 'Treatment',
+                  trigger_on_view: false,
+                  waitForElement: true,
+                  observerRoot: '.content-shell',
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+        immediate_wait_observer_root_test: 1,
+      });
+      document.body.innerHTML = '<div class="content-shell"><div class="placeholder"></div></div>';
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.ready();
+
+      expect(treatmentSpy).toHaveBeenCalledWith('immediate_wait_observer_root_test');
+      expect(treatmentSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call treatment() immediately when at least one matching variant has a shared observerRoot anchor', async () => {
+      const experiment: ExperimentData = {
+        name: 'immediate_cross_variant_anchor_test',
+        variants: [
+          { variables: { __dom_changes: [] } },
+          {
+            variables: {
+              __dom_changes: [
+                {
+                  selector: '.lazy-target',
+                  type: 'text',
+                  value: 'Variant 1',
+                  trigger_on_view: false,
+                  waitForElement: true,
+                  observerRoot: '.content-shell',
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+        immediate_cross_variant_anchor_test: 0,
+      });
+      document.body.innerHTML = '<div class="content-shell"><div class="placeholder"></div></div>';
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+      await plugin.ready();
+
+      expect(treatmentSpy).toHaveBeenCalledWith('immediate_cross_variant_anchor_test');
+      expect(treatmentSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('should wait for element visibility before calling treatment() with trigger_on_view', async () => {
       const experiment: ExperimentData = {
         name: 'viewport_test',

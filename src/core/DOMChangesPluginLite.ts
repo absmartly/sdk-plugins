@@ -612,22 +612,36 @@ export class DOMChangesPluginLite {
 
         // Only collect trigger types from variants whose URL filters match
         if (variantMatchesURL) {
+          let variantHasViewportTrigger = false;
+          let variantHasImmediateTrigger = false;
+
           for (const change of variantChanges) {
             if (change.trigger_on_view) {
-              hasAnyViewportTriggerInAnyVariant = true;
-            } else {
-              hasAnyImmediateTriggerInAnyVariant = true;
+              variantHasViewportTrigger = true;
+              continue;
             }
 
-            // Early exit if we found both types
-            if (hasAnyViewportTriggerInAnyVariant && hasAnyImmediateTriggerInAnyVariant) {
-              break;
+            if (this.hasImmediateDomAnchor(change)) {
+              variantHasImmediateTrigger = true;
             }
+          }
+
+          if (variantHasViewportTrigger) {
+            hasAnyViewportTriggerInAnyVariant = true;
+          }
+
+          if (variantHasImmediateTrigger) {
+            hasAnyImmediateTriggerInAnyVariant = true;
           }
 
           if (this.config.debug) {
             logDebug(
-              `[ABsmartly] Variant ${variantIndex} matches URL - hasImmediate: ${hasAnyImmediateTriggerInAnyVariant}, hasViewport: ${hasAnyViewportTriggerInAnyVariant}`
+              `[ABsmartly] Variant ${variantIndex} matches URL - hasImmediate: ${variantHasImmediateTrigger}, hasViewport: ${variantHasViewportTrigger}`,
+              {
+                experimentName: expName,
+                variantIndex,
+                hasImmediateDomAnchor: variantHasImmediateTrigger,
+              }
             );
           }
         } else {
@@ -731,6 +745,31 @@ export class DOMChangesPluginLite {
 
     logDebug('[ABsmartly] DOM changes applied');
     this.emit('changes-applied', { count: totalApplied, experimentName });
+  }
+
+  private hasImmediateDomAnchor(change: DOMChange): boolean {
+    try {
+      if (change.waitForElement) {
+        return document.querySelector(change.observerRoot || 'body') !== null;
+      }
+
+      if (change.type === 'create') {
+        return !!change.targetSelector && document.querySelector(change.targetSelector) !== null;
+      }
+
+      return document.querySelector(change.selector) !== null;
+    } catch (error) {
+      if (this.config.debug) {
+        logDebug('[ABsmartly] Failed to evaluate immediate DOM anchor:', {
+          selector: change.selector,
+          targetSelector: change.targetSelector,
+          type: change.type,
+          error,
+        });
+      }
+
+      return false;
+    }
   }
 
   /**
