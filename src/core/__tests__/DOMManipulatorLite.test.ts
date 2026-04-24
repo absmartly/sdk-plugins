@@ -267,7 +267,6 @@ describe('DOMManipulatorLite', () => {
       expect(element.style.backgroundColor).toBe('white');
       expect(element.style.getPropertyPriority('background-color')).toBe('important');
     });
-
   });
 
   describe('Class Changes', () => {
