@@ -4041,6 +4041,479 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           expect(document.querySelector('.new')).not.toBeNull(); // Created in v1
         });
       });
+
+      describe('6F2: Create with viewport trigger', () => {
+        it('user in v1 - exposure fires when target position enters viewport', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f2_create_viewport',
+            variants: [
+              { variables: {} },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="new">New</div>',
+                      targetSelector: '.container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f2_create_viewport: 1,
+          });
+          document.body.innerHTML = '<div class="container">Container</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          expect(document.querySelector('.new')).not.toBeNull();
+
+          const placeholder = document.querySelector(
+            '.container [data-absmartly-placeholder]'
+          ) as Element;
+          expect(placeholder).not.toBeNull();
+
+          await triggerIntersection(placeholder, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f2_create_viewport');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6F3: Cross-variant create - peer variant placeholder exposure', () => {
+        it('user in v0 (no create) - exposure fires via placeholder at v1 target position', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f3_peer_variant',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="new">New</div>',
+                      targetSelector: '.container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f3_peer_variant: 0,
+          });
+          document.body.innerHTML = '<div class="container">Container</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          expect(document.querySelector('.new')).toBeNull();
+
+          const placeholder = document.querySelector(
+            '.container [data-absmartly-placeholder]'
+          ) as Element;
+          expect(placeholder).not.toBeNull();
+          expect(placeholder.getAttribute('data-absmartly-experiment')).toBe(
+            'test_6f3_peer_variant'
+          );
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          await triggerIntersection(placeholder, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f3_peer_variant');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+
+          // Cleanup contract: after exposure fires, placeholder is removed from
+          // the DOM, and a second intersection does not re-trigger treatment.
+          expect(document.querySelector('.container [data-absmartly-placeholder]')).toBeNull();
+          await triggerIntersection(placeholder, true);
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6F4: Multi-variant create at different positions', () => {
+        it('user in v0 - placeholders at every other variant position; any one fires exposure', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f4_multi_position',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="banner-a"></div>',
+                      targetSelector: '.header',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="banner-b"></div>',
+                      targetSelector: '.footer',
+                      position: 'firstChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f4_multi_position: 0,
+          });
+          document.body.innerHTML = '<div class="header">H</div><div class="footer">F</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          const headerPlaceholder = document.querySelector(
+            '.header [data-absmartly-placeholder]'
+          ) as Element;
+          const footerPlaceholder = document.querySelector(
+            '.footer [data-absmartly-placeholder]'
+          ) as Element;
+
+          expect(headerPlaceholder).not.toBeNull();
+          expect(footerPlaceholder).not.toBeNull();
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          await triggerIntersection(footerPlaceholder, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f4_multi_position');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('user in v0 - intersecting the OTHER placeholder also fires exposure', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f4_multi_position_b',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="banner-a"></div>',
+                      targetSelector: '.header',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="banner-b"></div>',
+                      targetSelector: '.footer',
+                      position: 'firstChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f4_multi_position_b: 0,
+          });
+          document.body.innerHTML = '<div class="header">H</div><div class="footer">F</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          const headerPlaceholder = document.querySelector(
+            '.header [data-absmartly-placeholder]'
+          ) as Element;
+          expect(headerPlaceholder).not.toBeNull();
+
+          await triggerIntersection(headerPlaceholder, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f4_multi_position_b');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6F5: Same-position create dedup', () => {
+        it('user in v0 - exactly one placeholder when two variants create at same target/position', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f5_dedup',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="a"></div>',
+                      targetSelector: '.container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="b"></div>',
+                      targetSelector: '.container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f5_dedup: 0,
+          });
+          document.body.innerHTML = '<div class="container">C</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          const placeholders = document.querySelectorAll('.container [data-absmartly-placeholder]');
+          expect(placeholders.length).toBe(1);
+
+          await triggerIntersection(placeholders[0], true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f5_dedup');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6F6: Malformed create - no targetSelector', () => {
+        it('user in v0 - no placeholder, no exposure, no crash', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f6_malformed',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="orphan"></div>',
+                      trigger_on_view: true,
+                    } as any,
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f6_malformed: 0,
+          });
+          document.body.innerHTML = '<div class="container">C</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          const placeholder = document.querySelector(
+            '[data-absmartly-experiment="test_6f6_malformed"]'
+          );
+          expect(placeholder).toBeNull();
+
+          expect(document.querySelector('.orphan')).toBeNull();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+        });
+
+        it('does not poison registration of well-formed sibling changes in the same variant', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f6_malformed_mixed',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="orphan"></div>',
+                      trigger_on_view: true,
+                    } as any,
+                    {
+                      selector: '.text-target',
+                      type: 'text',
+                      value: 'Changed',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f6_malformed_mixed: 0,
+          });
+          document.body.innerHTML =
+            '<div class="container">C</div><div class="text-target">T</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          // Malformed create produced no placeholder, but the well-formed sibling
+          // change is still tracked.
+          expect(treatmentSpy).not.toHaveBeenCalled();
+          const textTarget = document.querySelector('.text-target')!;
+          await triggerIntersection(textTarget, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f6_malformed_mixed');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6F7: Cross-variant create - delayed-mount targetSelector', () => {
+        it('user in v0 - exposure fires once targetSelector is appended later (SPA late-mount)', async () => {
+          const experiment: ExperimentData = {
+            name: 'test_6f7_delayed_target',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: [
+                    {
+                      selector: '',
+                      type: 'create',
+                      element: '<div class="new"></div>',
+                      targetSelector: '.late-container',
+                      position: 'lastChild',
+                      trigger_on_view: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            test_6f7_delayed_target: 0,
+          });
+          // .late-container is NOT in the DOM at registration time.
+          document.body.innerHTML = '<div class="other">Other</div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+          await plugin.ready();
+
+          // Placeholder couldn't be inserted (target absent); fallback registers
+          // the targetSelector itself with the MutationObserver.
+          expect(document.querySelector('[data-absmartly-placeholder]')).toBeNull();
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          // Target appears later (e.g. SPA navigation / hydration).
+          const lateContainer = document.createElement('div');
+          lateContainer.className = 'late-container';
+          document.body.appendChild(lateContainer);
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          await triggerIntersection(lateContainer, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('test_6f7_delayed_target');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe('6F8: Cross-variant create with URL filter', () => {
+        it('user in v0 - exposure fires when URL matches v1 filter (variant has create + filter)', async () => {
+          const currentUrl = 'https://example.com/products';
+          Object.defineProperty(window, 'location', {
+            value: { href: currentUrl },
+            writable: true,
+          });
+
+          const experiment: ExperimentData = {
+            name: 'test_6f8_url_filter',
+            variants: [
+              { variables: { __dom_changes: [] } },
+              {
+                variables: {
+                  __dom_changes: {
+                    urlFilter: { include: ['/products'] },
+                    changes: [
+                      {
+                        selector: '',
+                        type: 'create',
+                        element: '<div class="new"></div>',
+                        targetSelector: '.container',
+                        position: 'lastChild',
+                        trigger_on_view: true,
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          };
+
+          for (const userVariant of [0, 1]) {
+            const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+              test_6f8_url_filter: userVariant,
+            });
+            document.body.innerHTML = '<div class="container">C</div>';
+
+            plugin = new DOMChangesPluginLite({
+              context: mockContext,
+              autoApply: true,
+              spa: false,
+            });
+            await plugin.ready();
+
+            const placeholder = document.querySelector(
+              '.container [data-absmartly-placeholder]'
+            ) as Element;
+            expect(placeholder).not.toBeNull();
+            expect(treatmentSpy).not.toHaveBeenCalled();
+
+            await triggerIntersection(placeholder, true);
+
+            expect(treatmentSpy).toHaveBeenCalledWith('test_6f8_url_filter');
+            expect(treatmentSpy).toHaveBeenCalledTimes(1);
+
+            plugin.destroy();
+          }
+        });
+      });
     });
 
     describe('6G: Edge Cases', () => {

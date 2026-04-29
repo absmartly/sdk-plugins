@@ -50,3 +50,5 @@ pnpm-lock.yaml
 node_modules
 .mcp.json
 .serena/
+.claude/tasks/
+.worktrees/
