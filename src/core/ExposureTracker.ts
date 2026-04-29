@@ -62,9 +62,11 @@ export class ExposureTracker {
     // We need to track ALL possible positions where elements could be
     const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
     const deleteElements = new Set<string>(); // selectors for delete changes
-    // For create: dedupe by "targetSelector|position" since a created element only
-    // exists in the variant that creates it — cross-variant tracking is positional.
-    const createPositions = new Map<string, { targetSelector: string; position: string }>();
+    // For create: cross-variant exposure is positional (the created element only
+    // exists in its own variant). Nested map avoids any composite-key collision —
+    // CSS selectors can legally contain characters like '|' or ':', so we key
+    // structurally instead of stringifying the pair.
+    const createPositions = new Map<string, Set<string>>(); // targetSelector -> Set<position>
 
     for (const variantChanges of allVariantsChanges) {
       for (const change of variantChanges) {
@@ -87,10 +89,17 @@ export class ExposureTracker {
             // returns false), so there's nothing to track.
             if (change.targetSelector) {
               const position = change.position || 'lastChild';
-              const key = `${change.targetSelector}|${position}`;
-              if (!createPositions.has(key)) {
-                createPositions.set(key, { targetSelector: change.targetSelector, position });
+              let positions = createPositions.get(change.targetSelector);
+              if (!positions) {
+                positions = new Set();
+                createPositions.set(change.targetSelector, positions);
               }
+              positions.add(position);
+            } else if (this.debug) {
+              logDebug(
+                `[EXPOSURE] [${experimentName}] Skipping create change with no targetSelector — manipulator can't apply it either`,
+                { change }
+              );
             }
           } else {
             // For other change types, track the selector directly
@@ -199,13 +208,28 @@ export class ExposureTracker {
     // element. The user's variant that does create the element gets the real
     // element in DOM at the same position (applyChange runs before this), and
     // the 1px invisible placeholder coexists harmlessly.
-    for (const [, pos] of createPositions) {
-      this.createContainerPlaceholder(
-        experimentName,
-        '__create_placeholder__',
-        pos.targetSelector,
-        pos.position
-      );
+    //
+    // Fallback: if the targetSelector isn't in the DOM at registration time
+    // (SPA late-mount), createContainerPlaceholder returns false. Track the
+    // targetSelector itself so the existing MutationObserver picks up exposure
+    // when the target eventually appears.
+    for (const [targetSelector, positions] of createPositions) {
+      let anyInserted = false;
+      for (const position of positions) {
+        if (
+          this.createContainerPlaceholder(
+            experimentName,
+            '__create_placeholder__',
+            targetSelector,
+            position
+          )
+        ) {
+          anyInserted = true;
+        }
+      }
+      if (!anyInserted) {
+        viewportSelectors.add(targetSelector);
+      }
     }
 
     // Trigger flags are now passed in from DOMChangesPluginLite after URL filtering
@@ -278,21 +302,23 @@ export class ExposureTracker {
   /**
    * Create a container-based placeholder at the hypothetical position
    * Uses inline-block with minimal dimensions to be observable but not affect layout
+   * Returns true when a placeholder was inserted (or already exists for this key);
+   * false when the target element isn't in the DOM yet, so callers can fall back.
    */
   private createContainerPlaceholder(
     experimentName: string,
     originalSelector: string,
     targetSelector: string,
     position: string = 'lastChild'
-  ): void {
+  ): boolean {
     const targetElement = document.querySelector(targetSelector);
-    if (!targetElement) return;
+    if (!targetElement) return false;
 
     const placeholderKey = `${experimentName}-${originalSelector}-${targetSelector}-${position}`;
 
     // Check if placeholder already exists
     if (this.placeholders.has(placeholderKey)) {
-      return;
+      return true;
     }
 
     // Create minimal placeholder using inline styles
@@ -343,6 +369,8 @@ export class ExposureTracker {
         `[ABsmartly] Created placeholder for ${originalSelector} at ${targetSelector} (${position})`
       );
     }
+
+    return true;
   }
 
   /**
