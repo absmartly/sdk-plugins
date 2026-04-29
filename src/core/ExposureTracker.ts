@@ -58,10 +58,13 @@ export class ExposureTracker {
     const viewportSelectors = new Set<string>();
     const moveParentSelectors = new Set<string>(); // Parent containers for move changes
 
-    // First pass: collect all move and delete changes across all variants
+    // First pass: collect all move, delete, and create changes across all variants
     // We need to track ALL possible positions where elements could be
     const moveElements = new Map<string, Set<string>>(); // selector -> Set of target parent positions
     const deleteElements = new Set<string>(); // selectors for delete changes
+    // For create: dedupe by "targetSelector|position" since a created element only
+    // exists in the variant that creates it — cross-variant tracking is positional.
+    const createPositions = new Map<string, { targetSelector: string; position: string }>();
 
     for (const variantChanges of allVariantsChanges) {
       for (const change of variantChanges) {
@@ -78,8 +81,19 @@ export class ExposureTracker {
           } else if (change.type === 'delete') {
             // Track delete changes - need special handling for placeholders
             deleteElements.add(change.selector);
+          } else if (change.type === 'create') {
+            // create requires targetSelector to have a DOM position; without it
+            // the manipulator can't apply the change at all (DOMManipulatorLite
+            // returns false), so there's nothing to track.
+            if (change.targetSelector) {
+              const position = change.position || 'lastChild';
+              const key = `${change.targetSelector}|${position}`;
+              if (!createPositions.has(key)) {
+                createPositions.set(key, { targetSelector: change.targetSelector, position });
+              }
+            }
           } else {
-            // For other non-move, non-delete changes, track the selector directly
+            // For other change types, track the selector directly
             viewportSelectors.add(change.selector);
           }
         }
@@ -176,6 +190,22 @@ export class ExposureTracker {
         // Current variant doesn't delete - track the real element
         viewportSelectors.add(selector);
       }
+    }
+
+    // For cross-variant create tracking: drop an invisible placeholder at every
+    // (targetSelector, position) where any variant creates an element with
+    // trigger_on_view. This guarantees exposure fires when the user scrolls to
+    // the position regardless of whether their variant actually created the
+    // element. The user's variant that does create the element gets the real
+    // element in DOM at the same position (applyChange runs before this), and
+    // the 1px invisible placeholder coexists harmlessly.
+    for (const [, pos] of createPositions) {
+      this.createContainerPlaceholder(
+        experimentName,
+        '__create_placeholder__',
+        pos.targetSelector,
+        pos.position
+      );
     }
 
     // Trigger flags are now passed in from DOMChangesPluginLite after URL filtering
