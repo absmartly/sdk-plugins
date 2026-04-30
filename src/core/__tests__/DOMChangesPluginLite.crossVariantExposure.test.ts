@@ -1,6 +1,21 @@
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
 import { createTreatmentTracker } from '../../__tests__/sdk-helper';
-import { ExperimentData } from '../../types';
+import { DOMChange, ExperimentData } from '../../types';
+
+/**
+ * Build a `create`-type DOMChange for the 6F tests with sensible defaults.
+ * Override only the fields that vary per test (e.g., targetSelector, position,
+ * trigger_on_view) instead of repeating the full payload.
+ */
+const buildCreateChange = (overrides: Partial<DOMChange> = {}): DOMChange => ({
+  selector: '',
+  type: 'create',
+  element: '<div class="new"></div>',
+  targetSelector: '.container',
+  position: 'lastChild',
+  trigger_on_view: true,
+  ...overrides,
+});
 
 /**
  * Comprehensive Cross-Variant Exposure Tracking Tests
@@ -4050,16 +4065,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: {} },
               {
                 variables: {
-                  __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
-                      element: '<div class="new">New</div>',
-                      targetSelector: '.container',
-                      position: 'lastChild',
-                      trigger_on_view: true,
-                    },
-                  ],
+                  __dom_changes: [buildCreateChange()],
                 },
               },
             ],
@@ -4096,16 +4102,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: { __dom_changes: [] } },
               {
                 variables: {
-                  __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
-                      element: '<div class="new">New</div>',
-                      targetSelector: '.container',
-                      position: 'lastChild',
-                      trigger_on_view: true,
-                    },
-                  ],
+                  __dom_changes: [buildCreateChange()],
                 },
               },
             ],
@@ -4153,28 +4150,22 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               {
                 variables: {
                   __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
+                    buildCreateChange({
                       element: '<div class="banner-a"></div>',
                       targetSelector: '.header',
                       position: 'lastChild',
-                      trigger_on_view: true,
-                    },
+                    }),
                   ],
                 },
               },
               {
                 variables: {
                   __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
+                    buildCreateChange({
                       element: '<div class="banner-b"></div>',
                       targetSelector: '.footer',
                       position: 'firstChild',
-                      trigger_on_view: true,
-                    },
+                    }),
                   ],
                 },
               },
@@ -4214,28 +4205,22 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               {
                 variables: {
                   __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
+                    buildCreateChange({
                       element: '<div class="banner-a"></div>',
                       targetSelector: '.header',
                       position: 'lastChild',
-                      trigger_on_view: true,
-                    },
+                    }),
                   ],
                 },
               },
               {
                 variables: {
                   __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
+                    buildCreateChange({
                       element: '<div class="banner-b"></div>',
                       targetSelector: '.footer',
                       position: 'firstChild',
-                      trigger_on_view: true,
-                    },
+                    }),
                   ],
                 },
               },
@@ -4270,30 +4255,12 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: { __dom_changes: [] } },
               {
                 variables: {
-                  __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
-                      element: '<div class="a"></div>',
-                      targetSelector: '.container',
-                      position: 'lastChild',
-                      trigger_on_view: true,
-                    },
-                  ],
+                  __dom_changes: [buildCreateChange({ element: '<div class="a"></div>' })],
                 },
               },
               {
                 variables: {
-                  __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
-                      element: '<div class="b"></div>',
-                      targetSelector: '.container',
-                      position: 'lastChild',
-                      trigger_on_view: true,
-                    },
-                  ],
+                  __dom_changes: [buildCreateChange({ element: '<div class="b"></div>' })],
                 },
               },
             ],
@@ -4326,12 +4293,10 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               {
                 variables: {
                   __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
+                    buildCreateChange({
                       element: '<div class="orphan"></div>',
-                      trigger_on_view: true,
-                    } as any,
+                      targetSelector: undefined,
+                    }),
                   ],
                 },
               },
@@ -4364,12 +4329,10 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               {
                 variables: {
                   __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
+                    buildCreateChange({
                       element: '<div class="orphan"></div>',
-                      trigger_on_view: true,
-                    } as any,
+                      targetSelector: undefined,
+                    }),
                     {
                       selector: '.text-target',
                       type: 'text',
@@ -4410,16 +4373,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               { variables: { __dom_changes: [] } },
               {
                 variables: {
-                  __dom_changes: [
-                    {
-                      selector: '',
-                      type: 'create',
-                      element: '<div class="new"></div>',
-                      targetSelector: '.late-container',
-                      position: 'lastChild',
-                      trigger_on_view: true,
-                    },
-                  ],
+                  __dom_changes: [buildCreateChange({ targetSelector: '.late-container' })],
                 },
               },
             ],
@@ -4470,16 +4424,7 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
                 variables: {
                   __dom_changes: {
                     urlFilter: { include: ['/products'] },
-                    changes: [
-                      {
-                        selector: '',
-                        type: 'create',
-                        element: '<div class="new"></div>',
-                        targetSelector: '.container',
-                        position: 'lastChild',
-                        trigger_on_view: true,
-                      },
-                    ],
+                    changes: [buildCreateChange()],
                   },
                 },
               },
