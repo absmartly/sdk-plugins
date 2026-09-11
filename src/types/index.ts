@@ -154,6 +154,17 @@ export interface PluginConfig {
   variableName?: string;
   debug?: boolean;
 
+  /**
+   * CSP nonce applied to every <style> and <script> element the plugin injects.
+   * Must match the nonce in your Content-Security-Policy header for pages that
+   * serve a strict policy without 'unsafe-inline'.
+   *
+   * Note: `javascript` changes are executed via `new Function()` first, which no
+   * nonce can authorize — those pages still need 'unsafe-eval', or they fall back
+   * to the nonced <script> path.
+   */
+  nonce?: string;
+
   // Anti-flicker functionality to prevent content flash before experiments load
   hideUntilReady?: string | false; // CSS selector for elements to hide (e.g., 'body', '[data-absmartly-hide]', '[data-absmartly-hide], [data-custom]'), or false to disable
   hideTimeout?: number; // Max milliseconds to keep content hidden (default: 3000ms)
