@@ -6,7 +6,8 @@ export class StyleSheetManager {
 
   constructor(
     private id: string,
-    debug = false
+    debug = false,
+    private nonce?: string
   ) {
     this.debug = debug;
   }
@@ -19,6 +20,9 @@ export class StyleSheetManager {
         const el = document.createElement('style');
         el.id = this.id;
         el.setAttribute('data-absmartly-styles', 'true');
+        if (this.nonce) {
+          el.setAttribute('nonce', this.nonce);
+        }
         document.head.appendChild(el);
         this.styleEl = el;
 

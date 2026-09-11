@@ -61,7 +61,8 @@ const domPlugin = new DOMChangesPlugin({
   spa: true,                     // Enable SPA support
   visibilityTracking: true,     // Track when changes become visible
   variableName: '__dom_changes', // Variable name for DOM changes
-  debug: true                    // Enable debug logging
+  debug: true,                   // Enable debug logging
+  nonce: 'YOUR_CSP_NONCE'        // Optional: CSP nonce for injected <style>/<script>
 });
 
 // Initialize without blocking
@@ -408,6 +409,50 @@ For detailed documentation:
 - **[Optimized Loading Guide](docs/OPTIMIZED_LOADING.md)** - Best practices for loading the SDK and plugins with minimal performance impact
 - **[Exposure Tracking Guide](docs/EXPOSURE_TRACKING_GUIDE.md)** - Understanding trigger_on_view and preventing sample ratio mismatch
 
+## Content Security Policy (CSP)
+
+The DOM changes plugin injects `<style>` elements (for style rules and anti-flicker) and,
+for `javascript` change types, may inject a `<script>` element. On pages served with a strict
+CSP, pass a `nonce` matching the one in your `Content-Security-Policy` header:
+
+```javascript
+const domPlugin = new DOMChangesPlugin({
+  context,
+  nonce: 'YOUR_CSP_NONCE'
+});
+```
+
+The nonce is applied to every `<style>` and `<script>` element the plugin creates, so a policy
+of `style-src 'nonce-YOUR_CSP_NONCE'` is sufficient for all style, class, attribute, text,
+HTML, move and create changes.
+
+### The `javascript` change type
+
+`javascript` changes are executed with `new Function()` first, which **no nonce can authorize** —
+that path requires `script-src 'unsafe-eval'`. When eval is blocked, the plugin falls back to
+injecting a `<script>` element carrying your nonce, which succeeds under
+`script-src 'nonce-YOUR_CSP_NONCE'`.
+
+So for `javascript` changes you need *either*:
+
+- `script-src 'unsafe-eval'` (fast path), **or**
+- `script-src 'nonce-YOUR_CSP_NONCE'` (fallback path, requires the `nonce` option)
+
+If both paths fail, the plugin logs a `console.error` and dispatches an
+`absmartly:js-error` `CustomEvent` on `document` with `detail.reason === 'csp'`, so you can
+detect policy problems in production:
+
+```javascript
+document.addEventListener('absmartly:js-error', event => {
+  if (event.detail.reason === 'csp') {
+    console.warn('Experiment JS blocked by CSP:', event.detail.experimentName);
+  }
+});
+```
+
+Inline `style` attributes written by style changes use the CSSOM
+(`element.style.setProperty`), which CSP does not govern — `style-src-attr` is not required.
+
 ## Anti-Flicker Support
 
 Prevent content flash before experiments load with two modes:
@@ -495,6 +540,10 @@ new DOMChangesPlugin({
                                        // false: instant reveal (default)
 })
 ```
+
+> **Strict CSP:** the anti-flicker `<style>` element is subject to `style-src`. If it is
+> blocked the hide never applies and the flicker returns silently — pass the [`nonce`
+> option](#content-security-policy-csp) on pages with a strict policy.
 
 ### Why This Matters
 

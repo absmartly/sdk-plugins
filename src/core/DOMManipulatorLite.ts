@@ -32,7 +32,8 @@ export class DOMManipulatorLite {
    *   2. When CSP blocks dynamic code evaluation the fallback injects a
    *      one-shot `<script>` element that calls an anonymous IIFE with the
    *      target element bound through a temporary `window` slot. This path
-   *      works on pages that allow inline scripts but not eval.
+   *      works on pages that allow inline scripts, or that supply a matching
+   *      nonce via the plugin's `nonce` config option.
    *   3. If both paths fail, the error is logged unconditionally at
    *      `console.error` and surfaced via a `CustomEvent('absmartly:js-error', ...)`
    *      on `document` so hosting code (browser extension preview, telemetry,
@@ -81,6 +82,10 @@ export class DOMManipulatorLite {
         (window as any)[slotId] = element;
         (window as any)[sentinelId] = false;
         const script = document.createElement('script');
+        const nonce = this.plugin.getNonce();
+        if (nonce) {
+          script.setAttribute('nonce', nonce);
+        }
         script.textContent =
           `(function(element){${debugPrelude}${code}\n})(window['${slotId}']);\n` +
           `window['${sentinelId}'] = true;\n` +

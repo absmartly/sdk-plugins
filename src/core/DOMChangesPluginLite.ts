@@ -47,6 +47,7 @@ export class DOMChangesPluginLite {
       visibilityTracking: config.visibilityTracking ?? true,
       variableName: config.variableName ?? '__dom_changes',
       debug: config.debug ?? false,
+      nonce: config.nonce ?? '',
       hideUntilReady: config.hideUntilReady ?? false,
       hideTimeout: config.hideTimeout ?? 3000,
       hideTransition: config.hideTransition ?? false,
@@ -1049,12 +1050,16 @@ export class DOMChangesPluginLite {
     }
   }
 
+  getNonce(): string {
+    return this.config.nonce;
+  }
+
   getStyleManager(experimentName: string): StyleSheetManager {
     const id = `absmartly-styles-${experimentName}`;
     let manager = this.styleManagers.get(experimentName);
 
     if (!manager) {
-      manager = new StyleSheetManager(id, this.config.debug);
+      manager = new StyleSheetManager(id, this.config.debug, this.config.nonce);
       this.styleManagers.set(experimentName, manager);
     }
 
@@ -1245,6 +1250,9 @@ export class DOMChangesPluginLite {
 
     const style = document.createElement('style');
     style.id = this.antiFlickerStyleId;
+    if (this.config.nonce) {
+      style.setAttribute('nonce', this.config.nonce);
+    }
 
     const hasTransition = this.config.hideTransition !== false;
 
