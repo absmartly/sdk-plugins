@@ -232,6 +232,37 @@ describe('URLMatcher', () => {
       expect(URLMatcher.matches(filter, 'https://example.com/a')).toBe(true);
       expect(URLMatcher.matches(filter, 'https://example.com/b')).toBe(false);
     });
+
+    it('ignores an empty regex exclude instead of excluding every URL', () => {
+      const filter = { exclude: [''], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/page')).toBe(true);
+    });
+
+    it('treats an explicitly empty include string as matching nothing', () => {
+      const regex = { include: '', mode: 'regex' } as any;
+      const simple = { include: '  ' } as any;
+
+      expect(URLMatcher.matches(regex, 'https://example.com/page')).toBe(false);
+      expect(URLMatcher.matches(simple, 'https://example.com/page')).toBe(false);
+    });
+
+    it('does not trim leading regex whitespace that a quantifier applies to', () => {
+      // Trimming ' ?/admin' to '?/admin' would be an invalid regex
+      const filter = { exclude: [' ?/admin'], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/admin')).toBe(false);
+      expect(URLMatcher.matches(filter, 'https://example.com/products')).toBe(true);
+      expect(
+        URLMatcher.matches({ exclude: [' +/admin'], mode: 'regex' }, 'https://example.com/admin')
+      ).toBe(true);
+      expect(
+        URLMatcher.matches(
+          { exclude: [' {0,1}/admin'], mode: 'regex' },
+          'https://example.com/admin'
+        )
+      ).toBe(false);
+    });
   });
 
   describe('Edge cases', () => {

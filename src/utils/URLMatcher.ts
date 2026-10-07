@@ -131,7 +131,7 @@ export class URLMatcher {
     const mode = filter.mode || 'simple';
 
     return {
-      include: filter.include && this.sanitizePatterns(filter.include, mode),
+      include: filter.include == null ? undefined : this.sanitizePatterns(filter.include, mode),
       exclude: this.sanitizePatterns(filter.exclude || [], mode),
       mode,
       matchType: filter.matchType || 'path',
@@ -141,9 +141,9 @@ export class URLMatcher {
   /**
    * Trim surrounding whitespace from patterns. A parsed URL never contains a
    * literal space (it is encoded as %20), so a padded pattern (easy to paste by
-   * accident) could never match. Patterns that are empty after trimming are
-   * dropped: an empty regex would match every URL, while the untrimmed pattern
-   * matched none. Non-string patterns are dropped too.
+   * accident) could never match. Empty and whitespace-only patterns are
+   * dropped, since an empty regex would match every URL and silently turn an
+   * exclude into "exclude everything". Non-string patterns are dropped too.
    */
   private static sanitizePatterns(
     patterns: string[] | string,
@@ -161,12 +161,17 @@ export class URLMatcher {
 
       const trimmed = pattern.trim();
 
+      if (!trimmed) {
+        logDebug(`[ABsmartly] ⚠️ URL filter pattern ${JSON.stringify(pattern)} is empty, ignoring`);
+        continue;
+      }
+
       if (trimmed === pattern) {
         sanitized.push(pattern);
         continue;
       }
 
-      if (mode === 'regex' && this.trimChangesRegexMeaning(trimmed)) {
+      if (mode === 'regex' && this.trimChangesRegexMeaning(pattern, trimmed)) {
         logDebug(
           `[ABsmartly] ⚠️ URL filter regex ${JSON.stringify(pattern)} has surrounding whitespace, ` +
             'but trimming would change its meaning - using it as is'
@@ -177,28 +182,33 @@ export class URLMatcher {
 
       logDebug(
         `[ABsmartly] ⚠️ URL filter pattern ${JSON.stringify(pattern)} has surrounding whitespace - ` +
-          (trimmed ? `using ${JSON.stringify(trimmed)}` : 'ignoring empty pattern')
+          `using ${JSON.stringify(trimmed)}`
       );
-
-      if (trimmed) {
-        sanitized.push(trimmed);
-      }
+      sanitized.push(trimmed);
     }
 
     return sanitized;
   }
 
   /**
-   * Whitespace next to a top-level `|` or after a trailing `\` is part of the
-   * regex: `/checkout| ` trimmed to `/checkout|` would match every URL, and
-   * `foo\ ` trimmed to `foo\` would not compile.
+   * Surrounding whitespace can be part of a regex: `/checkout| ` trimmed to
+   * `/checkout|` would match every URL, ` ?/admin` trimmed to `?/admin` would
+   * not compile, and `foo\ ` trimmed to `foo\` would not compile either.
    */
-  private static trimChangesRegexMeaning(trimmed: string): boolean {
+  private static trimChangesRegexMeaning(pattern: string, trimmed: string): boolean {
+    const hadLeadingWhitespace = pattern.trimStart() !== pattern;
+    const startsWithQuantifier = /^[?*+{]/.test(trimmed);
+
     const trailingBackslashes = trimmed.length - trimmed.replace(/\\+$/, '').length;
     const endsWithUnescapedPipe =
       trimmed.endsWith('|') &&
       (trimmed.length - 1 - trimmed.slice(0, -1).replace(/\\+$/, '').length) % 2 === 0;
 
-    return trimmed.startsWith('|') || endsWithUnescapedPipe || trailingBackslashes % 2 === 1;
+    return (
+      trimmed.startsWith('|') ||
+      (hadLeadingWhitespace && startsWithQuantifier) ||
+      endsWithUnescapedPipe ||
+      trailingBackslashes % 2 === 1
+    );
   }
 }
