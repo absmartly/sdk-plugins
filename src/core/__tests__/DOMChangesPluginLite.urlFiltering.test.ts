@@ -384,6 +384,110 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
     });
   });
 
+  describe('Regex exclude filters', () => {
+    const regexFilter = {
+      mode: 'regex',
+      include: ['^/products/'],
+      exclude: ['^/products/(hidden|internal)/\\d+$'],
+    };
+
+    function createRegexExcludeExperiment(): ExperimentData {
+      return createExperimentWithURLFilters({
+        experimentName: 'regex_exclude',
+        variants: [
+          {
+            urlFilter: regexFilter,
+            changes: [{ selector: '.content', type: 'text', value: 'Control' }],
+          },
+          {
+            urlFilter: regexFilter,
+            changes: [{ selector: '.content', type: 'text', value: 'Treatment' }],
+          },
+        ],
+      });
+    }
+
+    it.each([
+      ['control', 0, 'https://example.com/products/hidden/42'],
+      ['control', 0, 'https://example.com/products/internal/7'],
+      ['treatment', 1, 'https://example.com/products/hidden/42'],
+      ['treatment', 1, 'https://example.com/products/internal/7'],
+    ])(
+      'should never call treatment() for %s variant (%i) on regex-excluded URL %s',
+      async (_label, variant, url) => {
+        setTestURL(url);
+        document.body.innerHTML = '<div class="content">Original</div>';
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker(
+          [createRegexExcludeExperiment()],
+          { regex_exclude: variant as number }
+        );
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(treatmentSpy).not.toHaveBeenCalled();
+        expect(mockContext.treatment).not.toHaveBeenCalled();
+        expect(document.querySelector('.content')?.textContent).toBe('Original');
+      }
+    );
+
+    it.each([
+      ['control', 0, 'Control'],
+      ['treatment', 1, 'Treatment'],
+    ])(
+      'should call treatment() for %s variant (%i) on included URL not matching the regex exclude',
+      async (_label, variant, expectedText) => {
+        // Same regex, but /hidden/abc fails the \d+$ part of the exclude
+        setTestURL('https://example.com/products/hidden/abc');
+        document.body.innerHTML = '<div class="content">Original</div>';
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker(
+          [createRegexExcludeExperiment()],
+          { regex_exclude: variant as number }
+        );
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        expect(treatmentSpy).toHaveBeenCalledWith('regex_exclude');
+        expect(document.querySelector('.content')?.textContent).toBe(expectedText);
+      }
+    );
+
+    it('should never call treatment() when regex exclude matches the query string with matchType full-url', async () => {
+      const fullUrlFilter = {
+        mode: 'regex',
+        matchType: 'full-url',
+        exclude: ['[?&]preview=1(&|#|$)'],
+      };
+      const experiment = createExperimentWithURLFilters({
+        experimentName: 'regex_exclude_query',
+        variants: [
+          { urlFilter: fullUrlFilter, changes: [] },
+          {
+            urlFilter: fullUrlFilter,
+            changes: [{ selector: '.content', type: 'text', value: 'Treatment' }],
+          },
+        ],
+      });
+
+      setTestURL('https://example.com/products/1?ref=home&preview=1');
+      document.body.innerHTML = '<div class="content">Original</div>';
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+        regex_exclude_query: 1,
+      });
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+      await plugin.ready();
+
+      expect(treatmentSpy).not.toHaveBeenCalled();
+      expect(document.querySelector('.content')?.textContent).toBe('Original');
+    });
+  });
+
   describe('Legacy Format Compatibility', () => {
     it('should track and apply changes for legacy array format (no URL filter)', async () => {
       const experiment: ExperimentData = {
