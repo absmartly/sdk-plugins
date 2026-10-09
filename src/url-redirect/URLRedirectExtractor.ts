@@ -1,6 +1,7 @@
 import { ABsmartlyContext, ContextData, ExperimentData } from '../types';
 import { URLRedirectConfig, URLRedirect } from './types';
 import { logDebug } from '../utils/debug';
+import { parseURLFilter } from '../utils/parseURLFilter';
 
 export class URLRedirectExtractor {
   private context: ABsmartlyContext;
@@ -89,7 +90,7 @@ export class URLRedirectExtractor {
       }
 
       if (redirectData) {
-        const config = this.parseConfig(redirectData);
+        const config = this.parseConfig(redirectData, experiment.name);
         if (config) {
           variantConfigs.set(i, config);
         }
@@ -99,7 +100,7 @@ export class URLRedirectExtractor {
     return variantConfigs;
   }
 
-  private parseConfig(data: unknown): URLRedirectConfig | null {
+  private parseConfig(data: unknown, experimentName: string): URLRedirectConfig | null {
     if (!data) {
       return null;
     }
@@ -144,7 +145,7 @@ export class URLRedirectExtractor {
 
     return {
       redirects,
-      urlFilter: obj.urlFilter as URLRedirectConfig['urlFilter'],
+      urlFilter: parseURLFilter(obj.urlFilter, experimentName),
       controlBehavior:
         (obj.controlBehavior as URLRedirectConfig['controlBehavior']) || 'no-redirect',
     };

@@ -119,7 +119,7 @@ export type RawInjectionData = Record<string, string | URLFilter>;
 
 export interface InjectionDataWithFilter {
   data: RawInjectionData;
-  urlFilter?: URLFilter;
+  urlFilter?: NormalizedURLFilter;
 }
 
 export interface ElementState {
