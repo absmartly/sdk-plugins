@@ -13,14 +13,27 @@ export type ChangeType =
 export type DOMChangeValue = string | number | boolean | Record<string, string> | undefined;
 
 // URL filtering types
+export type URLFilterMode = 'simple' | 'regex';
+export type URLMatchType = 'full-url' | 'path' | 'domain' | 'query' | 'hash';
+
+// Raw shape customers write in the variant config
 export interface URLFilterConfig {
   include?: string[];
   exclude?: string[];
-  mode?: 'simple' | 'regex';
-  matchType?: 'full-url' | 'path' | 'domain' | 'query' | 'hash';
+  mode?: URLFilterMode;
+  matchType?: URLMatchType;
 }
 
 export type URLFilter = string | string[] | URLFilterConfig;
+
+// Validated output of parseURLFilter - the only shape URLMatcher accepts.
+// include undefined = match all, include [] = match nothing.
+export interface NormalizedURLFilter {
+  include?: string[];
+  exclude: string[];
+  mode: URLFilterMode;
+  matchType: URLMatchType;
+}
 
 export interface StyleRuleStates {
   normal?: Record<string, string>;
