@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { URLMatcher } from '../URLMatcher';
 
 describe('URLMatcher', () => {
@@ -128,6 +129,164 @@ describe('URLMatcher', () => {
 
       // Should return false and not throw
       expect(URLMatcher.matches(filter, 'https://example.com/page')).toBe(false);
+    });
+  });
+
+  describe('Whitespace in patterns', () => {
+    const latamExclude =
+      ' (ofertas-vuelos|seleccion-asientos|tienda|flight-offers|seats-selection|store|oferta-voos|selecao-de-assentos|loja|v2/(pasajeros|pagos|passengers|payments|passageiros|pagamentos))';
+
+    it('trims a leading space from a regex exclude pattern', () => {
+      const filter = { exclude: [latamExclude], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://www.latamairlines.com/cl/es/ofertas-vuelos')).toBe(
+        false
+      );
+      expect(
+        URLMatcher.matches(filter, 'https://www.latamairlines.com/us/en/booking/v2/passengers')
+      ).toBe(false);
+      expect(URLMatcher.matches(filter, 'https://www.latamairlines.com/cl/es')).toBe(true);
+    });
+
+    it('trims leading and trailing whitespace from regex include patterns', () => {
+      const filter = { include: ['\t^/products/\\d+$ \n'], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/products/42')).toBe(true);
+      expect(URLMatcher.matches(filter, 'https://example.com/products/abc')).toBe(false);
+    });
+
+    it('trims whitespace from simple include and exclude patterns', () => {
+      const filter = { include: [' /products/* '], exclude: ['  /products/hidden/*'] };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/products/1')).toBe(true);
+      expect(URLMatcher.matches(filter, 'https://example.com/products/hidden/1')).toBe(false);
+    });
+
+    it('trims whitespace from string and array filters', () => {
+      expect(URLMatcher.matches(' /checkout ', 'https://example.com/checkout')).toBe(true);
+      expect(URLMatcher.matches(['/cart', ' /checkout'], 'https://example.com/checkout')).toBe(
+        true
+      );
+    });
+
+    it('keeps inner whitespace, which only matches a literal space', () => {
+      const filter = { include: ['^/a b$'], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/ab')).toBe(false);
+      // A parsed URL encodes the space, so the pattern must not match '%20'
+      expect(URLMatcher.matches(filter, 'https://example.com/a%20b')).toBe(false);
+      // An unparseable URL is matched raw, where the literal space does match
+      expect(URLMatcher.matches(filter, '/a b')).toBe(true);
+    });
+
+    it('ignores whitespace-only exclude patterns instead of excluding every URL', () => {
+      expect(
+        URLMatcher.matches({ exclude: ['   '], mode: 'regex' }, 'https://example.com/page')
+      ).toBe(true);
+      expect(URLMatcher.matches({ exclude: [' '] }, 'https://example.com/page')).toBe(true);
+    });
+
+    it('treats whitespace-only include patterns as matching nothing', () => {
+      expect(
+        URLMatcher.matches({ include: ['  '], mode: 'regex' }, 'https://example.com/page')
+      ).toBe(false);
+      expect(URLMatcher.matches('   ', 'https://example.com/page')).toBe(false);
+      expect(URLMatcher.matches([' '], 'https://example.com/page')).toBe(false);
+    });
+
+    it('does not trim regex whitespace next to a leading or trailing |', () => {
+      // Trimming '/checkout| ' to '/checkout|' would exclude every URL
+      const trailing = { exclude: ['/checkout| '], mode: 'regex' as const };
+      const leading = { exclude: [' |/checkout'], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(trailing, 'https://example.com/products')).toBe(true);
+      expect(URLMatcher.matches(trailing, 'https://example.com/checkout')).toBe(false);
+      expect(URLMatcher.matches(leading, 'https://example.com/products')).toBe(true);
+    });
+
+    it('still trims after an escaped trailing |', () => {
+      const filter = { exclude: ['/a\\| '], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/a|')).toBe(false);
+      expect(URLMatcher.matches(filter, 'https://example.com/b')).toBe(true);
+    });
+
+    it('does not trim regex whitespace escaped by a trailing backslash', () => {
+      // Trimming '^/a\\ ' to '^/a\\' would be an invalid regex
+      const filter = { include: ['^/a\\ '], mode: 'regex' as const };
+
+      expect(() => URLMatcher.matches(filter, 'https://example.com/a')).not.toThrow();
+      expect(URLMatcher.matches(filter, 'https://example.com/a')).toBe(false);
+      // An unparseable URL is matched raw: only the preserved '^/a\\ ' matches '/a '
+      expect(URLMatcher.matches(filter, '/a ')).toBe(true);
+    });
+
+    it('treats a string include/exclude from untyped JSON as a single pattern', () => {
+      const include = { include: '/checkout', mode: 'regex' } as any;
+      const exclude = { exclude: ' /store', mode: 'regex' } as any;
+
+      expect(URLMatcher.matches(include, 'https://example.com/checkout')).toBe(true);
+      expect(URLMatcher.matches(include, 'https://example.com/products')).toBe(false);
+      expect(URLMatcher.matches(exclude, 'https://example.com/store')).toBe(false);
+      expect(URLMatcher.matches(exclude, 'https://example.com/products')).toBe(true);
+    });
+
+    it('ignores non-string patterns instead of throwing', () => {
+      const filter = { include: [null, 42, '/a'] } as any;
+
+      expect(() => URLMatcher.matches(filter, 'https://example.com/a')).not.toThrow();
+      expect(URLMatcher.matches(filter, 'https://example.com/a')).toBe(true);
+      expect(URLMatcher.matches(filter, 'https://example.com/b')).toBe(false);
+    });
+
+    it('ignores an empty regex exclude instead of excluding every URL', () => {
+      const filter = { exclude: [''], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/page')).toBe(true);
+    });
+
+    it('treats an explicitly empty include string as matching nothing', () => {
+      const regex = { include: '', mode: 'regex' } as any;
+      const simple = { include: '  ' } as any;
+
+      expect(URLMatcher.matches(regex, 'https://example.com/page')).toBe(false);
+      expect(URLMatcher.matches(simple, 'https://example.com/page')).toBe(false);
+    });
+
+    it('evaluates padded regexes without String.prototype.trimStart (Chrome 60, Safari 11)', () => {
+      const proto = String.prototype as any;
+      const descriptor = Object.getOwnPropertyDescriptor(proto, 'trimStart');
+      delete proto.trimStart;
+
+      try {
+        const filter = { exclude: [' (offers|store)', ' ?/admin'], mode: 'regex' as const };
+
+        expect(() => URLMatcher.matches(filter, 'https://example.com/home')).not.toThrow();
+        expect(URLMatcher.matches(filter, 'https://example.com/home')).toBe(true);
+        expect(URLMatcher.matches(filter, 'https://example.com/store')).toBe(false);
+        expect(URLMatcher.matches(filter, 'https://example.com/admin')).toBe(false);
+      } finally {
+        if (descriptor) {
+          Object.defineProperty(proto, 'trimStart', descriptor);
+        }
+      }
+    });
+
+    it('does not trim leading regex whitespace that a quantifier applies to', () => {
+      // Trimming ' ?/admin' to '?/admin' would be an invalid regex
+      const filter = { exclude: [' ?/admin'], mode: 'regex' as const };
+
+      expect(URLMatcher.matches(filter, 'https://example.com/admin')).toBe(false);
+      expect(URLMatcher.matches(filter, 'https://example.com/products')).toBe(true);
+      expect(
+        URLMatcher.matches({ exclude: [' +/admin'], mode: 'regex' }, 'https://example.com/admin')
+      ).toBe(true);
+      expect(
+        URLMatcher.matches(
+          { exclude: [' {0,1}/admin'], mode: 'regex' },
+          'https://example.com/admin'
+        )
+      ).toBe(false);
     });
   });
 
