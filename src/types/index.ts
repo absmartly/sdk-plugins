@@ -93,6 +93,13 @@ export interface DOMChangesConfig {
 // Union type supporting both legacy array format and new config format
 export type DOMChangesData = DOMChange[] | DOMChangesConfig;
 
+// DOMChangesData after VariantExtractor has parsed its urlFilter
+export interface ParsedDOMChangesConfig extends Omit<DOMChangesConfig, 'urlFilter'> {
+  urlFilter?: NormalizedURLFilter;
+}
+
+export type ParsedDOMChangesData = DOMChange[] | ParsedDOMChangesConfig;
+
 export interface InjectionData {
   headStart?: string;
   headEnd?: string;
