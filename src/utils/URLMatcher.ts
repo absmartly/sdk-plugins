@@ -1,41 +1,62 @@
 import { logDebug } from './debug';
-import type { URLFilter, URLFilterConfig } from '../types';
+import type { NormalizedURLFilter, URLMatchType } from '../types';
+
+interface CompiledFilter {
+  include?: RegExp[];
+  exclude: RegExp[];
+}
+
+// Filters are re-evaluated per variant and on every SPA navigation, so compile
+// each one once. Keyed by identity; parsed filters live as long as the cache
+// that holds them.
+const compiledFilters = new WeakMap<NormalizedURLFilter, CompiledFilter>();
 
 export class URLMatcher {
   /**
-   * Check if current URL matches the filter
+   * Check if current URL matches the filter. The filter must come from
+   * parseURLFilter, which has already validated and trimmed its patterns.
    */
-  static matches(filter: URLFilter, url: string = window.location.href): boolean {
-    // Normalize filter to URLFilterConfig
-    const config = this.normalizeFilter(filter);
+  static matches(filter: NormalizedURLFilter, url: string = window.location.href): boolean {
+    const { include, exclude } = this.compile(filter);
 
     // Extract the part of URL to match based on matchType
-    const urlPart = this.extractURLPart(url, config.matchType);
+    const urlPart = this.extractURLPart(url, filter.matchType);
 
     // Check exclusions first
-    if (config.exclude && this.matchesPatterns(config.exclude, urlPart, config.mode)) {
+    if (exclude.some(regex => regex.test(urlPart))) {
       return false;
     }
 
     // Check inclusions
-    if (!config.include) {
+    if (!include) {
       return true; // No include property = match all
     }
 
-    if (config.include.length === 0) {
-      return false; // Empty include array = match nothing (explicit "include nothing")
+    // Empty include array = match nothing (explicit "include nothing")
+    return include.some(regex => regex.test(urlPart));
+  }
+
+  private static compile(filter: NormalizedURLFilter): CompiledFilter {
+    let compiled = compiledFilters.get(filter);
+
+    if (!compiled) {
+      const toRegExp = (pattern: string): RegExp =>
+        filter.mode === 'regex' ? new RegExp(pattern) : this.simplePatternToRegExp(pattern);
+
+      compiled = {
+        include: filter.include?.map(toRegExp),
+        exclude: filter.exclude.map(toRegExp),
+      };
+      compiledFilters.set(filter, compiled);
     }
 
-    return this.matchesPatterns(config.include, urlPart, config.mode);
+    return compiled;
   }
 
   /**
    * Extract the relevant part of the URL based on matchType
    */
-  private static extractURLPart(
-    url: string,
-    matchType: 'full-url' | 'path' | 'domain' | 'query' | 'hash' = 'path'
-  ): string {
+  private static extractURLPart(url: string, matchType: URLMatchType): string {
     try {
       const urlObj = new URL(url);
 
@@ -70,28 +91,7 @@ export class URLMatcher {
     }
   }
 
-  private static matchesPatterns(
-    patterns: string[],
-    url: string,
-    mode: 'simple' | 'regex' = 'simple'
-  ): boolean {
-    return patterns.some(pattern => {
-      if (mode === 'regex') {
-        try {
-          return new RegExp(pattern).test(url);
-        } catch (error) {
-          logDebug(
-            `[ABsmartly] ⚠️ Invalid regex in URL filter, pattern ignored: ${JSON.stringify(pattern)}`,
-            error
-          );
-          return false;
-        }
-      }
-      return this.matchSimplePattern(pattern, url);
-    });
-  }
-
-  private static matchSimplePattern(pattern: string, url: string): boolean {
+  private static simplePatternToRegExp(pattern: string): RegExp {
     // Convert simple pattern to regex
     // * becomes .*
     // ? becomes .
@@ -101,106 +101,6 @@ export class URLMatcher {
       .replace(/\*/g, '.*') // * to .*
       .replace(/\?/g, '.'); // ? to .
 
-    try {
-      return new RegExp(`^${regexPattern}$`).test(url);
-    } catch (error) {
-      logDebug(`[ABsmartly] Invalid pattern: ${pattern}`, error);
-      return false;
-    }
-  }
-
-  private static normalizeFilter(filter: URLFilter): URLFilterConfig {
-    if (typeof filter === 'string') {
-      return {
-        include: this.sanitizePatterns([filter]),
-        exclude: [],
-        mode: 'simple',
-        matchType: 'path',
-      };
-    }
-
-    if (Array.isArray(filter)) {
-      return {
-        include: filter.length > 0 ? this.sanitizePatterns(filter) : undefined,
-        exclude: [],
-        mode: 'simple',
-        matchType: 'path',
-      };
-    }
-
-    const mode = filter.mode || 'simple';
-
-    return {
-      include: filter.include == null ? undefined : this.sanitizePatterns(filter.include, mode),
-      exclude: this.sanitizePatterns(filter.exclude || [], mode),
-      mode,
-      matchType: filter.matchType || 'path',
-    };
-  }
-
-  /**
-   * Trim surrounding whitespace from patterns. A parsed URL never contains a
-   * literal space (it is encoded as %20), so a padded pattern (easy to paste by
-   * accident) could never match. Empty and whitespace-only patterns are
-   * dropped, since an empty regex would match every URL and silently turn an
-   * exclude into "exclude everything". Non-string patterns are dropped too.
-   */
-  private static sanitizePatterns(
-    patterns: string[] | string,
-    mode: 'simple' | 'regex' = 'simple'
-  ): string[] {
-    // Untyped JSON may hold a single string where an array is expected
-    const list: unknown[] = Array.isArray(patterns) ? patterns : [patterns];
-    const sanitized: string[] = [];
-
-    for (const pattern of list) {
-      if (typeof pattern !== 'string') {
-        logDebug(`[ABsmartly] ⚠️ URL filter pattern is not a string, ignoring:`, pattern);
-        continue;
-      }
-
-      const trimmed = pattern.trim();
-
-      if (!trimmed) {
-        logDebug(`[ABsmartly] ⚠️ URL filter pattern ${JSON.stringify(pattern)} is empty, ignoring`);
-        continue;
-      }
-
-      if (trimmed === pattern) {
-        sanitized.push(pattern);
-        continue;
-      }
-
-      if (mode === 'regex' && this.trimChangesRegexMeaning(pattern, trimmed)) {
-        logDebug(
-          `[ABsmartly] ⚠️ URL filter regex ${JSON.stringify(pattern)} has surrounding whitespace, ` +
-            'but trimming would change its meaning - using it as is'
-        );
-        sanitized.push(pattern);
-        continue;
-      }
-
-      logDebug(
-        `[ABsmartly] ⚠️ URL filter pattern ${JSON.stringify(pattern)} has surrounding whitespace - ` +
-          `using ${JSON.stringify(trimmed)}`
-      );
-      sanitized.push(trimmed);
-    }
-
-    return sanitized;
-  }
-
-  /**
-   * Surrounding whitespace can be part of a regex, so only trim when the
-   * trimmed regex still compiles and does not newly match the empty string.
-   * That keeps ` ?/admin` (would not compile) and `/checkout| ` (would match
-   * every URL) as written.
-   */
-  private static trimChangesRegexMeaning(pattern: string, trimmed: string): boolean {
-    try {
-      return new RegExp(trimmed).test('') && !new RegExp(pattern).test('');
-    } catch {
-      return true;
-    }
+    return new RegExp(`^${regexPattern}$`);
   }
 }
