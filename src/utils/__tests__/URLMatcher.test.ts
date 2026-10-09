@@ -255,7 +255,7 @@ describe('URLMatcher', () => {
 
     it('evaluates padded regexes without String.prototype.trimStart (Chrome 60, Safari 11)', () => {
       const proto = String.prototype as any;
-      const original = proto.trimStart;
+      const descriptor = Object.getOwnPropertyDescriptor(proto, 'trimStart');
       delete proto.trimStart;
 
       try {
@@ -266,7 +266,9 @@ describe('URLMatcher', () => {
         expect(URLMatcher.matches(filter, 'https://example.com/store')).toBe(false);
         expect(URLMatcher.matches(filter, 'https://example.com/admin')).toBe(false);
       } finally {
-        proto.trimStart = original;
+        if (descriptor) {
+          Object.defineProperty(proto, 'trimStart', descriptor);
+        }
       }
     });
 
