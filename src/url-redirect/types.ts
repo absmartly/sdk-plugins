@@ -1,4 +1,4 @@
-import type { URLFilter } from '../types';
+import type { NormalizedURLFilter } from '../types';
 
 export type RedirectType = 'domain' | 'page' | 'path-prefix' | 'pattern';
 
@@ -13,7 +13,7 @@ export interface URLRedirect {
 
 export interface URLRedirectConfig {
   redirects: URLRedirect[];
-  urlFilter?: URLFilter;
+  urlFilter?: NormalizedURLFilter;
   controlBehavior?: ControlBehavior;
 }
 

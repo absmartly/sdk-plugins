@@ -1,5 +1,6 @@
 import { HTMLInjector } from '../HTMLInjector';
 import { InjectionLocation, InjectionDataWithFilter } from '../../types';
+import { parseURLFilter } from '../../utils/parseURLFilter';
 
 interface InjectionItem {
   code: string;
@@ -959,11 +960,14 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: '<script>matched</script>',
                 },
-                urlFilter: {
-                  include: ['/products'],
-                  mode: 'simple',
-                  matchType: 'path',
-                },
+                urlFilter: parseURLFilter(
+                  {
+                    include: ['/products'],
+                    mode: 'simple',
+                    matchType: 'path',
+                  },
+                  'test'
+                ),
               } as InjectionDataWithFilter,
             ],
           ]),
@@ -991,11 +995,14 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: '<script>not-checkout</script>',
                 },
-                urlFilter: {
-                  exclude: ['/checkout'],
-                  mode: 'simple',
-                  matchType: 'path',
-                },
+                urlFilter: parseURLFilter(
+                  {
+                    exclude: ['/checkout'],
+                    mode: 'simple',
+                    matchType: 'path',
+                  },
+                  'test'
+                ),
               } as InjectionDataWithFilter,
             ],
           ]),
@@ -1050,11 +1057,14 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: '<script>test</script>',
                 },
-                urlFilter: {
-                  include: ['/products'],
-                  mode: 'simple',
-                  matchType: 'path',
-                },
+                urlFilter: parseURLFilter(
+                  {
+                    include: ['/products'],
+                    mode: 'simple',
+                    matchType: 'path',
+                  },
+                  'test'
+                ),
               } as InjectionDataWithFilter,
             ],
           ]),
@@ -1090,11 +1100,14 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: '<script>test</script>',
                 },
-                urlFilter: {
-                  include: ['/products'],
-                  mode: 'simple',
-                  matchType: 'path',
-                },
+                urlFilter: parseURLFilter(
+                  {
+                    include: ['/products'],
+                    mode: 'simple',
+                    matchType: 'path',
+                  },
+                  'test'
+                ),
               } as InjectionDataWithFilter,
             ],
           ]),

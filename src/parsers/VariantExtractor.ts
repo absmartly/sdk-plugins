@@ -599,7 +599,7 @@ export class VariantExtractor {
         // Create InjectionDataWithFilter
         const dataWithFilter: InjectionDataWithFilter = {
           data: rawData as RawInjectionData,
-          urlFilter: urlFilter || undefined,
+          urlFilter: parseURLFilter(urlFilter, experiment.name),
         };
 
         variantInjections.set(i, dataWithFilter);
