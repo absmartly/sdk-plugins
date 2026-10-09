@@ -6,9 +6,10 @@ interface CompiledFilter {
   exclude: RegExp[];
 }
 
-// Filters are re-evaluated per variant and on every SPA navigation, so compile
-// each one once. Keyed by identity; parsed filters live as long as the cache
-// that holds them.
+// A filter is matched several times per apply pass (anyVariantMatchesURL, the
+// per-variant trigger checks, shouldApplyVisualChanges), so compile it once.
+// Keyed by identity: DOM change and inject_html filters are re-parsed each pass,
+// URL redirect filters live until the redirect extractor's cache is cleared.
 const compiledFilters = new WeakMap<NormalizedURLFilter, CompiledFilter>();
 
 export class URLMatcher {

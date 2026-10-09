@@ -18,7 +18,8 @@ export class VariantExtractor {
   private variableName: string;
   private debug: boolean;
   private cachedAllChanges: Map<string, Map<number, DOMChange[]>> | null = null;
-  // Parsed once per experiment so URL filter warnings are not repeated on every navigation
+  // Parsed once per experiment per apply pass (applyChanges clears it), so the several
+  // lookups in one pass share one parse and one set of URL filter warnings
   private cachedVariantsData = new Map<string, Map<number, ParsedDOMChangesData>>();
 
   constructor(context: ABsmartlyContext, variableName: string = '__dom_changes', debug = false) {

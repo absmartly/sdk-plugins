@@ -575,8 +575,7 @@ export class DOMChangesPluginLite {
           logDebug(`[ABsmartly] Variant ${idx} data structure:`, {
             isArray: Array.isArray(data),
             isObject: typeof data === 'object',
-            hasUrlFilter:
-              data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data,
+            hasUrlFilter: !!data && !Array.isArray(data) && !!data.urlFilter,
             keys:
               data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
           });
