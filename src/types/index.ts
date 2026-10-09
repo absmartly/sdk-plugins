@@ -13,14 +13,27 @@ export type ChangeType =
 export type DOMChangeValue = string | number | boolean | Record<string, string> | undefined;
 
 // URL filtering types
+export type URLFilterMode = 'simple' | 'regex';
+export type URLMatchType = 'full-url' | 'path' | 'domain' | 'query' | 'hash';
+
+// Raw shape customers write in the variant config
 export interface URLFilterConfig {
   include?: string[];
   exclude?: string[];
-  mode?: 'simple' | 'regex';
-  matchType?: 'full-url' | 'path' | 'domain' | 'query' | 'hash';
+  mode?: URLFilterMode;
+  matchType?: URLMatchType;
 }
 
 export type URLFilter = string | string[] | URLFilterConfig;
+
+// Validated output of parseURLFilter - the only shape URLMatcher accepts.
+// include undefined = match all, include [] = match nothing.
+export interface NormalizedURLFilter {
+  include?: string[];
+  exclude: string[];
+  mode: URLFilterMode;
+  matchType: URLMatchType;
+}
 
 export interface StyleRuleStates {
   normal?: Record<string, string>;
@@ -80,6 +93,13 @@ export interface DOMChangesConfig {
 // Union type supporting both legacy array format and new config format
 export type DOMChangesData = DOMChange[] | DOMChangesConfig;
 
+// DOMChangesData after VariantExtractor has parsed its urlFilter
+export interface ParsedDOMChangesConfig extends Omit<DOMChangesConfig, 'urlFilter'> {
+  urlFilter?: NormalizedURLFilter;
+}
+
+export type ParsedDOMChangesData = DOMChange[] | ParsedDOMChangesConfig;
+
 export interface InjectionData {
   headStart?: string;
   headEnd?: string;
@@ -99,7 +119,7 @@ export type RawInjectionData = Record<string, string | URLFilter>;
 
 export interface InjectionDataWithFilter {
   data: RawInjectionData;
-  urlFilter?: URLFilter;
+  urlFilter?: NormalizedURLFilter;
 }
 
 export interface ElementState {

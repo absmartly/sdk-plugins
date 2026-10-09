@@ -1,3 +1,4 @@
+import * as debugModule from '../../utils/debug';
 import { URLRedirectExtractor } from '../URLRedirectExtractor';
 import { createTestSDK, createTestContext, createTestExperiment } from '../../__tests__/sdk-helper';
 import type { SDK } from '@absmartly/javascript-sdk';
@@ -233,7 +234,37 @@ describe('URLRedirectExtractor', () => {
       const configs = extractor.extractAllConfigs();
       const variantConfig = configs.get('redirect-exp')?.get(0);
 
-      expect(variantConfig?.urlFilter).toEqual({ include: ['https://old.com/*'] });
+      expect(variantConfig?.urlFilter).toEqual({
+        include: ['https://old.com/*'],
+        exclude: [],
+        mode: 'simple',
+        matchType: 'path',
+      });
+    });
+
+    it('should validate urlFilter and warn with the experiment name', () => {
+      const logSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation(() => {});
+      const experiment = createTestExperiment('redirect-exp', [
+        {
+          config: {
+            __url_redirect: {
+              redirects: [{ from: 'https://old.com', to: 'https://new.com', type: 'domain' }],
+              urlFilter: { include: ['/x'], mode: 'nope' },
+            },
+          },
+        },
+      ]);
+
+      context = createTestContext(sdk, { experiments: [experiment] });
+      extractor = new URLRedirectExtractor(context, '__url_redirect', false);
+
+      const variantConfig = extractor.extractAllConfigs().get('redirect-exp')?.get(0);
+
+      expect(variantConfig?.urlFilter?.mode).toBe('simple');
+      const warnings = logSpy.mock.calls.filter(c => String(c[0]).includes('unknown mode'));
+      expect(warnings).toHaveLength(1);
+      expect(String(warnings[0][0])).toContain('experiment "redirect-exp"');
+      logSpy.mockRestore();
     });
 
     it('should parse controlBehavior', () => {

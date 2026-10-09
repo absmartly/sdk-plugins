@@ -1049,8 +1049,9 @@ This keeps URL logic separate from visibility tracking logic.
    - **ExposureTracker remains URL-agnostic** - URL filtering happens before calling it
 
 6. **Error handling: fail safe**
-   - Invalid regex → log error and skip experiment
-   - Invalid pattern → log error and skip experiment
+   - Filters are validated once, when the variant config is parsed (`parseURLFilter`), with a debug warning naming the experiment
+   - Invalid regex, non-string or empty pattern → pattern dropped; an include left with no patterns matches nothing
+   - Unknown `mode` / `matchType` → falls back to `simple` / `path`
    - Better to skip than to crash or apply incorrectly
 
 ## Implementation Priority

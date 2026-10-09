@@ -4,8 +4,10 @@ import {
   DOMChange,
   EventCallback,
   EventCallbackData,
-  DOMChangesData,
   DOMChangesConfig,
+  NormalizedURLFilter,
+  ParsedDOMChangesConfig,
+  ParsedDOMChangesData,
 } from '../types';
 import { DOMManipulatorLite } from './DOMManipulatorLite';
 import { VariantExtractor } from '../parsers/VariantExtractor';
@@ -573,8 +575,7 @@ export class DOMChangesPluginLite {
           logDebug(`[ABsmartly] Variant ${idx} data structure:`, {
             isArray: Array.isArray(data),
             isObject: typeof data === 'object',
-            hasUrlFilter:
-              data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data,
+            hasUrlFilter: !!data && !Array.isArray(data) && !!data.urlFilter,
             keys:
               data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
           });
@@ -592,14 +593,10 @@ export class DOMChangesPluginLite {
         // Check if this variant's URL filter matches the current URL
         let variantMatchesURL = true; // Default to true for legacy format (no URL filter)
 
-        if (variantData && typeof variantData === 'object' && !Array.isArray(variantData)) {
-          const config = variantData as { urlFilter?: unknown };
-          if ('urlFilter' in config && config.urlFilter) {
+        if (variantData && !Array.isArray(variantData)) {
+          if (variantData.urlFilter) {
             // This variant has a URL filter - check if it matches
-            const urlFilterConfig = config as {
-              urlFilter: { include?: string[]; exclude?: string[] };
-            };
-            variantMatchesURL = URLMatcher.matches(urlFilterConfig.urlFilter, currentURL);
+            variantMatchesURL = URLMatcher.matches(variantData.urlFilter, currentURL);
 
             if (this.config.debug) {
               logDebug(
@@ -778,8 +775,8 @@ export class DOMChangesPluginLite {
   private getAllExperimentsData(): Map<
     string,
     {
-      variantData: DOMChangesData | null;
-      urlFilter: any;
+      variantData: ParsedDOMChangesData | null;
+      urlFilter: NormalizedURLFilter | undefined;
       globalDefaults: Partial<DOMChangesConfig>;
     }
   > {
@@ -835,7 +832,7 @@ export class DOMChangesPluginLite {
       logDebug(`[GET-EXPERIMENTS] [${expName}] ✓ Including experiment (variant ${currentVariant})`);
 
       // Extract URL filter and global defaults if using wrapped format
-      let urlFilter = null;
+      let urlFilter: NormalizedURLFilter | undefined;
       let globalDefaults = {};
 
       if (
@@ -844,7 +841,7 @@ export class DOMChangesPluginLite {
         !Array.isArray(variantData) &&
         'changes' in variantData
       ) {
-        const config = variantData as DOMChangesConfig;
+        const config = variantData as ParsedDOMChangesConfig;
         urlFilter = config.urlFilter;
         globalDefaults = {
           waitForElement: config.waitForElement,
@@ -866,7 +863,7 @@ export class DOMChangesPluginLite {
    * Extract changes from DOMChangesData and apply global defaults
    */
   private extractChangesFromData(
-    data: DOMChangesData | null,
+    data: ParsedDOMChangesData | null,
     globalDefaults: Partial<DOMChangesConfig>
   ): DOMChange[] | null {
     if (!data) {
@@ -879,7 +876,7 @@ export class DOMChangesPluginLite {
     if (Array.isArray(data)) {
       changes = data;
     } else if (typeof data === 'object' && 'changes' in data) {
-      changes = (data as DOMChangesConfig).changes;
+      changes = (data as ParsedDOMChangesConfig).changes;
     }
 
     if (!changes || changes.length === 0) {
@@ -925,7 +922,7 @@ export class DOMChangesPluginLite {
         !Array.isArray(variantData) &&
         'changes' in variantData
       ) {
-        const config = variantData as DOMChangesConfig;
+        const config = variantData as ParsedDOMChangesConfig;
         globalDefaults = {
           waitForElement: config.waitForElement,
           persistStyle: config.persistStyle,
@@ -957,8 +954,8 @@ export class DOMChangesPluginLite {
    * Determine if visual changes should be applied based on URL filter
    */
   private shouldApplyVisualChanges(
-    variantData: DOMChangesData | null,
-    urlFilter: any,
+    variantData: ParsedDOMChangesData | null,
+    urlFilter: NormalizedURLFilter | undefined,
     url: string
   ): boolean {
     // No data for this variant - no changes to apply
