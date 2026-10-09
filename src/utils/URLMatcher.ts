@@ -196,7 +196,7 @@ export class URLMatcher {
    * not compile, and `foo\ ` trimmed to `foo\` would not compile either.
    */
   private static trimChangesRegexMeaning(pattern: string, trimmed: string): boolean {
-    const hadLeadingWhitespace = pattern.trimStart() !== pattern;
+    const hadLeadingWhitespace = /^\s/.test(pattern);
     const startsWithQuantifier = /^[?*+{]/.test(trimmed);
 
     const trailingBackslashes = trimmed.length - trimmed.replace(/\\+$/, '').length;

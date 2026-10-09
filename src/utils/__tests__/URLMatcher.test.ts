@@ -173,6 +173,10 @@ describe('URLMatcher', () => {
       const filter = { include: ['^/a b$'], mode: 'regex' as const };
 
       expect(URLMatcher.matches(filter, 'https://example.com/ab')).toBe(false);
+      // A parsed URL encodes the space, so the pattern must not match '%20'
+      expect(URLMatcher.matches(filter, 'https://example.com/a%20b')).toBe(false);
+      // An unparseable URL is matched raw, where the literal space does match
+      expect(URLMatcher.matches(filter, '/a b')).toBe(true);
     });
 
     it('ignores whitespace-only exclude patterns instead of excluding every URL', () => {
@@ -213,6 +217,8 @@ describe('URLMatcher', () => {
 
       expect(() => URLMatcher.matches(filter, 'https://example.com/a')).not.toThrow();
       expect(URLMatcher.matches(filter, 'https://example.com/a')).toBe(false);
+      // An unparseable URL is matched raw: only the preserved '^/a\\ ' matches '/a '
+      expect(URLMatcher.matches(filter, '/a ')).toBe(true);
     });
 
     it('treats a string include/exclude from untyped JSON as a single pattern', () => {
@@ -245,6 +251,23 @@ describe('URLMatcher', () => {
 
       expect(URLMatcher.matches(regex, 'https://example.com/page')).toBe(false);
       expect(URLMatcher.matches(simple, 'https://example.com/page')).toBe(false);
+    });
+
+    it('evaluates padded regexes without String.prototype.trimStart (Chrome 60, Safari 11)', () => {
+      const proto = String.prototype as any;
+      const original = proto.trimStart;
+      delete proto.trimStart;
+
+      try {
+        const filter = { exclude: [' (offers|store)', ' ?/admin'], mode: 'regex' as const };
+
+        expect(() => URLMatcher.matches(filter, 'https://example.com/home')).not.toThrow();
+        expect(URLMatcher.matches(filter, 'https://example.com/home')).toBe(true);
+        expect(URLMatcher.matches(filter, 'https://example.com/store')).toBe(false);
+        expect(URLMatcher.matches(filter, 'https://example.com/admin')).toBe(false);
+      } finally {
+        proto.trimStart = original;
+      }
     });
 
     it('does not trim leading regex whitespace that a quantifier applies to', () => {
