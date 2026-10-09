@@ -191,24 +191,16 @@ export class URLMatcher {
   }
 
   /**
-   * Surrounding whitespace can be part of a regex: `/checkout| ` trimmed to
-   * `/checkout|` would match every URL, ` ?/admin` trimmed to `?/admin` would
-   * not compile, and `foo\ ` trimmed to `foo\` would not compile either.
+   * Surrounding whitespace can be part of a regex, so only trim when the
+   * trimmed regex still compiles and does not newly match the empty string.
+   * That keeps ` ?/admin` (would not compile) and `/checkout| ` (would match
+   * every URL) as written.
    */
   private static trimChangesRegexMeaning(pattern: string, trimmed: string): boolean {
-    const hadLeadingWhitespace = /^\s/.test(pattern);
-    const startsWithQuantifier = /^[?*+{]/.test(trimmed);
-
-    const trailingBackslashes = trimmed.length - trimmed.replace(/\\+$/, '').length;
-    const endsWithUnescapedPipe =
-      trimmed.endsWith('|') &&
-      (trimmed.length - 1 - trimmed.slice(0, -1).replace(/\\+$/, '').length) % 2 === 0;
-
-    return (
-      trimmed.startsWith('|') ||
-      (hadLeadingWhitespace && startsWithQuantifier) ||
-      endsWithUnescapedPipe ||
-      trailingBackslashes % 2 === 1
-    );
+    try {
+      return new RegExp(trimmed).test('') && !new RegExp(pattern).test('');
+    } catch {
+      return true;
+    }
   }
 }
