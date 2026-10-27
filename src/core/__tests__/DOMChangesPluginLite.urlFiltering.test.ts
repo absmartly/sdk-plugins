@@ -384,6 +384,68 @@ describe('DOMChangesPluginLite - URL Filtering', () => {
     });
   });
 
+  describe('Whitespace-padded regex exclude (FT-2326)', () => {
+    const paddedFilter = {
+      mode: 'regex',
+      matchType: 'path',
+      exclude: [
+        ' (ofertas-vuelos|seleccion-asientos|tienda|flight-offers|seats-selection|store|oferta-voos|selecao-de-assentos|loja|v2/(pasajeros|pagos|passengers|payments|passageiros|pagamentos))',
+      ],
+    };
+
+    function createPaddedExcludeExperiment(): ExperimentData {
+      return createExperimentWithURLFilters({
+        experimentName: 'padded_exclude',
+        variants: [
+          { changes: [] },
+          {
+            urlFilter: paddedFilter,
+            changes: [{ selector: '.content', type: 'text', value: 'Treatment' }],
+          },
+        ],
+      });
+    }
+
+    it.each([
+      ['control', 0],
+      ['treatment', 1],
+    ])(
+      'should never call treatment() for %s variant (%i) on a URL excluded by a padded pattern',
+      async (_label, variant) => {
+        setTestURL('https://www.latamairlines.com/cl/es/ofertas-vuelos');
+        document.body.innerHTML = '<div class="content">Original</div>';
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker(
+          [createPaddedExcludeExperiment()],
+          { padded_exclude: variant as number }
+        );
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(treatmentSpy).not.toHaveBeenCalled();
+        expect(document.querySelector('.content')?.textContent).toBe('Original');
+      }
+    );
+
+    it('should still call treatment() on a URL the padded pattern does not exclude', async () => {
+      setTestURL('https://www.latamairlines.com/cl/es');
+      document.body.innerHTML = '<div class="content">Original</div>';
+
+      const { mockContext, treatmentSpy } = createTreatmentTracker(
+        [createPaddedExcludeExperiment()],
+        { padded_exclude: 1 }
+      );
+
+      plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+      await plugin.ready();
+
+      expect(treatmentSpy).toHaveBeenCalledTimes(1);
+      expect(treatmentSpy).toHaveBeenCalledWith('padded_exclude');
+      expect(document.querySelector('.content')?.textContent).toBe('Treatment');
+    });
+  });
+
   describe('Legacy Format Compatibility', () => {
     it('should track and apply changes for legacy array format (no URL filter)', async () => {
       const experiment: ExperimentData = {

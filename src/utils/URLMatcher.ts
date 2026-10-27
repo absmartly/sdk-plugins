@@ -80,7 +80,10 @@ export class URLMatcher {
         try {
           return new RegExp(pattern).test(url);
         } catch (error) {
-          logDebug(`[ABsmartly] Invalid regex pattern: ${pattern}`, error);
+          logDebug(
+            `[ABsmartly] ⚠️ Invalid regex in URL filter, pattern ignored: ${JSON.stringify(pattern)}`,
+            error
+          );
           return false;
         }
       }
@@ -108,23 +111,96 @@ export class URLMatcher {
 
   private static normalizeFilter(filter: URLFilter): URLFilterConfig {
     if (typeof filter === 'string') {
-      return { include: [filter], exclude: [], mode: 'simple', matchType: 'path' };
-    }
-
-    if (Array.isArray(filter)) {
       return {
-        include: filter.length > 0 ? filter : undefined,
+        include: this.sanitizePatterns([filter]),
         exclude: [],
         mode: 'simple',
         matchType: 'path',
       };
     }
 
+    if (Array.isArray(filter)) {
+      return {
+        include: filter.length > 0 ? this.sanitizePatterns(filter) : undefined,
+        exclude: [],
+        mode: 'simple',
+        matchType: 'path',
+      };
+    }
+
+    const mode = filter.mode || 'simple';
+
     return {
-      include: filter.include,
-      exclude: filter.exclude || [],
-      mode: filter.mode || 'simple',
+      include: filter.include == null ? undefined : this.sanitizePatterns(filter.include, mode),
+      exclude: this.sanitizePatterns(filter.exclude || [], mode),
+      mode,
       matchType: filter.matchType || 'path',
     };
+  }
+
+  /**
+   * Trim surrounding whitespace from patterns. A parsed URL never contains a
+   * literal space (it is encoded as %20), so a padded pattern (easy to paste by
+   * accident) could never match. Empty and whitespace-only patterns are
+   * dropped, since an empty regex would match every URL and silently turn an
+   * exclude into "exclude everything". Non-string patterns are dropped too.
+   */
+  private static sanitizePatterns(
+    patterns: string[] | string,
+    mode: 'simple' | 'regex' = 'simple'
+  ): string[] {
+    // Untyped JSON may hold a single string where an array is expected
+    const list: unknown[] = Array.isArray(patterns) ? patterns : [patterns];
+    const sanitized: string[] = [];
+
+    for (const pattern of list) {
+      if (typeof pattern !== 'string') {
+        logDebug(`[ABsmartly] ⚠️ URL filter pattern is not a string, ignoring:`, pattern);
+        continue;
+      }
+
+      const trimmed = pattern.trim();
+
+      if (!trimmed) {
+        logDebug(`[ABsmartly] ⚠️ URL filter pattern ${JSON.stringify(pattern)} is empty, ignoring`);
+        continue;
+      }
+
+      if (trimmed === pattern) {
+        sanitized.push(pattern);
+        continue;
+      }
+
+      if (mode === 'regex' && this.trimChangesRegexMeaning(pattern, trimmed)) {
+        logDebug(
+          `[ABsmartly] ⚠️ URL filter regex ${JSON.stringify(pattern)} has surrounding whitespace, ` +
+            'but trimming would change its meaning - using it as is'
+        );
+        sanitized.push(pattern);
+        continue;
+      }
+
+      logDebug(
+        `[ABsmartly] ⚠️ URL filter pattern ${JSON.stringify(pattern)} has surrounding whitespace - ` +
+          `using ${JSON.stringify(trimmed)}`
+      );
+      sanitized.push(trimmed);
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Surrounding whitespace can be part of a regex, so only trim when the
+   * trimmed regex still compiles and does not newly match the empty string.
+   * That keeps ` ?/admin` (would not compile) and `/checkout| ` (would match
+   * every URL) as written.
+   */
+  private static trimChangesRegexMeaning(pattern: string, trimmed: string): boolean {
+    try {
+      return new RegExp(trimmed).test('') && !new RegExp(pattern).test('');
+    } catch {
+      return true;
+    }
   }
 }
