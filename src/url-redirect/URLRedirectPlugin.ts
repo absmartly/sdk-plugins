@@ -1,5 +1,5 @@
 import { ABsmartlyContext, PluginRegistration } from '../types';
-import { URLRedirectConfig, URLRedirectPluginConfig, RedirectMatch } from './types';
+import { ParsedURLRedirectConfig, URLRedirectPluginConfig, RedirectMatch } from './types';
 import { URLRedirectExtractor } from './URLRedirectExtractor';
 import { URLRedirectMatcher } from './URLRedirectMatcher';
 import { URLMatcher } from '../utils/URLMatcher';
@@ -161,7 +161,9 @@ export class URLRedirectPlugin {
     return null;
   }
 
-  private getAnyConfig(configs: Map<number, URLRedirectConfig>): URLRedirectConfig | null {
+  private getAnyConfig(
+    configs: Map<number, ParsedURLRedirectConfig>
+  ): ParsedURLRedirectConfig | null {
     for (const config of configs.values()) {
       return config;
     }

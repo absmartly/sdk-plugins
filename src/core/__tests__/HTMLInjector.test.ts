@@ -1,5 +1,5 @@
 import { HTMLInjector } from '../HTMLInjector';
-import { InjectionLocation, InjectionDataWithFilter } from '../../types';
+import { InjectionLocation, ParsedInjectionDataWithFilter } from '../../types';
 import { parseURLFilter } from '../../utils/parseURLFilter';
 
 interface InjectionItem {
@@ -154,7 +154,7 @@ describe('HTMLInjector', () => {
                   headStart: '<script>console.log("test")</script>',
                   bodyEnd: '<div>footer</div>',
                 },
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -185,7 +185,7 @@ describe('HTMLInjector', () => {
                   headStart15: '<script>console.log("high priority")</script>',
                   headStart5: '<script>console.log("medium priority")</script>',
                 },
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -207,13 +207,13 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, { data: { headStart: '<script>exp1</script>' } } as InjectionDataWithFilter],
+            [0, { data: { headStart: '<script>exp1</script>' } } as ParsedInjectionDataWithFilter],
           ]),
         ],
         [
           'exp2',
           new Map([
-            [0, { data: { headStart: '<script>exp2</script>' } } as InjectionDataWithFilter],
+            [0, { data: { headStart: '<script>exp2</script>' } } as ParsedInjectionDataWithFilter],
           ]),
         ],
       ]);
@@ -228,8 +228,14 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, { data: { headStart: '<script>variant0</script>' } } as InjectionDataWithFilter],
-            [1, { data: { headStart: '<script>variant1</script>' } } as InjectionDataWithFilter],
+            [
+              0,
+              { data: { headStart: '<script>variant0</script>' } } as ParsedInjectionDataWithFilter,
+            ],
+            [
+              1,
+              { data: { headStart: '<script>variant1</script>' } } as ParsedInjectionDataWithFilter,
+            ],
           ]),
         ],
       ]);
@@ -250,9 +256,9 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, null as unknown as InjectionDataWithFilter],
-            [1, 'invalid' as unknown as InjectionDataWithFilter],
-            [2, { data: { headStart: '<script>valid</script>' } } as InjectionDataWithFilter],
+            [0, null as unknown as ParsedInjectionDataWithFilter],
+            [1, 'invalid' as unknown as ParsedInjectionDataWithFilter],
+            [2, { data: { headStart: '<script>valid</script>' } } as ParsedInjectionDataWithFilter],
           ]),
         ],
       ]);
@@ -274,7 +280,7 @@ describe('HTMLInjector', () => {
                   headStart: 123,
                   bodyEnd: '<div>valid</div>',
                 },
-              } as unknown as InjectionDataWithFilter,
+              } as unknown as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -298,7 +304,7 @@ describe('HTMLInjector', () => {
                   headStart10: '<script>first</script>',
                   headStart: '<script>second</script>',
                 },
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -311,7 +317,7 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart10: '<script>third</script>',
                 },
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -546,7 +552,7 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: '<script>test</script>',
                 },
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -571,7 +577,7 @@ describe('HTMLInjector', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const allInjectHTML = new Map([
-        ['exp1', new Map([[0, null as unknown as InjectionDataWithFilter]])],
+        ['exp1', new Map([[0, null as unknown as ParsedInjectionDataWithFilter]])],
       ]);
 
       injector.collectInjections(allInjectHTML);
@@ -597,7 +603,7 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: 123,
                 },
-              } as unknown as InjectionDataWithFilter,
+              } as unknown as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -846,9 +852,9 @@ describe('HTMLInjector', () => {
         [
           'exp1',
           new Map([
-            [0, { data: null } as unknown as InjectionDataWithFilter],
-            [1, { data: 'invalid string' } as unknown as InjectionDataWithFilter],
-            [2, { data: { headStart: '<script>valid</script>' } } as InjectionDataWithFilter],
+            [0, { data: null } as unknown as ParsedInjectionDataWithFilter],
+            [1, { data: 'invalid string' } as unknown as ParsedInjectionDataWithFilter],
+            [2, { data: { headStart: '<script>valid</script>' } } as ParsedInjectionDataWithFilter],
           ]),
         ],
       ]);
@@ -866,7 +872,7 @@ describe('HTMLInjector', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const allInjectHTML = new Map([
-        ['exp1', new Map([[0, { data: null } as unknown as InjectionDataWithFilter]])],
+        ['exp1', new Map([[0, { data: null } as unknown as ParsedInjectionDataWithFilter]])],
       ]);
 
       injector.collectInjections(allInjectHTML);
@@ -968,7 +974,7 @@ describe('HTMLInjector', () => {
                   },
                   'test'
                 ),
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -1003,7 +1009,7 @@ describe('HTMLInjector', () => {
                   },
                   'test'
                 ),
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -1030,7 +1036,7 @@ describe('HTMLInjector', () => {
                 data: {
                   headStart: '<script>no-filter</script>',
                 },
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -1065,7 +1071,7 @@ describe('HTMLInjector', () => {
                   },
                   'test'
                 ),
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],
@@ -1108,7 +1114,7 @@ describe('HTMLInjector', () => {
                   },
                   'test'
                 ),
-              } as InjectionDataWithFilter,
+              } as ParsedInjectionDataWithFilter,
             ],
           ]),
         ],

@@ -119,6 +119,11 @@ export type RawInjectionData = Record<string, string | URLFilter>;
 
 export interface InjectionDataWithFilter {
   data: RawInjectionData;
+  urlFilter?: URLFilter;
+}
+
+// InjectionDataWithFilter after VariantExtractor has parsed its urlFilter
+export interface ParsedInjectionDataWithFilter extends Omit<InjectionDataWithFilter, 'urlFilter'> {
   urlFilter?: NormalizedURLFilter;
 }
 

@@ -7,7 +7,7 @@ import {
   DOMChangesConfig,
   ParsedDOMChangesData,
   RawInjectionData,
-  InjectionDataWithFilter,
+  ParsedInjectionDataWithFilter,
 } from '../types';
 import { logDebug } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
@@ -510,8 +510,8 @@ export class VariantExtractor {
    * Extract __inject_html from all variants for all experiments
    * Checks both variant.variables and variant.config
    */
-  extractAllInjectHTML(): Map<string, Map<number, InjectionDataWithFilter>> {
-    const allInjectHTML = new Map<string, Map<number, InjectionDataWithFilter>>();
+  extractAllInjectHTML(): Map<string, Map<number, ParsedInjectionDataWithFilter>> {
+    const allInjectHTML = new Map<string, Map<number, ParsedInjectionDataWithFilter>>();
 
     try {
       const contextData = this.context.data() as ContextData;
@@ -549,8 +549,8 @@ export class VariantExtractor {
    */
   private extractInjectHTMLForExperiment(
     experiment: ExperimentData
-  ): Map<number, InjectionDataWithFilter> {
-    const variantInjections = new Map<number, InjectionDataWithFilter>();
+  ): Map<number, ParsedInjectionDataWithFilter> {
+    const variantInjections = new Map<number, ParsedInjectionDataWithFilter>();
 
     if (!experiment.variants) {
       return variantInjections;
@@ -597,8 +597,8 @@ export class VariantExtractor {
         // Extract urlFilter if present
         const { urlFilter, ...rawData } = injectionData as Record<string, any>;
 
-        // Create InjectionDataWithFilter
-        const dataWithFilter: InjectionDataWithFilter = {
+        // Create ParsedInjectionDataWithFilter
+        const dataWithFilter: ParsedInjectionDataWithFilter = {
           data: rawData as RawInjectionData,
           urlFilter: parseURLFilter(urlFilter, experiment.name),
         };
