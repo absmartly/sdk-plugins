@@ -4,19 +4,23 @@ import {
   ContextData,
   ABsmartlyContext,
   ExperimentData,
-  DOMChangesData,
   DOMChangesConfig,
+  ParsedDOMChangesData,
   RawInjectionData,
-  InjectionDataWithFilter,
+  ParsedInjectionDataWithFilter,
 } from '../types';
 import { logDebug } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
+import { parseURLFilter } from '../utils/parseURLFilter';
 
 export class VariantExtractor {
   private context: ABsmartlyContext;
   private variableName: string;
   private debug: boolean;
   private cachedAllChanges: Map<string, Map<number, DOMChange[]>> | null = null;
+  // Parsed once per experiment per apply pass (applyChanges clears it), so the several
+  // lookups in one pass share one parse and one set of URL filter warnings
+  private cachedVariantsData = new Map<string, Map<number, ParsedDOMChangesData>>();
 
   constructor(context: ABsmartlyContext, variableName: string = '__dom_changes', debug = false) {
     this.context = context;
@@ -27,6 +31,7 @@ export class VariantExtractor {
   // Clear cache when context changes
   clearCache(): void {
     this.cachedAllChanges = null;
+    this.cachedVariantsData.clear();
   }
 
   // Extract ALL variants for ALL experiments (efficient single pass)
@@ -390,11 +395,17 @@ export class VariantExtractor {
   }
 
   /**
-   * Get the raw DOMChangesData for all variants of an experiment (includes URL filters and metadata)
+   * Get the DOMChangesData for all variants of an experiment, with each urlFilter parsed
+   * (includes URL filters and metadata). Cached per experiment until clearCache().
    * This is needed for URL filtering logic
    */
-  getAllVariantsData(experimentName: string): Map<number, DOMChangesData> {
-    const variantsData = new Map<number, DOMChangesData>();
+  getAllVariantsData(experimentName: string): Map<number, ParsedDOMChangesData> {
+    const cached = this.cachedVariantsData.get(experimentName);
+    if (cached) {
+      return cached;
+    }
+
+    const variantsData = new Map<number, ParsedDOMChangesData>();
 
     try {
       const contextData = this.context.data() as ContextData;
@@ -446,14 +457,22 @@ export class VariantExtractor {
             }
           }
 
-          // Store the raw data (could be array or wrapped format)
-          variantsData.set(i, changesData as DOMChangesData);
+          // Wrapped format: validate its urlFilter once, here
+          if (changesData && typeof changesData === 'object' && !Array.isArray(changesData)) {
+            const { urlFilter, ...config } = changesData as DOMChangesConfig;
+            changesData = { ...config, urlFilter: parseURLFilter(urlFilter, experimentName) };
+          }
+
+          // Store the data (could be array or wrapped format)
+          variantsData.set(i, changesData as ParsedDOMChangesData);
         } else {
           // Store null/undefined for variants without changes
           // This ensures the variant index exists in the map for cross-variant SRM tracking
           variantsData.set(i, null as any);
         }
       }
+
+      this.cachedVariantsData.set(experimentName, variantsData);
     } catch (error) {
       logDebug('[ABsmartly] Error getting all variants data:', error);
     }
@@ -472,13 +491,10 @@ export class VariantExtractor {
 
     for (const [, data] of variantsData) {
       // Check if this variant has URL filter in wrapped format
-      if (data && typeof data === 'object' && !Array.isArray(data) && 'urlFilter' in data) {
-        const config = data as DOMChangesConfig;
-        if (config.urlFilter) {
-          hasAnyURLFilter = true;
-          if (URLMatcher.matches(config.urlFilter, url)) {
-            return true; // At least one variant matches this URL
-          }
+      if (data && !Array.isArray(data) && data.urlFilter) {
+        hasAnyURLFilter = true;
+        if (URLMatcher.matches(data.urlFilter, url)) {
+          return true; // At least one variant matches this URL
         }
       }
       // Note: Legacy array format or wrapped format without urlFilter doesn't affect matching
@@ -494,8 +510,8 @@ export class VariantExtractor {
    * Extract __inject_html from all variants for all experiments
    * Checks both variant.variables and variant.config
    */
-  extractAllInjectHTML(): Map<string, Map<number, InjectionDataWithFilter>> {
-    const allInjectHTML = new Map<string, Map<number, InjectionDataWithFilter>>();
+  extractAllInjectHTML(): Map<string, Map<number, ParsedInjectionDataWithFilter>> {
+    const allInjectHTML = new Map<string, Map<number, ParsedInjectionDataWithFilter>>();
 
     try {
       const contextData = this.context.data() as ContextData;
@@ -533,8 +549,8 @@ export class VariantExtractor {
    */
   private extractInjectHTMLForExperiment(
     experiment: ExperimentData
-  ): Map<number, InjectionDataWithFilter> {
-    const variantInjections = new Map<number, InjectionDataWithFilter>();
+  ): Map<number, ParsedInjectionDataWithFilter> {
+    const variantInjections = new Map<number, ParsedInjectionDataWithFilter>();
 
     if (!experiment.variants) {
       return variantInjections;
@@ -581,10 +597,10 @@ export class VariantExtractor {
         // Extract urlFilter if present
         const { urlFilter, ...rawData } = injectionData as Record<string, any>;
 
-        // Create InjectionDataWithFilter
-        const dataWithFilter: InjectionDataWithFilter = {
+        // Create ParsedInjectionDataWithFilter
+        const dataWithFilter: ParsedInjectionDataWithFilter = {
           data: rawData as RawInjectionData,
-          urlFilter: urlFilter || undefined,
+          urlFilter: parseURLFilter(urlFilter, experiment.name),
         };
 
         variantInjections.set(i, dataWithFilter);

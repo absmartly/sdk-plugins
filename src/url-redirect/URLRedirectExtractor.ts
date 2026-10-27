@@ -1,12 +1,13 @@
 import { ABsmartlyContext, ContextData, ExperimentData } from '../types';
-import { URLRedirectConfig, URLRedirect } from './types';
+import { ParsedURLRedirectConfig, URLRedirect } from './types';
 import { logDebug } from '../utils/debug';
+import { parseURLFilter } from '../utils/parseURLFilter';
 
 export class URLRedirectExtractor {
   private context: ABsmartlyContext;
   private variableName: string;
   private debug: boolean;
-  private cachedConfigs: Map<string, Map<number, URLRedirectConfig>> | null = null;
+  private cachedConfigs: Map<string, Map<number, ParsedURLRedirectConfig>> | null = null;
 
   constructor(context: ABsmartlyContext, variableName: string = '__url_redirect', debug = false) {
     this.context = context;
@@ -18,7 +19,7 @@ export class URLRedirectExtractor {
     this.cachedConfigs = null;
   }
 
-  extractAllConfigs(): Map<string, Map<number, URLRedirectConfig>> {
+  extractAllConfigs(): Map<string, Map<number, ParsedURLRedirectConfig>> {
     if (this.cachedConfigs) {
       if (this.debug) {
         logDebug('[ABsmartly URLRedirectExtractor] Returning cached configs');
@@ -26,7 +27,7 @@ export class URLRedirectExtractor {
       return this.cachedConfigs;
     }
 
-    const allConfigs = new Map<string, Map<number, URLRedirectConfig>>();
+    const allConfigs = new Map<string, Map<number, ParsedURLRedirectConfig>>();
 
     try {
       const contextData = this.context.data() as ContextData;
@@ -62,8 +63,10 @@ export class URLRedirectExtractor {
     return allConfigs;
   }
 
-  private extractConfigsForExperiment(experiment: ExperimentData): Map<number, URLRedirectConfig> {
-    const variantConfigs = new Map<number, URLRedirectConfig>();
+  private extractConfigsForExperiment(
+    experiment: ExperimentData
+  ): Map<number, ParsedURLRedirectConfig> {
+    const variantConfigs = new Map<number, ParsedURLRedirectConfig>();
 
     if (!experiment.variants) {
       return variantConfigs;
@@ -89,7 +92,7 @@ export class URLRedirectExtractor {
       }
 
       if (redirectData) {
-        const config = this.parseConfig(redirectData);
+        const config = this.parseConfig(redirectData, experiment.name);
         if (config) {
           variantConfigs.set(i, config);
         }
@@ -99,7 +102,7 @@ export class URLRedirectExtractor {
     return variantConfigs;
   }
 
-  private parseConfig(data: unknown): URLRedirectConfig | null {
+  private parseConfig(data: unknown, experimentName: string): ParsedURLRedirectConfig | null {
     if (!data) {
       return null;
     }
@@ -144,9 +147,9 @@ export class URLRedirectExtractor {
 
     return {
       redirects,
-      urlFilter: obj.urlFilter as URLRedirectConfig['urlFilter'],
+      urlFilter: parseURLFilter(obj.urlFilter, experimentName),
       controlBehavior:
-        (obj.controlBehavior as URLRedirectConfig['controlBehavior']) || 'no-redirect',
+        (obj.controlBehavior as ParsedURLRedirectConfig['controlBehavior']) || 'no-redirect',
     };
   }
 
@@ -163,7 +166,7 @@ export class URLRedirectExtractor {
     );
   }
 
-  getConfigForExperiment(experimentName: string): URLRedirectConfig | null {
+  getConfigForExperiment(experimentName: string): ParsedURLRedirectConfig | null {
     const allConfigs = this.extractAllConfigs();
     const experimentConfigs = allConfigs.get(experimentName);
 
@@ -183,7 +186,7 @@ export class URLRedirectExtractor {
     return experimentConfigs.get(currentVariant) || null;
   }
 
-  getAllVariantConfigs(experimentName: string): Map<number, URLRedirectConfig> {
+  getAllVariantConfigs(experimentName: string): Map<number, ParsedURLRedirectConfig> {
     const allConfigs = this.extractAllConfigs();
     return allConfigs.get(experimentName) || new Map();
   }
