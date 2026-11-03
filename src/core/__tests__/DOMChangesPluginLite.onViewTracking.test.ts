@@ -309,6 +309,151 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
       expect(treatmentSpy).toHaveBeenCalledTimes(1);
     });
 
+    describe('camelCase triggerOnView alias (saved by the browser extension)', () => {
+      // Mirrors a real config saved by the extension: lazy-loaded element that only
+      // appears when the user switches tabs, with waitForElement + observerRoot.
+      const buildLazyTabExperiment = (name: string): ExperimentData => ({
+        name,
+        variants: [
+          { variables: {} },
+          {
+            variables: {
+              __dom_changes: {
+                changes: [
+                  {
+                    selector: '#hotel-searchbox-button',
+                    type: 'text',
+                    value: 'Buscar Ofertas',
+                    waitForElement: true,
+                    triggerOnView: true,
+                    observerRoot: '[data-testid="searchbox-container"]',
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      });
+
+      it.each([0, 1])(
+        'should not expose variant %i on load, only when the lazy element becomes visible',
+        async variant => {
+          const experiment = buildLazyTabExperiment('camel_lazy_tab_test');
+          const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+            camel_lazy_tab_test: variant,
+          });
+          document.body.innerHTML =
+            '<div data-testid="searchbox-container"><div id="tabpanel-flight"></div></div>';
+
+          plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: true });
+          await plugin.ready();
+
+          expect(treatmentSpy).not.toHaveBeenCalled();
+
+          const container = document.querySelector('[data-testid="searchbox-container"]')!;
+          container.innerHTML =
+            '<div id="tabpanel-hotel"><button id="hotel-searchbox-button">Buscar Alojamientos</button></div>';
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          const button = document.querySelector('#hotel-searchbox-button')!;
+          await triggerIntersection(button, true);
+
+          expect(treatmentSpy).toHaveBeenCalledWith('camel_lazy_tab_test');
+          expect(treatmentSpy).toHaveBeenCalledTimes(1);
+        }
+      );
+
+      it('should let snake_case trigger_on_view take precedence over triggerOnView', async () => {
+        const experiment: ExperimentData = {
+          name: 'camel_precedence_test',
+          variants: [
+            { variables: { __dom_changes: [] } },
+            {
+              variables: {
+                __dom_changes: [
+                  {
+                    selector: '.hero',
+                    type: 'text',
+                    value: 'Treatment',
+                    trigger_on_view: false,
+                    triggerOnView: true,
+                  },
+                ],
+              },
+            },
+          ],
+        };
+
+        const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+          camel_precedence_test: 1,
+        });
+        document.body.innerHTML = '<div class="hero">Original</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(treatmentSpy).toHaveBeenCalledWith('camel_precedence_test');
+      });
+    });
+
+    describe('disabled flag (saved by the browser extension)', () => {
+      const buildDisabledExperiment = (name: string, flags: Record<string, boolean>) =>
+        ({
+          name,
+          variants: [
+            { variables: {} },
+            {
+              variables: {
+                __dom_changes: [
+                  { selector: '.hero', type: 'text', value: 'Switched off', ...flags },
+                  { selector: '.cta', type: 'text', value: 'Applied' },
+                ],
+              },
+            },
+          ],
+        }) as ExperimentData;
+
+      it('should not apply a change saved with disabled: true', async () => {
+        const experiment = buildDisabledExperiment('disabled_test', { disabled: true });
+        const { mockContext } = createTreatmentTracker([experiment], { disabled_test: 1 });
+        document.body.innerHTML = '<div class="hero">Original</div><div class="cta">CTA</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(document.querySelector('.hero')!.textContent).toBe('Original');
+        expect(document.querySelector('.cta')!.textContent).toBe('Applied');
+      });
+
+      it('should let disabled take precedence over the deprecated enabled', async () => {
+        const experiment = buildDisabledExperiment('disabled_precedence_test', {
+          enabled: true,
+          disabled: true,
+        });
+        const { mockContext } = createTreatmentTracker([experiment], {
+          disabled_precedence_test: 1,
+        });
+        document.body.innerHTML = '<div class="hero">Original</div><div class="cta">CTA</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(document.querySelector('.hero')!.textContent).toBe('Original');
+      });
+
+      it('should still honour the deprecated enabled: false', async () => {
+        const experiment = buildDisabledExperiment('enabled_false_test', { enabled: false });
+        const { mockContext } = createTreatmentTracker([experiment], { enabled_false_test: 1 });
+        document.body.innerHTML = '<div class="hero">Original</div><div class="cta">CTA</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(document.querySelector('.hero')!.textContent).toBe('Original');
+        expect(document.querySelector('.cta')!.textContent).toBe('Applied');
+      });
+    });
+
     it('should trigger exposure only once even when multiple elements become visible', async () => {
       const experiment: ExperimentData = {
         name: 'once_test',

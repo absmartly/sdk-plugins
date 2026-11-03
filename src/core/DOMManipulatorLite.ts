@@ -150,7 +150,8 @@ export class DOMManipulatorLite {
   }
 
   applyChange(change: DOMChange, experimentName: string): boolean {
-    if (!change.enabled && change.enabled !== undefined) {
+    // `disabled` is the canonical flag; `enabled: false` is the deprecated form.
+    if (change.disabled ?? change.enabled === false) {
       logDebug(`Skipping disabled change for experiment: ${experimentName}`, {
         experimentName,
         selector: change.selector,

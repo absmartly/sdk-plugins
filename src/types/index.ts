@@ -33,6 +33,12 @@ export interface DOMChange {
   selector: string;
   type: ChangeType;
   value?: DOMChangeValue;
+  /** If true, the change is not applied. */
+  disabled?: boolean;
+  /**
+   * @deprecated Use `disabled` instead. `enabled: false` is still honoured;
+   * `disabled` wins when both are set.
+   */
   enabled?: boolean;
 
   // For class changes
@@ -61,6 +67,8 @@ export interface DOMChange {
 
   // For exposure tracking
   trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport
+  /** camelCase alias of trigger_on_view written by the browser extension; normalized on parse. */
+  triggerOnView?: boolean;
 }
 
 // New format for __dom_changes with URL filtering and global defaults

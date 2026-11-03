@@ -266,13 +266,24 @@ export class VariantExtractor {
 
     for (const change of changesData) {
       if (this.isValidChange(change)) {
-        validChanges.push(change);
+        validChanges.push(this.normalizeChange(change));
       } else if (this.debug) {
         logDebug('[ABsmartly] Invalid DOM change:', change);
       }
     }
 
     return validChanges.length > 0 ? validChanges : null;
+  }
+
+  /**
+   * The browser extension saves the on-view flag as camelCase `triggerOnView`,
+   * while the plugin reads `trigger_on_view`. Accept both; snake_case wins.
+   */
+  private normalizeChange(change: DOMChange): DOMChange {
+    if (change.trigger_on_view === undefined && change.triggerOnView !== undefined) {
+      return { ...change, trigger_on_view: change.triggerOnView };
+    }
+    return change;
   }
 
   private isValidChange(change: unknown): change is DOMChange {

@@ -1006,7 +1006,53 @@ describe('DOMManipulatorLite', () => {
   });
 
   describe('Disabled Changes', () => {
-    it('should skip disabled changes', () => {
+    it('should skip changes with disabled: true', () => {
+      document.body.innerHTML = '<div class="target">Original</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'text',
+        value: 'Should Not Apply',
+        disabled: true,
+      };
+      const result = manipulator.applyChange(change, 'test_exp');
+
+      expect(result).toBe(false);
+      expect(document.querySelector('.target')?.textContent).toBe('Original');
+    });
+
+    it('should apply changes with disabled: false', () => {
+      document.body.innerHTML = '<div class="target">Original</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'text',
+        value: 'Should Apply',
+        disabled: false,
+      };
+      const result = manipulator.applyChange(change, 'test_exp');
+
+      expect(result).toBe(true);
+      expect(document.querySelector('.target')?.textContent).toBe('Should Apply');
+    });
+
+    it('should let disabled take precedence over the deprecated enabled', () => {
+      document.body.innerHTML = '<div class="target">Original</div>';
+
+      const change: DOMChange = {
+        selector: '.target',
+        type: 'text',
+        value: 'Should Not Apply',
+        disabled: true,
+        enabled: true,
+      };
+      const result = manipulator.applyChange(change, 'test_exp');
+
+      expect(result).toBe(false);
+      expect(document.querySelector('.target')?.textContent).toBe('Original');
+    });
+
+    it('should skip disabled changes (deprecated enabled: false)', () => {
       document.body.innerHTML = '<div class="target">Original</div>';
 
       const change: DOMChange = {
