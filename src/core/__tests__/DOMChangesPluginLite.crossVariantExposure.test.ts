@@ -2884,6 +2884,45 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
               expect(treatmentSpy).toHaveBeenCalledTimes(1);
             });
           });
+
+          describe.each([
+            ['disabled: true', { disabled: true }],
+            ['deprecated enabled: false', { enabled: false }],
+          ])('switched off with %s', (_label, flags) => {
+            describe.each(['array', 'wrapped'])('%s format', format => {
+              it('user in v1 - should leave the element in place and not create a placeholder', async () => {
+                const change = { ...deleteChange, ...flags };
+                const experiment = {
+                  name: 'test_6d1_camel_delete_disabled',
+                  variants: [
+                    { variables: {} },
+                    {
+                      variables: {
+                        __dom_changes: format === 'array' ? [change] : { changes: [change] },
+                      },
+                    },
+                  ],
+                } as ExperimentData;
+                const { mockContext } = createTreatmentTracker([experiment], {
+                  test_6d1_camel_delete_disabled: 1,
+                });
+                document.body.innerHTML = '<div class="target">Stays</div>';
+
+                plugin = new DOMChangesPluginLite({
+                  context: mockContext,
+                  autoApply: true,
+                  spa: false,
+                  visibilityTracking: true,
+                });
+                await plugin.ready();
+
+                expect(document.querySelector('.target')).not.toBeNull();
+                expect(
+                  document.querySelector('[data-absmartly-delete-placeholder="true"]')
+                ).toBeNull();
+              });
+            });
+          });
         });
       });
 

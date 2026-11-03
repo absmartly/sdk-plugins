@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ABsmartlyContext, DOMChange, ExperimentTracking } from '../types';
 import { logDebug } from '../utils/debug';
+import { isChangeDisabled } from '../utils/changeFlags';
 
 interface TrackedElement {
   element: Element;
@@ -175,9 +176,15 @@ export class ExposureTracker {
     // For variants with delete: replace element with 1px placeholder in the same position
     // For variants without delete: track the actual element
     for (const selector of deleteElements) {
-      // Check if current variant has a delete for this selector
+      // Check if current variant has a delete for this selector. A disabled delete
+      // is never applied, so the element stays and is tracked like in other variants;
+      // creating the placeholder here would remove it.
       const currentVariantHasDelete = currentChanges.some(
-        c => c.type === 'delete' && c.selector === selector && c.trigger_on_view
+        c =>
+          c.type === 'delete' &&
+          c.selector === selector &&
+          c.trigger_on_view &&
+          !isChangeDisabled(c)
       );
 
       if (currentVariantHasDelete) {
