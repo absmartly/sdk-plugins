@@ -33,9 +33,13 @@ export interface DOMChange {
   selector: string;
   type: ChangeType;
   value?: DOMChangeValue;
-  enabled?: boolean;
-  /** Inverse alias of enabled written by the browser extension; normalized on parse. */
+  /** If true, the change is not applied. */
   disabled?: boolean;
+  /**
+   * @deprecated Use `disabled` instead. `enabled: false` is still honoured;
+   * `disabled` wins when both are set.
+   */
+  enabled?: boolean;
 
   // For class changes
   add?: string[];

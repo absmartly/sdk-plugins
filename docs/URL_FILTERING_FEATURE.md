@@ -233,7 +233,7 @@ export interface DOMChange {
   selector: string;
   type: ChangeType;
   value?: DOMChangeValue;
-  enabled?: boolean;
+  disabled?: boolean; // `enabled` is deprecated; use `disabled`
 
   // Per-change overrides
   waitForElement?: boolean;

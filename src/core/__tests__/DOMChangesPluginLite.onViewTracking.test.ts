@@ -425,7 +425,7 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
         expect(document.querySelector('.cta')!.textContent).toBe('Applied');
       });
 
-      it('should let enabled take precedence over disabled', async () => {
+      it('should let disabled take precedence over the deprecated enabled', async () => {
         const experiment = buildDisabledExperiment('disabled_precedence_test', {
           enabled: true,
           disabled: true,
@@ -438,7 +438,19 @@ describe('DOMChangesPluginLite - On-View Tracking', () => {
         plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
         await plugin.ready();
 
-        expect(document.querySelector('.hero')!.textContent).toBe('Switched off');
+        expect(document.querySelector('.hero')!.textContent).toBe('Original');
+      });
+
+      it('should still honour the deprecated enabled: false', async () => {
+        const experiment = buildDisabledExperiment('enabled_false_test', { enabled: false });
+        const { mockContext } = createTreatmentTracker([experiment], { enabled_false_test: 1 });
+        document.body.innerHTML = '<div class="hero">Original</div><div class="cta">CTA</div>';
+
+        plugin = new DOMChangesPluginLite({ context: mockContext, autoApply: true, spa: false });
+        await plugin.ready();
+
+        expect(document.querySelector('.hero')!.textContent).toBe('Original');
+        expect(document.querySelector('.cta')!.textContent).toBe('Applied');
       });
     });
 

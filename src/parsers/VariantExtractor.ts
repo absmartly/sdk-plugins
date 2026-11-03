@@ -276,19 +276,14 @@ export class VariantExtractor {
   }
 
   /**
-   * The browser extension saves some flags under different names than the plugin
-   * reads: camelCase `triggerOnView` for `trigger_on_view`, and `disabled: true`
-   * for `enabled: false`. Accept both; the plugin's own names win when both exist.
+   * The browser extension saves the on-view flag as camelCase `triggerOnView`,
+   * while the plugin reads `trigger_on_view`. Accept both; snake_case wins.
    */
   private normalizeChange(change: DOMChange): DOMChange {
-    let normalized = change;
     if (change.trigger_on_view === undefined && change.triggerOnView !== undefined) {
-      normalized = { ...normalized, trigger_on_view: change.triggerOnView };
+      return { ...change, trigger_on_view: change.triggerOnView };
     }
-    if (change.enabled === undefined && change.disabled !== undefined) {
-      normalized = { ...normalized, enabled: !change.disabled };
-    }
-    return normalized;
+    return change;
   }
 
   private isValidChange(change: unknown): change is DOMChange {
