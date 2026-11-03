@@ -266,13 +266,29 @@ export class VariantExtractor {
 
     for (const change of changesData) {
       if (this.isValidChange(change)) {
-        validChanges.push(change);
+        validChanges.push(this.normalizeChange(change));
       } else if (this.debug) {
         logDebug('[ABsmartly] Invalid DOM change:', change);
       }
     }
 
     return validChanges.length > 0 ? validChanges : null;
+  }
+
+  /**
+   * The browser extension saves some flags under different names than the plugin
+   * reads: camelCase `triggerOnView` for `trigger_on_view`, and `disabled: true`
+   * for `enabled: false`. Accept both; the plugin's own names win when both exist.
+   */
+  private normalizeChange(change: DOMChange): DOMChange {
+    let normalized = change;
+    if (change.trigger_on_view === undefined && change.triggerOnView !== undefined) {
+      normalized = { ...normalized, trigger_on_view: change.triggerOnView };
+    }
+    if (change.enabled === undefined && change.disabled !== undefined) {
+      normalized = { ...normalized, enabled: !change.disabled };
+    }
+    return normalized;
   }
 
   private isValidChange(change: unknown): change is DOMChange {

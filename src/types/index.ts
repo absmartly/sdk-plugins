@@ -34,6 +34,8 @@ export interface DOMChange {
   type: ChangeType;
   value?: DOMChangeValue;
   enabled?: boolean;
+  /** Inverse alias of enabled written by the browser extension; normalized on parse. */
+  disabled?: boolean;
 
   // For class changes
   add?: string[];
@@ -61,6 +63,8 @@ export interface DOMChange {
 
   // For exposure tracking
   trigger_on_view?: boolean; // If true, trigger exposure only when element is visible in viewport
+  /** camelCase alias of trigger_on_view written by the browser extension; normalized on parse. */
+  triggerOnView?: boolean;
 }
 
 // New format for __dom_changes with URL filtering and global defaults
