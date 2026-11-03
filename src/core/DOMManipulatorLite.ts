@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DOMChange } from '../types';
 import { logDebug, logChangeApplication, logProductionWarn } from '../utils/debug';
+import { isChangeDisabled } from '../utils/changeFlags';
 import type { DOMChangesPluginLite } from './DOMChangesPluginLite';
 import { PendingChangeManager } from './PendingChangeManager';
 
@@ -150,8 +151,7 @@ export class DOMManipulatorLite {
   }
 
   applyChange(change: DOMChange, experimentName: string): boolean {
-    // `disabled` is the canonical flag; `enabled: false` is the deprecated form.
-    if (change.disabled ?? change.enabled === false) {
+    if (isChangeDisabled(change)) {
       logDebug(`Skipping disabled change for experiment: ${experimentName}`, {
         experimentName,
         selector: change.selector,
