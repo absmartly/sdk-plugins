@@ -1,5 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { URLMatcher } from '../URLMatcher';
+import { URLMatcher as RawURLMatcher } from '../URLMatcher';
+import { parseURLFilter } from '../parseURLFilter';
+import * as debugModule from '../debug';
+
+// Tests describe matching for raw customer filters, so parse them the way consumers do.
+// A falsy filter means no filter, which consumers treat as match all.
+const URLMatcher = {
+  matches: (raw: unknown, url?: string) =>
+    RawURLMatcher.matches(
+      parseURLFilter(raw, 'test') ?? { exclude: [], mode: 'simple', matchType: 'path' },
+      url
+    ),
+};
 
 describe('URLMatcher', () => {
   describe('Simple pattern matching', () => {
@@ -302,8 +314,13 @@ describe('URLMatcher', () => {
       expect(URLMatcher.matches('/page*', 'https://example.com/page#section')).toBe(true);
     });
 
-    it('handles empty string pattern', () => {
-      expect(URLMatcher.matches('', 'https://example.com/page')).toBe(false);
+    it('treats an empty string filter as no filter, as consumers always have', () => {
+      expect(parseURLFilter('', 'test')).toBeUndefined();
+      expect(URLMatcher.matches('', 'https://example.com/page')).toBe(true);
+    });
+
+    it('matches nothing when every include pattern is empty', () => {
+      expect(URLMatcher.matches({ include: [''] }, 'https://example.com/page')).toBe(false);
     });
 
     it('handles undefined/empty filters', () => {
@@ -545,6 +562,46 @@ describe('URLMatcher', () => {
       expect(URLMatcher.matches(filter, 'https://example.com/page#section-about')).toBe(true);
       expect(URLMatcher.matches(filter, 'https://example.com/page#section-contact')).toBe(true);
       expect(URLMatcher.matches(filter, 'https://example.com/page#top')).toBe(false);
+    });
+  });
+
+  describe('Normalized input', () => {
+    const filter = (include: string[]) => ({
+      include,
+      exclude: [],
+      mode: 'regex' as const,
+      matchType: 'path' as const,
+    });
+
+    it('does not log per match for a parsed filter with a dropped regex', () => {
+      const logSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation(() => {});
+      const parsed = parseURLFilter({ include: [' ([', ' ^/ok$ '], mode: 'regex' }, 'exp')!;
+      logSpy.mockClear();
+
+      for (let i = 0; i < 3; i++) RawURLMatcher.matches(parsed, 'https://example.com/ok');
+
+      expect(logSpy).not.toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+
+    it('keeps compiled patterns separate for filters with the same shape', () => {
+      const a = filter(['^/a$']);
+      const b = filter(['^/b$']);
+
+      expect(RawURLMatcher.matches(a, 'https://example.com/a')).toBe(true);
+      expect(RawURLMatcher.matches(b, 'https://example.com/a')).toBe(false);
+      expect(RawURLMatcher.matches(b, 'https://example.com/b')).toBe(true);
+      expect(RawURLMatcher.matches(a, 'https://example.com/b')).toBe(false);
+    });
+
+    it('gives the same result on repeated calls with a reused filter', () => {
+      const f = filter(['^/x/\\d+$']);
+
+      expect([1, 2, 3].map(() => RawURLMatcher.matches(f, 'https://example.com/x/1'))).toEqual([
+        true,
+        true,
+        true,
+      ]);
     });
   });
 });

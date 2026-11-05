@@ -1,4 +1,4 @@
-import { InjectionItem, InjectionLocation, InjectionDataWithFilter } from '../types';
+import { InjectionItem, InjectionLocation, ParsedInjectionDataWithFilter } from '../types';
 import { logDebug } from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
 
@@ -36,7 +36,7 @@ export class HTMLInjector {
   }
 
   collectInjections(
-    allInjectHTML: Map<string, Map<number, InjectionDataWithFilter>>,
+    allInjectHTML: Map<string, Map<number, ParsedInjectionDataWithFilter>>,
     currentUrl: string = window.location.href
   ): Map<InjectionLocation, InjectionItem[]> {
     const injectionsByLocation = new Map<InjectionLocation, InjectionItem[]>();
