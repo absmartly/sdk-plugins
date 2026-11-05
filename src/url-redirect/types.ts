@@ -17,7 +17,6 @@ export interface URLRedirectConfig {
   controlBehavior?: ControlBehavior;
 }
 
-// URLRedirectConfig after URLRedirectExtractor has parsed its urlFilter
 export interface ParsedURLRedirectConfig extends Omit<URLRedirectConfig, 'urlFilter'> {
   urlFilter?: NormalizedURLFilter;
 }

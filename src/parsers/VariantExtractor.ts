@@ -629,7 +629,6 @@ export class VariantExtractor {
         // Extract urlFilter if present
         const { urlFilter, ...rawData } = injectionData as Record<string, any>;
 
-        // Create ParsedInjectionDataWithFilter
         const dataWithFilter: ParsedInjectionDataWithFilter = {
           data: rawData as RawInjectionData,
           urlFilter: parseURLFilter(urlFilter, experiment.name),
