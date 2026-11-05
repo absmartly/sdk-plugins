@@ -2814,6 +2814,116 @@ describe('DOMChangesPluginLite - Comprehensive Cross-Variant Exposure Tracking',
           expect(treatmentSpy).toHaveBeenCalledWith('test_6d1_delete_viewport_visible');
           expect(treatmentSpy).toHaveBeenCalledTimes(1);
         });
+
+        describe('camelCase triggerOnView (saved by the browser extension)', () => {
+          const deleteChange = {
+            selector: '.target',
+            type: 'delete',
+            triggerOnView: true,
+            waitForElement: true,
+            observerRoot: 'body',
+          };
+          const formats = {
+            array: [deleteChange],
+            wrapped: { changes: [deleteChange] },
+          };
+
+          describe.each(Object.entries(formats))('%s format', (_format, domChanges) => {
+            const buildExperiment = (name: string): ExperimentData =>
+              ({
+                name,
+                variants: [{ variables: {} }, { variables: { __dom_changes: domChanges } }],
+              }) as ExperimentData;
+
+            it('user in v1 - should defer the delete behind a placeholder and trigger when visible', async () => {
+              const { mockContext, treatmentSpy } = createTreatmentTracker(
+                [buildExperiment('test_6d1_camel_delete')],
+                { test_6d1_camel_delete: 1 }
+              );
+              document.body.innerHTML = '<div class="target">Will be deleted</div>';
+
+              plugin = new DOMChangesPluginLite({
+                context: mockContext,
+                autoApply: true,
+                spa: false,
+                visibilityTracking: true,
+              });
+              await plugin.ready();
+
+              expect(treatmentSpy).not.toHaveBeenCalled();
+              const placeholder = document.querySelector(
+                '[data-absmartly-delete-placeholder="true"]'
+              );
+              expect(placeholder).not.toBeNull();
+
+              await triggerIntersection(placeholder!, true);
+
+              expect(treatmentSpy).toHaveBeenCalledWith('test_6d1_camel_delete');
+              expect(treatmentSpy).toHaveBeenCalledTimes(1);
+            });
+
+            it('user in v0 - should trigger when the original element is visible', async () => {
+              const { mockContext, treatmentSpy } = createTreatmentTracker(
+                [buildExperiment('test_6d1_camel_delete_control')],
+                { test_6d1_camel_delete_control: 0 }
+              );
+              document.body.innerHTML = '<div class="target">Stays</div>';
+
+              plugin = new DOMChangesPluginLite({
+                context: mockContext,
+                autoApply: true,
+                spa: false,
+                visibilityTracking: true,
+              });
+              await plugin.ready();
+
+              expect(treatmentSpy).not.toHaveBeenCalled();
+              await triggerIntersection(document.querySelector('.target')!, true);
+
+              expect(treatmentSpy).toHaveBeenCalledWith('test_6d1_camel_delete_control');
+              expect(treatmentSpy).toHaveBeenCalledTimes(1);
+            });
+          });
+
+          describe.each([
+            ['disabled: true', { disabled: true }],
+            ['deprecated enabled: false', { enabled: false }],
+          ])('switched off with %s', (_label, flags) => {
+            describe.each(['array', 'wrapped'])('%s format', format => {
+              it('user in v1 - should leave the element in place and not create a placeholder', async () => {
+                const change = { ...deleteChange, ...flags };
+                const experiment = {
+                  name: 'test_6d1_camel_delete_disabled',
+                  variants: [
+                    { variables: {} },
+                    {
+                      variables: {
+                        __dom_changes: format === 'array' ? [change] : { changes: [change] },
+                      },
+                    },
+                  ],
+                } as ExperimentData;
+                const { mockContext } = createTreatmentTracker([experiment], {
+                  test_6d1_camel_delete_disabled: 1,
+                });
+                document.body.innerHTML = '<div class="target">Stays</div>';
+
+                plugin = new DOMChangesPluginLite({
+                  context: mockContext,
+                  autoApply: true,
+                  spa: false,
+                  visibilityTracking: true,
+                });
+                await plugin.ready();
+
+                expect(document.querySelector('.target')).not.toBeNull();
+                expect(
+                  document.querySelector('[data-absmartly-delete-placeholder="true"]')
+                ).toBeNull();
+              });
+            });
+          });
+        });
       });
 
       describe('6D2: Delete with viewport trigger - element exists but never visible', () => {

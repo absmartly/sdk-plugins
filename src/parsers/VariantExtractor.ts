@@ -5,6 +5,7 @@ import {
   ABsmartlyContext,
   ExperimentData,
   DOMChangesConfig,
+  DOMChangesData,
   ParsedDOMChangesData,
   RawInjectionData,
   ParsedInjectionDataWithFilter,
@@ -271,13 +272,40 @@ export class VariantExtractor {
 
     for (const change of changesData) {
       if (this.isValidChange(change)) {
-        validChanges.push(change);
+        validChanges.push(this.normalizeChange(change));
       } else if (this.debug) {
         logDebug('[ABsmartly] Invalid DOM change:', change);
       }
     }
 
     return validChanges.length > 0 ? validChanges : null;
+  }
+
+  /**
+   * The browser extension saves the on-view flag as camelCase `triggerOnView`,
+   * while the plugin reads `trigger_on_view`. Accept both; snake_case wins.
+   */
+  private normalizeChange(change: DOMChange): DOMChange {
+    if (change.trigger_on_view === undefined && change.triggerOnView !== undefined) {
+      return { ...change, trigger_on_view: change.triggerOnView };
+    }
+    return change;
+  }
+
+  /** Normalize every change inside raw DOMChangesData, keeping its array or wrapped shape. */
+  private normalizeChangesData(data: DOMChangesData): DOMChangesData {
+    const normalizeList = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? list.map(c => (c && typeof c === 'object' ? this.normalizeChange(c as DOMChange) : c))
+        : list;
+
+    if (Array.isArray(data)) {
+      return normalizeList(data) as DOMChange[];
+    }
+    if (data && typeof data === 'object' && 'changes' in data) {
+      return { ...data, changes: normalizeList(data.changes) as DOMChange[] };
+    }
+    return data;
   }
 
   private isValidChange(change: unknown): change is DOMChange {
@@ -457,14 +485,18 @@ export class VariantExtractor {
             }
           }
 
-          // Wrapped format: validate its urlFilter once, here
-          if (changesData && typeof changesData === 'object' && !Array.isArray(changesData)) {
-            const { urlFilter, ...config } = changesData as DOMChangesConfig;
-            changesData = { ...config, urlFilter: parseURLFilter(urlFilter, experimentName) };
+          // Normalize each change so callers reading the raw shape see the same
+          // flags as parseChanges(); validate a wrapped format's urlFilter once, here
+          const normalized = this.normalizeChangesData(changesData as DOMChangesData);
+          if (normalized && typeof normalized === 'object' && !Array.isArray(normalized)) {
+            const { urlFilter, ...config } = normalized;
+            variantsData.set(i, {
+              ...config,
+              urlFilter: parseURLFilter(urlFilter, experimentName),
+            });
+          } else {
+            variantsData.set(i, normalized as ParsedDOMChangesData);
           }
-
-          // Store the data (could be array or wrapped format)
-          variantsData.set(i, changesData as ParsedDOMChangesData);
         } else {
           // Store null/undefined for variants without changes
           // This ensures the variant index exists in the map for cross-variant SRM tracking
