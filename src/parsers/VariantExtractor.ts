@@ -485,8 +485,6 @@ export class VariantExtractor {
             }
           }
 
-          // Normalize each change so callers reading the raw shape see the same
-          // flags as parseChanges(); validate a wrapped format's urlFilter once, here
           const normalized = this.normalizeChangesData(changesData as DOMChangesData);
           if (normalized && typeof normalized === 'object' && !Array.isArray(normalized)) {
             const { urlFilter, ...config } = normalized;
