@@ -786,4 +786,88 @@ describe('VariantExtractor', () => {
       expect(changes.size).toBe(0);
     });
   });
+  describe('URL filter parsing', () => {
+    const buildExtractor = (urlFilter: unknown) => {
+      const experiment = createTestExperiment('exp1', [
+        { config: { __dom_changes: [] } },
+        {
+          config: {
+            __dom_changes: { changes: [{ selector: '.a', type: 'text', value: 'x' }], urlFilter },
+          },
+        },
+      ]);
+      context = createTestContext(sdk, { experiments: [experiment] });
+      return new VariantExtractor(context, '__dom_changes', false);
+    };
+
+    const regexWarnings = (spy: jest.SpyInstance) =>
+      spy.mock.calls.filter(c => String(c[0]).includes('Invalid regex'));
+
+    it('normalizes urlFilter in getAllVariantsData', () => {
+      const data = buildExtractor(' /checkout ').getAllVariantsData('exp1').get(1) as any;
+
+      expect(data.urlFilter).toEqual({
+        include: ['/checkout'],
+        exclude: [],
+        mode: 'simple',
+        matchType: 'path',
+      });
+    });
+
+    it('reports an invalid filter once across repeated reads and URL checks', () => {
+      const logSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation(() => {});
+      const extractor = buildExtractor({ include: ['(['], mode: 'regex' });
+
+      extractor.getAllVariantsData('exp1');
+      extractor.anyVariantMatchesURL('exp1', 'https://example.com/a');
+      extractor.anyVariantMatchesURL('exp1', 'https://example.com/b');
+
+      expect(regexWarnings(logSpy)).toHaveLength(1);
+      expect(String(regexWarnings(logSpy)[0][0])).toContain('experiment "exp1"');
+      logSpy.mockRestore();
+    });
+
+    it('normalizes and validates the __inject_html urlFilter', () => {
+      const logSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation(() => {});
+      const experiment = createTestExperiment('exp1', [
+        { config: { __inject_html: { headEnd: '<script></script>', urlFilter: [' /a '] } } },
+        {
+          config: {
+            __inject_html: {
+              headEnd: '<script></script>',
+              urlFilter: { include: ['(['], mode: 'regex' },
+            },
+          },
+        },
+      ]);
+      context = createTestContext(sdk, { experiments: [experiment] });
+
+      const injections = new VariantExtractor(context, '__dom_changes', false)
+        .extractAllInjectHTML()
+        .get('exp1');
+
+      expect(injections?.get(0)?.urlFilter).toEqual({
+        include: ['/a'],
+        exclude: [],
+        mode: 'simple',
+        matchType: 'path',
+      });
+      expect(injections?.get(1)?.urlFilter?.include).toEqual([]);
+      expect(regexWarnings(logSpy)).toHaveLength(1);
+      expect(String(regexWarnings(logSpy)[0][0])).toContain('experiment "exp1"');
+      logSpy.mockRestore();
+    });
+
+    it('re-parses after clearCache', () => {
+      const logSpy = jest.spyOn(debugModule, 'logDebug').mockImplementation(() => {});
+      const extractor = buildExtractor({ include: ['(['], mode: 'regex' });
+
+      extractor.getAllVariantsData('exp1');
+      extractor.clearCache();
+      extractor.getAllVariantsData('exp1');
+
+      expect(regexWarnings(logSpy)).toHaveLength(2);
+      logSpy.mockRestore();
+    });
+  });
 });
