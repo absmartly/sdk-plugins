@@ -511,6 +511,17 @@ export class DOMChangesPluginLite {
 
       // Get all variant changes for cross-variant tracking (SRM prevention)
       const allVariantChanges = this.extractAllVariantChanges(expName);
+      let immediateDomAnchorChanges: Set<DOMChange> | null = null;
+      if (this.config.executionPolicy === 'data-only') {
+        immediateDomAnchorChanges = new Set<DOMChange>();
+        for (const variantChanges of allVariantChanges) {
+          for (const change of variantChanges) {
+            if (!change.trigger_on_view && this.hasImmediateDomAnchor(change)) {
+              immediateDomAnchorChanges.add(change);
+            }
+          }
+        }
+      }
 
       // Check if ANY variant has ANY changes (not just user's variant)
       // This is critical for SRM prevention - we must track if ANY variant has changes
@@ -665,7 +676,7 @@ export class DOMChangesPluginLite {
               continue;
             }
 
-            if (this.hasImmediateDomAnchor(change)) {
+            if (immediateDomAnchorChanges?.has(change) ?? this.hasImmediateDomAnchor(change)) {
               variantHasImmediateTrigger = true;
             }
           }
@@ -801,7 +812,9 @@ export class DOMChangesPluginLite {
         return !!change.targetSelector && document.querySelector(change.targetSelector) !== null;
       }
 
-      return document.querySelector(change.selector) !== null;
+      return Array.from(document.querySelectorAll(change.selector)).some(element =>
+        this.isChangeAllowed(change, element)
+      );
     } catch (error) {
       if (this.config.debug) {
         logDebug('[ABsmartly] Failed to evaluate immediate DOM anchor:', {
