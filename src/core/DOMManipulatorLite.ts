@@ -322,8 +322,11 @@ export class DOMManipulatorLite {
           if (targetSelector) {
             const target = document.querySelector(targetSelector);
             if (target) {
-              this.moveElement(element, target, position);
-              appliedElements.push(element);
+              if (
+                this.moveIntoAllowedDestination(element, target, position, change, experimentName)
+              ) {
+                appliedElements.push(element);
+              }
             } else if (this.debug) {
               logDebug(`[ABsmartly] Move target not found: ${targetSelector}`);
             }
@@ -504,10 +507,6 @@ export class DOMManipulatorLite {
       return false;
     }
 
-    if (!this.areMoveDestinationsAllowed(change, experimentName)) {
-      return false;
-    }
-
     switch (change.type) {
       case 'text':
         if (change.value !== undefined) {
@@ -555,7 +554,13 @@ export class DOMManipulatorLite {
           };
           const target = document.querySelector(moveValue.targetSelector);
           if (target) {
-            this.moveElement(element, target, moveValue.position);
+            return this.moveIntoAllowedDestination(
+              element,
+              target,
+              moveValue.position,
+              change,
+              experimentName
+            );
           } else if (this.debug) {
             logDebug(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
           }
@@ -583,38 +588,20 @@ export class DOMManipulatorLite {
     return false;
   }
 
-  private areMoveDestinationsAllowed(change: DOMChange, experimentName: string): boolean {
-    if (change.type !== 'move' || typeof this.plugin.isChangeAllowed !== 'function') {
-      return true;
+  private moveIntoAllowedDestination(
+    element: Element,
+    target: Element,
+    position: string | undefined,
+    change: DOMChange,
+    experimentName: string
+  ): boolean {
+    const destination =
+      position === 'before' || position === 'after' ? target.parentElement : target;
+    if (destination && !this.isElementAllowed(change, destination, experimentName)) {
+      return false;
     }
 
-    const value =
-      change.value && typeof change.value === 'object'
-        ? (change.value as Record<string, string>)
-        : undefined;
-    const destinations: Array<{ selector: string; position?: string }> = [];
-
-    if (value?.targetSelector) {
-      destinations.push({ selector: value.targetSelector, position: value.position });
-    }
-    if (change.targetSelector) {
-      destinations.push({
-        selector: change.targetSelector,
-        position: change.position || value?.position,
-      });
-    }
-
-    for (const destination of destinations) {
-      if (destination.position === 'before' || destination.position === 'after') {
-        continue;
-      }
-
-      const target = document.querySelector(destination.selector);
-      if (target && !this.isElementAllowed(change, target, experimentName)) {
-        return false;
-      }
-    }
-
+    this.moveElement(element, target, position);
     return true;
   }
 
@@ -668,7 +655,11 @@ export class DOMManipulatorLite {
         if (targetSelector) {
           const target = document.querySelector(targetSelector);
           if (target) {
-            this.moveElement(element, target, position);
+            if (
+              !this.moveIntoAllowedDestination(element, target, position, change, experimentName)
+            ) {
+              return false;
+            }
           } else {
             return false;
           }
