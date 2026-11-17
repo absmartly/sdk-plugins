@@ -1,6 +1,6 @@
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
 import { createTestContext, createTestExperiment, createTestSDK } from '../../__tests__/sdk-helper';
-import { DOMChange } from '../../types';
+import { DOMChange, PluginConfig } from '../../types';
 
 describe('DOMChangesPluginLite data-only execution policy', () => {
   let plugin: DOMChangesPluginLite | undefined;
@@ -51,7 +51,10 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     const blockedChanges: DOMChange[] = [];
     const blockedInjections: number[] = [];
 
-    plugin = new DOMChangesPluginLite({ context, executionPolicy: 'data-only' });
+    plugin = new DOMChangesPluginLite({
+      context,
+      executionPolicy: 'data-only',
+    } as PluginConfig);
     plugin.on('change_blocked', data => {
       if (data?.change) {
         blockedChanges.push(data.change);
@@ -69,7 +72,9 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#attribute')?.hasAttribute('onclick')).toBe(false);
     expect(document.querySelector('#create')?.children).toHaveLength(0);
     expect(document.querySelector('[data-absmartly-injection]')).toBeNull();
-    expect((window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted).toBeUndefined();
+    expect(
+      (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted
+    ).toBeUndefined();
     expect(blockedChanges.map(change => change.type)).toEqual([
       'html',
       'javascript',
@@ -82,15 +87,21 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
   it('blocks script-capable changes passed through the public applyChange API', async () => {
     const context = createTestContext(createTestSDK(), { experiments: [] });
     const blockedChanges: DOMChange[] = [];
+    const failedChanges: DOMChange[] = [];
 
     plugin = new DOMChangesPluginLite({
       context,
       autoApply: false,
       executionPolicy: 'data-only',
-    });
+    } as PluginConfig);
     plugin.on('change_blocked', data => {
       if (data?.change) {
         blockedChanges.push(data.change);
+      }
+    });
+    plugin.on('change_failed', data => {
+      if (data?.change) {
+        failedChanges.push(data.change);
       }
     });
     await plugin.ready();
@@ -105,8 +116,11 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     );
 
     expect(result).toBe(false);
-    expect((window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted).toBeUndefined();
+    expect(
+      (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted
+    ).toBeUndefined();
     expect(blockedChanges.map(change => change.type)).toEqual(['javascript']);
+    expect(failedChanges).toEqual([]);
   });
 
   it('preserves script-capable behavior when the execution policy is omitted', async () => {

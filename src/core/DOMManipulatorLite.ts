@@ -151,6 +151,11 @@ export class DOMManipulatorLite {
   }
 
   applyChange(change: DOMChange, experimentName: string): boolean {
+    if (!this.plugin.isChangeAllowed(change)) {
+      this.plugin.reportBlockedChange(change, experimentName);
+      return false;
+    }
+
     if (isChangeDisabled(change)) {
       logDebug(`Skipping disabled change for experiment: ${experimentName}`, {
         experimentName,
