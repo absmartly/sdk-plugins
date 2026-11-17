@@ -21,6 +21,9 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       <div id="create"></div>
       <script id="script-target"></script>
       <svg><script id="svg-script-target"></script></svg>
+      <div id="move-top-level">Top level move payload</div>
+      <div id="move-value">Value move payload</div>
+      <div id="move-before">Safe sibling move</div>
     `;
     delete (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted;
   });
@@ -48,6 +51,23 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       },
       { selector: '#script-target', type: 'text', value: 'window.remoteCodeExecuted = true;' },
       { selector: '#svg-script-target', type: 'text', value: 'window.remoteCodeExecuted = true;' },
+      {
+        selector: '#move-top-level',
+        type: 'move',
+        targetSelector: '#script-target',
+        position: 'lastChild',
+      },
+      {
+        selector: '#move-value',
+        type: 'move',
+        value: { targetSelector: '#svg-script-target', position: 'firstChild' },
+      },
+      {
+        selector: '#move-before',
+        type: 'move',
+        targetSelector: '#script-target',
+        position: 'before',
+      },
     ];
     const experiment = createTestExperiment('security-policy', [
       {
@@ -63,6 +83,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
 
     plugin = new DOMChangesPluginLite({
       context,
+      spa: false,
       executionPolicy: 'data-only',
     } as PluginConfig);
     plugin.on('change_blocked', data => {
@@ -83,6 +104,9 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#create')?.children).toHaveLength(0);
     expect(document.querySelector('#script-target')?.textContent).toBe('');
     expect(document.querySelector('#svg-script-target')?.textContent).toBe('');
+    expect(document.querySelector('#move-top-level')?.parentElement).toBe(document.body);
+    expect(document.querySelector('#move-value')?.parentElement).toBe(document.body);
+    expect(document.querySelector('#script-target')?.previousElementSibling?.id).toBe('move-before');
     expect(document.querySelector('[data-absmartly-injection]')).toBeNull();
     expect(
       (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted
@@ -94,6 +118,8 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       'create',
       'text',
       'text',
+      'move',
+      'move',
     ]);
     expect(blockedInjections).toEqual([1]);
   });
