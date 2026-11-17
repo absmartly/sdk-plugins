@@ -21,9 +21,12 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       <div id="create"></div>
       <script id="script-target"></script>
       <svg><script id="svg-script-target"></script></svg>
+      <svg><script id="svg-script-parent"><g id="svg-script-child"><g id="svg-script-deep"></g></g></script></svg>
       <div id="move-top-level">Top level move payload</div>
       <div id="move-value">Value move payload</div>
       <div id="move-before">Safe sibling move</div>
+      <div id="move-before-script-child">Direct child move payload</div>
+      <div id="move-before-script-descendant">Nested descendant move payload</div>
       <div id="move-mixed-position">Mixed position payload</div>
       <div id="move-marker"></div>
       <div id="move-both-targets">Both targets payload</div>
@@ -127,6 +130,23 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
         position: 'before',
       },
       {
+        selector: '#move-before-script-child',
+        type: 'move',
+        targetSelector: '#svg-script-child',
+        position: 'before',
+      },
+      {
+        selector: '#move-before-script-descendant',
+        type: 'move',
+        targetSelector: '#svg-script-deep',
+        position: 'before',
+      },
+      {
+        selector: '#svg-script-child',
+        type: 'text',
+        value: 'window.remoteCodeExecuted = true;',
+      },
+      {
         selector: '#move-mixed-position',
         type: 'move',
         position: 'lastChild',
@@ -162,20 +182,67 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#svg-script-target')?.textContent).toBe('');
     expect(document.querySelector('#move-top-level')?.parentElement).toBe(document.body);
     expect(document.querySelector('#move-value')?.parentElement).toBe(document.body);
+    expect(document.querySelector('#move-before-script-child')?.parentElement).toBe(document.body);
+    expect(document.querySelector('#move-before-script-descendant')?.parentElement).toBe(
+      document.body
+    );
     expect(document.querySelector('#move-mixed-position')?.parentElement).toBe(document.body);
     expect(document.querySelector('#move-both-targets')?.parentElement?.id).toBe(
       'move-safe-target'
     );
     expect(document.querySelector('#move-both-targets-script')?.textContent).toBe('');
+    expect(document.querySelector('#svg-script-parent')?.textContent).toBe('');
     expect(document.querySelector('#script-target')?.previousElementSibling?.id).toBe(
       'move-mixed-position'
     );
     expect(blockedChanges.map(change => change.selector)).toEqual([
       '#move-top-level',
       '#move-value',
+      '#move-before-script-child',
+      '#move-before-script-descendant',
+      '#svg-script-child',
       '#move-mixed-position',
       '#move-both-targets',
     ]);
+  });
+
+  it('reports a refused pending move once', async () => {
+    const changes: DOMChange[] = [
+      { selector: '#safe', type: 'text', value: 'Allowed change' },
+      {
+        selector: '#move-pending',
+        type: 'move',
+        position: 'lastChild',
+        waitForElement: true,
+        value: { targetSelector: '#script-target', position: 'before' },
+      },
+    ];
+    const experiment = createTestExperiment('pending-move-policy', [
+      { config: { __dom_changes: changes } },
+    ]);
+    const context = createTestContext(createTestSDK(), { experiments: [experiment] });
+    const blockedChanges: DOMChange[] = [];
+
+    plugin = new DOMChangesPluginLite({
+      context,
+      spa: false,
+      executionPolicy: 'data-only',
+    } as PluginConfig);
+    plugin.on('change_blocked', data => {
+      if (data?.change) {
+        blockedChanges.push(data.change);
+      }
+    });
+    await plugin.ready();
+
+    const pendingElement = document.createElement('div');
+    pendingElement.id = 'move-pending';
+    pendingElement.textContent = 'Pending move payload';
+    document.body.appendChild(pendingElement);
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    expect(pendingElement.closest('script')).toBeNull();
+    expect(blockedChanges.map(change => change.selector)).toEqual(['#move-pending']);
   });
 
   it('blocks script-capable changes passed through the public applyChange API', async () => {

@@ -658,7 +658,7 @@ export class DOMManipulatorLite {
             if (
               !this.moveIntoAllowedDestination(element, target, position, change, experimentName)
             ) {
-              return false;
+              return true;
             }
           } else {
             return false;
