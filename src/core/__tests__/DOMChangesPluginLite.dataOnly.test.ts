@@ -331,6 +331,11 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
               type: 'javascript',
               value: 'window.remoteCodeExecuted = true;',
             },
+            {
+              selector: '#script-target',
+              type: 'text',
+              value: 'window.remoteCodeExecuted = true;',
+            },
           ],
         },
       },

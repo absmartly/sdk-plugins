@@ -801,7 +801,8 @@ export class DOMChangesPluginLite {
         return !!change.targetSelector && document.querySelector(change.targetSelector) !== null;
       }
 
-      return document.querySelector(change.selector) !== null;
+      const element = document.querySelector(change.selector);
+      return element !== null && this.isChangeAllowed(change, element);
     } catch (error) {
       if (this.config.debug) {
         logDebug('[ABsmartly] Failed to evaluate immediate DOM anchor:', {
