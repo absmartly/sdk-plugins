@@ -24,6 +24,11 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       <div id="move-top-level">Top level move payload</div>
       <div id="move-value">Value move payload</div>
       <div id="move-before">Safe sibling move</div>
+      <div id="move-mixed-position">Mixed position payload</div>
+      <div id="move-marker"></div>
+      <div id="move-both-targets">Both targets payload</div>
+      <script id="move-both-targets-script"></script>
+      <div id="move-safe-target"></div>
     `;
     delete (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted;
   });
@@ -121,6 +126,19 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
         targetSelector: '#script-target',
         position: 'before',
       },
+      {
+        selector: '#move-mixed-position',
+        type: 'move',
+        position: 'lastChild',
+        value: { targetSelector: '#script-target', position: 'before' },
+      },
+      {
+        selector: '#move-both-targets',
+        type: 'move',
+        targetSelector: '#move-marker + script',
+        position: 'lastChild',
+        value: { targetSelector: '#move-safe-target', position: 'lastChild' },
+      },
     ];
     const experiment = createTestExperiment('move-policy', [
       { config: { __dom_changes: changes } },
@@ -144,12 +162,19 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#svg-script-target')?.textContent).toBe('');
     expect(document.querySelector('#move-top-level')?.parentElement).toBe(document.body);
     expect(document.querySelector('#move-value')?.parentElement).toBe(document.body);
+    expect(document.querySelector('#move-mixed-position')?.parentElement).toBe(document.body);
+    expect(document.querySelector('#move-both-targets')?.parentElement?.id).toBe(
+      'move-safe-target'
+    );
+    expect(document.querySelector('#move-both-targets-script')?.textContent).toBe('');
     expect(document.querySelector('#script-target')?.previousElementSibling?.id).toBe(
-      'move-before'
+      'move-mixed-position'
     );
     expect(blockedChanges.map(change => change.selector)).toEqual([
       '#move-top-level',
       '#move-value',
+      '#move-mixed-position',
+      '#move-both-targets',
     ]);
   });
 
