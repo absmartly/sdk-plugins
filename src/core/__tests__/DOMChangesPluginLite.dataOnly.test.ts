@@ -422,6 +422,38 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     }
   );
 
+  it.each([0, 1])(
+    'keeps mixed-selector delete exposure symmetric for assigned variant %s',
+    async assignedVariant => {
+      document.body.innerHTML =
+        '<script id="anchor-script"></script><div id="anchor-safe">Original</div>';
+      const changes: DOMChange[] = [
+        {
+          selector: '#anchor-script, #anchor-safe',
+          type: 'delete',
+        },
+      ];
+      const experiment = createTestExperiment('mixed-selector-delete', [
+        { config: { __dom_changes: [] } },
+        { config: { __dom_changes: changes } },
+      ]);
+      const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+        'mixed-selector-delete': assignedVariant,
+      });
+
+      plugin = new DOMChangesPluginLite({
+        context: mockContext,
+        executionPolicy: 'data-only',
+        spa: false,
+      } as PluginConfig);
+      await plugin.ready();
+
+      expect(document.querySelector('#anchor-script')).not.toBeNull();
+      expect(document.querySelector('#anchor-safe') !== null).toBe(assignedVariant === 0);
+      expect(treatmentSpy).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('applies and exposes allowed changes when an experiment also contains blocked changes', async () => {
     const experiment = createTestExperiment('mixed-policy', [
       {
