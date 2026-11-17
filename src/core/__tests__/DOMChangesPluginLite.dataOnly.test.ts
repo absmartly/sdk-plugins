@@ -106,7 +106,9 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#svg-script-target')?.textContent).toBe('');
     expect(document.querySelector('#move-top-level')?.parentElement).toBe(document.body);
     expect(document.querySelector('#move-value')?.parentElement).toBe(document.body);
-    expect(document.querySelector('#script-target')?.previousElementSibling?.id).toBe('move-before');
+    expect(document.querySelector('#script-target')?.previousElementSibling?.id).toBe(
+      'move-before'
+    );
     expect(document.querySelector('[data-absmartly-injection]')).toBeNull();
     expect(
       (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted

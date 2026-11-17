@@ -500,13 +500,11 @@ export class DOMManipulatorLite {
     change: DOMChange,
     experimentName: string
   ): boolean {
-    if (
-      typeof this.plugin.isChangeAllowed === 'function' &&
-      !this.plugin.isChangeAllowed(change, element)
-    ) {
-      if (typeof this.plugin.reportBlockedChange === 'function') {
-        this.plugin.reportBlockedChange(change, experimentName);
-      }
+    if (!this.isElementAllowed(change, element, experimentName)) {
+      return false;
+    }
+
+    if (!this.areMoveDestinationsAllowed(change, experimentName)) {
       return false;
     }
 
@@ -566,6 +564,55 @@ export class DOMManipulatorLite {
       case 'delete':
         element.remove();
         break;
+    }
+
+    return true;
+  }
+
+  private isElementAllowed(change: DOMChange, element: Element, experimentName: string): boolean {
+    if (
+      typeof this.plugin.isChangeAllowed !== 'function' ||
+      this.plugin.isChangeAllowed(change, element)
+    ) {
+      return true;
+    }
+
+    if (typeof this.plugin.reportBlockedChange === 'function') {
+      this.plugin.reportBlockedChange(change, experimentName);
+    }
+    return false;
+  }
+
+  private areMoveDestinationsAllowed(change: DOMChange, experimentName: string): boolean {
+    if (change.type !== 'move' || typeof this.plugin.isChangeAllowed !== 'function') {
+      return true;
+    }
+
+    const value =
+      change.value && typeof change.value === 'object'
+        ? (change.value as Record<string, string>)
+        : undefined;
+    const destinations: Array<{ selector: string; position?: string }> = [];
+
+    if (value?.targetSelector) {
+      destinations.push({ selector: value.targetSelector, position: value.position });
+    }
+    if (change.targetSelector) {
+      destinations.push({
+        selector: change.targetSelector,
+        position: change.position || value?.position,
+      });
+    }
+
+    for (const destination of destinations) {
+      if (destination.position === 'before' || destination.position === 'after') {
+        continue;
+      }
+
+      const target = document.querySelector(destination.selector);
+      if (target && !this.isElementAllowed(change, target, experimentName)) {
+        return false;
+      }
     }
 
     return true;
