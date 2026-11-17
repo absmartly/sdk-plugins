@@ -101,7 +101,7 @@ const domPlugin = new DOMChangesPlugin({
 });
 ```
 
-The `data-only` policy applies to `DOMChangesPlugin`. It blocks `javascript`, `html`, `create`, and `attribute` DOM changes, `__inject_html`, and every change targeting a `script` element. Text, class, style, style-rule, move, and delete changes remain available for other elements. Allowed changes in mixed configurations are applied and exposed normally. Blocked DOM changes emit `change_blocked` with `change`, `experimentName`, `type`, and `reason`; blocked HTML injection emits `html_injection_blocked` with `count`, `type`, and `reason`.
+The `data-only` policy applies to `DOMChangesPlugin`. It blocks `javascript`, `html`, `create`, and `attribute` DOM changes, `__inject_html`, and allowed change types from writing into a `script` element. Text, class, style, style-rule, move, and delete changes remain available for other elements. Allowed changes in mixed configurations are applied and exposed normally. Blocked DOM changes emit `change_blocked` with `change`, `experimentName`, `type`, and `reason`; blocked HTML injection emits `html_injection_blocked` with `count`, `type`, and `reason`.
 
 The default is `allow-all` for compatibility with existing integrations. Configure `data-only` in trusted application code rather than experiment configuration so a compromised configuration writer cannot turn the protection off.
 

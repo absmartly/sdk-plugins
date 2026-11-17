@@ -1044,7 +1044,7 @@ export class DOMChangesPluginLite {
       return true;
     }
 
-    return !DATA_ONLY_BLOCKED_CHANGE_TYPES.has(change.type) && element?.tagName !== 'SCRIPT';
+    return !DATA_ONLY_BLOCKED_CHANGE_TYPES.has(change.type) && element?.localName !== 'script';
   }
 
   reportBlockedChange(change: DOMChange, experimentName: string): void {

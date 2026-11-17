@@ -20,6 +20,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       <div id="attribute">Original</div>
       <div id="create"></div>
       <script id="script-target"></script>
+      <svg><script id="svg-script-target"></script></svg>
     `;
     delete (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted;
   });
@@ -46,6 +47,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
         element: '<img src=x onerror="alert(1)">',
       },
       { selector: '#script-target', type: 'text', value: 'window.remoteCodeExecuted = true;' },
+      { selector: '#svg-script-target', type: 'text', value: 'window.remoteCodeExecuted = true;' },
     ];
     const experiment = createTestExperiment('security-policy', [
       {
@@ -80,6 +82,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#attribute')?.hasAttribute('onclick')).toBe(false);
     expect(document.querySelector('#create')?.children).toHaveLength(0);
     expect(document.querySelector('#script-target')?.textContent).toBe('');
+    expect(document.querySelector('#svg-script-target')?.textContent).toBe('');
     expect(document.querySelector('[data-absmartly-injection]')).toBeNull();
     expect(
       (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted
@@ -89,6 +92,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       'javascript',
       'attribute',
       'create',
+      'text',
       'text',
     ]);
     expect(blockedInjections).toEqual([1]);
