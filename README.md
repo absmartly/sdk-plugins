@@ -90,6 +90,23 @@ vitalsPlugin.ready().then(() => {
 });
 ```
 
+### Data-only DOM changes
+
+Remote experiment configuration can contain JavaScript, HTML, element creation, and attribute changes that execute in the host page's security context. Sites that do not require those capabilities can reject them independently of the experiment configuration:
+
+```javascript
+const domPlugin = new DOMChangesPlugin({
+  context,
+  executionPolicy: 'data-only'
+});
+```
+
+The `data-only` policy applies to `DOMChangesPlugin`. It blocks `javascript`, `html`, `create`, and `attribute` DOM changes, `__inject_html`, and allowed change types from writing into a `script` element. Text, class, style, style-rule, move, and delete changes remain available for other elements. Allowed changes in mixed configurations are applied and exposed normally. Blocked DOM changes emit `change_blocked` with `change`, `experimentName`, `type`, and `reason`; blocked HTML injection emits `html_injection_blocked` with `count`, `type`, and `reason`.
+
+The default is `allow-all` for compatibility with existing integrations. Configure `data-only` in trusted application code rather than experiment configuration so a compromised configuration writer cannot turn the protection off.
+
+This policy stops remote script execution through the DOM plugin, not all malicious content. Allowed CSS can make external requests, and text, move, or delete changes can still tamper with a page. Other plugins and server-side editor permissions require their own controls.
+
 ### With Experiment Overrides
 
 The OverridesPlugin enables experiment overrides for internal testing and development. Simply load it before SDK initialization and it will automatically check for and apply any overrides:

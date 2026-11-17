@@ -12,6 +12,8 @@ export type ChangeType =
 
 export type DOMChangeValue = string | number | boolean | Record<string, string> | undefined;
 
+export type DOMChangeExecutionPolicy = 'allow-all' | 'data-only';
+
 // URL filtering types
 export type URLFilterMode = 'simple' | 'regex';
 export type URLMatchType = 'full-url' | 'path' | 'domain' | 'query' | 'hash';
@@ -173,6 +175,7 @@ export interface PluginRegistration {
 export interface PluginConfig {
   context: ABsmartlyContext;
   autoApply?: boolean;
+  executionPolicy?: DOMChangeExecutionPolicy;
   /**
    * SPA mode - Enables features for Single Page Applications (React, Vue, Angular, etc.)
    * When enabled, automatically activates:

@@ -8,17 +8,31 @@ import {
   NormalizedURLFilter,
   ParsedDOMChangesConfig,
   ParsedDOMChangesData,
+  DOMChangeExecutionPolicy,
 } from '../types';
 import { DOMManipulatorLite } from './DOMManipulatorLite';
 import { VariantExtractor } from '../parsers/VariantExtractor';
 import { StyleSheetManager } from './StyleSheetManager';
 import { ExposureTracker } from './ExposureTracker';
 import { HTMLInjector } from './HTMLInjector';
-import { logDebug, logExperimentSummary, logPerformance, DEBUG } from '../utils/debug';
+import {
+  logDebug,
+  logExperimentSummary,
+  logPerformance,
+  logProductionWarn,
+  DEBUG,
+} from '../utils/debug';
 import { URLMatcher } from '../utils/URLMatcher';
 import { DOMPersistenceManager } from '../utils/persistence';
 import { registerPlugin, unregisterPlugin } from '../utils/plugin-registry';
 import { BUILD_VERSION } from '../generated/buildInfo';
+
+const DATA_ONLY_BLOCKED_CHANGE_TYPES: ReadonlySet<DOMChange['type']> = new Set([
+  'attribute',
+  'create',
+  'html',
+  'javascript',
+]);
 
 export class DOMChangesPluginLite {
   public static readonly VERSION: string = BUILD_VERSION;
@@ -42,9 +56,16 @@ export class DOMChangesPluginLite {
   private popstateHandler: ((event: PopStateEvent) => void) | null = null;
 
   constructor(config: PluginConfig) {
+    const requestedExecutionPolicy = config.executionPolicy as string | undefined;
+    const executionPolicy: DOMChangeExecutionPolicy =
+      requestedExecutionPolicy === undefined || requestedExecutionPolicy === 'allow-all'
+        ? 'allow-all'
+        : 'data-only';
+
     this.config = {
       context: config.context,
       autoApply: config.autoApply ?? true,
+      executionPolicy,
       spa: config.spa ?? true,
       visibilityTracking: config.visibilityTracking ?? true,
       variableName: config.variableName ?? '__dom_changes',
@@ -53,6 +74,16 @@ export class DOMChangesPluginLite {
       hideTimeout: config.hideTimeout ?? 3000,
       hideTransition: config.hideTransition ?? false,
     };
+
+    if (
+      requestedExecutionPolicy !== undefined &&
+      requestedExecutionPolicy !== 'allow-all' &&
+      requestedExecutionPolicy !== 'data-only'
+    ) {
+      logProductionWarn(
+        `[ABsmartly] Unknown executionPolicy "${requestedExecutionPolicy}"; using "data-only".`
+      );
+    }
 
     if (!this.config.context) {
       throw new Error('[ABsmartly] Context is required');
@@ -353,6 +384,22 @@ export class DOMChangesPluginLite {
       return;
     }
 
+    if (this.config.executionPolicy !== 'allow-all') {
+      const count = Array.from(allInjectHTML.values()).reduce(
+        (total, variantInjections) => total + variantInjections.size,
+        0
+      );
+      logProductionWarn(
+        `[ABsmartly] Blocked ${count} HTML injection configuration${count === 1 ? '' : 's'} because executionPolicy is "data-only".`
+      );
+      this.emit('html_injection_blocked', {
+        count,
+        type: 'security_policy',
+        reason: 'execution_policy',
+      });
+      return;
+    }
+
     const injectionsByLocation = this.htmlInjector.collectInjections(allInjectHTML, currentUrl);
     this.htmlInjector.inject(injectionsByLocation);
 
@@ -460,7 +507,7 @@ export class DOMChangesPluginLite {
       );
 
       // Extract changes for user's variant and apply global defaults
-      const changes = this.extractChangesFromData(variantData, globalDefaults);
+      const changes = this.extractChangesFromData(variantData, globalDefaults, expName);
 
       // Get all variant changes for cross-variant tracking (SRM prevention)
       const allVariantChanges = this.extractAllVariantChanges(expName);
@@ -864,7 +911,8 @@ export class DOMChangesPluginLite {
    */
   private extractChangesFromData(
     data: ParsedDOMChangesData | null,
-    globalDefaults: Partial<DOMChangesConfig>
+    globalDefaults: Partial<DOMChangesConfig>,
+    experimentName: string
   ): DOMChange[] | null {
     if (!data) {
       return null;
@@ -884,15 +932,25 @@ export class DOMChangesPluginLite {
     }
 
     // Apply global defaults to each change
-    return changes.map(change => ({
-      ...change,
-      waitForElement: change.waitForElement ?? globalDefaults.waitForElement,
-      persistStyle: change.persistStyle ?? globalDefaults.persistStyle,
-      persistAttribute: change.persistAttribute ?? globalDefaults.persistAttribute,
-      persistScript: change.persistScript ?? globalDefaults.persistScript,
-      important: change.important ?? globalDefaults.important,
-      observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
-    }));
+    const allowedChanges = changes
+      .map(change => ({
+        ...change,
+        waitForElement: change.waitForElement ?? globalDefaults.waitForElement,
+        persistStyle: change.persistStyle ?? globalDefaults.persistStyle,
+        persistAttribute: change.persistAttribute ?? globalDefaults.persistAttribute,
+        persistScript: change.persistScript ?? globalDefaults.persistScript,
+        important: change.important ?? globalDefaults.important,
+        observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
+      }))
+      .filter(change => {
+        if (this.isChangeAllowed(change)) {
+          return true;
+        }
+        this.reportBlockedChange(change, experimentName);
+        return false;
+      });
+
+    return allowedChanges.length > 0 ? allowedChanges : null;
   }
 
   /**
@@ -944,7 +1002,7 @@ export class DOMChangesPluginLite {
         observerRoot: change.observerRoot ?? globalDefaults.observerRoot,
       }));
 
-      processedVariants.push(processedChanges);
+      processedVariants.push(processedChanges.filter(change => this.isChangeAllowed(change)));
     }
 
     return processedVariants;
@@ -981,7 +1039,33 @@ export class DOMChangesPluginLite {
     return this.domManipulator.hasChanges(experimentName);
   }
 
+  isChangeAllowed(change: DOMChange, element?: Element): boolean {
+    if (this.config.executionPolicy === 'allow-all') {
+      return true;
+    }
+
+    return !DATA_ONLY_BLOCKED_CHANGE_TYPES.has(change.type) && !element?.closest('script');
+  }
+
+  reportBlockedChange(change: DOMChange, experimentName: string): void {
+    logProductionWarn(
+      `[ABsmartly] Blocked ${change.type} DOM change for "${experimentName}" because executionPolicy is "data-only".`,
+      { experimentName, selector: change.selector, changeType: change.type }
+    );
+    this.emit('change_blocked', {
+      change,
+      experimentName,
+      type: 'security_policy',
+      reason: 'execution_policy',
+    });
+  }
+
   applyChange(change: DOMChange, experimentName: string): boolean {
+    if (!this.isChangeAllowed(change)) {
+      this.reportBlockedChange(change, experimentName);
+      return false;
+    }
+
     logDebug('Applying single change via public API', {
       experimentName,
       selector: change.selector,

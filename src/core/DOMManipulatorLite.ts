@@ -247,7 +247,9 @@ export class DOMManipulatorLite {
           });
         }
 
-        this.applyChangeToElement(element, change);
+        if (!this.applyAllowedChangeToElement(element, change, experimentName)) {
+          continue;
+        }
 
         if (this.debug && change.type === 'style') {
           const appliedStyles: Record<string, string> = {};
@@ -320,8 +322,11 @@ export class DOMManipulatorLite {
           if (targetSelector) {
             const target = document.querySelector(targetSelector);
             if (target) {
-              this.moveElement(element, target, position);
-              appliedElements.push(element);
+              if (
+                this.moveIntoAllowedDestination(element, target, position, change, experimentName)
+              ) {
+                appliedElements.push(element);
+              }
             } else if (this.debug) {
               logDebug(`[ABsmartly] Move target not found: ${targetSelector}`);
             }
@@ -490,6 +495,18 @@ export class DOMManipulatorLite {
   }
 
   applyChangeToElement(element: Element, change: DOMChange): void {
+    this.applyAllowedChangeToElement(element, change, 'manual-change');
+  }
+
+  private applyAllowedChangeToElement(
+    element: Element,
+    change: DOMChange,
+    experimentName: string
+  ): boolean {
+    if (!this.isElementAllowed(change, element, experimentName)) {
+      return false;
+    }
+
     switch (change.type) {
       case 'text':
         if (change.value !== undefined) {
@@ -537,7 +554,13 @@ export class DOMManipulatorLite {
           };
           const target = document.querySelector(moveValue.targetSelector);
           if (target) {
-            this.moveElement(element, target, moveValue.position);
+            return this.moveIntoAllowedDestination(
+              element,
+              target,
+              moveValue.position,
+              change,
+              experimentName
+            );
           } else if (this.debug) {
             logDebug(`[ABsmartly] Move target not found: ${moveValue.targetSelector}`);
           }
@@ -547,6 +570,39 @@ export class DOMManipulatorLite {
         element.remove();
         break;
     }
+
+    return true;
+  }
+
+  private isElementAllowed(change: DOMChange, element: Element, experimentName: string): boolean {
+    if (
+      typeof this.plugin.isChangeAllowed !== 'function' ||
+      this.plugin.isChangeAllowed(change, element)
+    ) {
+      return true;
+    }
+
+    if (typeof this.plugin.reportBlockedChange === 'function') {
+      this.plugin.reportBlockedChange(change, experimentName);
+    }
+    return false;
+  }
+
+  private moveIntoAllowedDestination(
+    element: Element,
+    target: Element,
+    position: string | undefined,
+    change: DOMChange,
+    experimentName: string
+  ): boolean {
+    const destination =
+      position === 'before' || position === 'after' ? target.parentElement : target;
+    if (destination && !this.isElementAllowed(change, destination, experimentName)) {
+      return false;
+    }
+
+    this.moveElement(element, target, position);
+    return true;
   }
 
   private applyChangeToSpecificElement(
@@ -555,7 +611,9 @@ export class DOMManipulatorLite {
     element: HTMLElement
   ): boolean {
     try {
-      this.applyChangeToElement(element, change);
+      if (!this.applyAllowedChangeToElement(element, change, experimentName)) {
+        return false;
+      }
 
       if (change.type === 'javascript' && change.value) {
         if (this.debug) {
@@ -597,7 +655,11 @@ export class DOMManipulatorLite {
         if (targetSelector) {
           const target = document.querySelector(targetSelector);
           if (target) {
-            this.moveElement(element, target, position);
+            if (
+              !this.moveIntoAllowedDestination(element, target, position, change, experimentName)
+            ) {
+              return true;
+            }
           } else {
             return false;
           }
