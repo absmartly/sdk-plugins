@@ -101,9 +101,11 @@ const domPlugin = new DOMChangesPlugin({
 });
 ```
 
-The `data-only` policy blocks `javascript`, `html`, `create`, and `attribute` DOM changes, along with `__inject_html`. Text, class, style, style-rule, move, and delete changes remain available. Blocked DOM changes emit `change_blocked`; blocked HTML injection emits `html_injection_blocked`.
+The `data-only` policy applies to `DOMChangesPlugin`. It blocks `javascript`, `html`, `create`, and `attribute` DOM changes, `__inject_html`, and every change targeting a `script` element. Text, class, style, style-rule, move, and delete changes remain available for other elements. Allowed changes in mixed configurations are applied and exposed normally. Blocked DOM changes emit `change_blocked` with `change`, `experimentName`, `type`, and `reason`; blocked HTML injection emits `html_injection_blocked` with `count`, `type`, and `reason`.
 
 The default is `allow-all` for compatibility with existing integrations. Configure `data-only` in trusted application code rather than experiment configuration so a compromised configuration writer cannot turn the protection off.
+
+This policy stops remote script execution through the DOM plugin, not all malicious content. Allowed CSS can make external requests, and text, move, or delete changes can still tamper with a page. Other plugins and server-side editor permissions require their own controls.
 
 ### With Experiment Overrides
 

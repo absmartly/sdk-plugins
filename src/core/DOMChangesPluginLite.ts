@@ -8,6 +8,7 @@ import {
   NormalizedURLFilter,
   ParsedDOMChangesConfig,
   ParsedDOMChangesData,
+  DOMChangeExecutionPolicy,
 } from '../types';
 import { DOMManipulatorLite } from './DOMManipulatorLite';
 import { VariantExtractor } from '../parsers/VariantExtractor';
@@ -55,10 +56,16 @@ export class DOMChangesPluginLite {
   private popstateHandler: ((event: PopStateEvent) => void) | null = null;
 
   constructor(config: PluginConfig) {
+    const requestedExecutionPolicy = config.executionPolicy as string | undefined;
+    const executionPolicy: DOMChangeExecutionPolicy =
+      requestedExecutionPolicy === undefined || requestedExecutionPolicy === 'allow-all'
+        ? 'allow-all'
+        : 'data-only';
+
     this.config = {
       context: config.context,
       autoApply: config.autoApply ?? true,
-      executionPolicy: config.executionPolicy ?? 'allow-all',
+      executionPolicy,
       spa: config.spa ?? true,
       visibilityTracking: config.visibilityTracking ?? true,
       variableName: config.variableName ?? '__dom_changes',
@@ -67,6 +74,16 @@ export class DOMChangesPluginLite {
       hideTimeout: config.hideTimeout ?? 3000,
       hideTransition: config.hideTransition ?? false,
     };
+
+    if (
+      requestedExecutionPolicy !== undefined &&
+      requestedExecutionPolicy !== 'allow-all' &&
+      requestedExecutionPolicy !== 'data-only'
+    ) {
+      logProductionWarn(
+        `[ABsmartly] Unknown executionPolicy "${requestedExecutionPolicy}"; using "data-only".`
+      );
+    }
 
     if (!this.config.context) {
       throw new Error('[ABsmartly] Context is required');
@@ -367,7 +384,7 @@ export class DOMChangesPluginLite {
       return;
     }
 
-    if (this.config.executionPolicy === 'data-only') {
+    if (this.config.executionPolicy !== 'allow-all') {
       const count = Array.from(allInjectHTML.values()).reduce(
         (total, variantInjections) => total + variantInjections.size,
         0
@@ -1022,11 +1039,12 @@ export class DOMChangesPluginLite {
     return this.domManipulator.hasChanges(experimentName);
   }
 
-  isChangeAllowed(change: DOMChange): boolean {
-    return (
-      this.config.executionPolicy === 'allow-all' ||
-      !DATA_ONLY_BLOCKED_CHANGE_TYPES.has(change.type)
-    );
+  isChangeAllowed(change: DOMChange, element?: Element): boolean {
+    if (this.config.executionPolicy === 'allow-all') {
+      return true;
+    }
+
+    return !DATA_ONLY_BLOCKED_CHANGE_TYPES.has(change.type) && element?.tagName !== 'SCRIPT';
   }
 
   reportBlockedChange(change: DOMChange, experimentName: string): void {

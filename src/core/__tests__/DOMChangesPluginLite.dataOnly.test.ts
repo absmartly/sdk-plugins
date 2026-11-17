@@ -1,5 +1,11 @@
 import { DOMChangesPluginLite } from '../DOMChangesPluginLite';
-import { createTestContext, createTestExperiment, createTestSDK } from '../../__tests__/sdk-helper';
+import { DOMManipulatorLite } from '../DOMManipulatorLite';
+import {
+  createTestContext,
+  createTestExperiment,
+  createTestSDK,
+  createTreatmentTracker,
+} from '../../__tests__/sdk-helper';
 import { DOMChange, PluginConfig } from '../../types';
 
 describe('DOMChangesPluginLite data-only execution policy', () => {
@@ -13,6 +19,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       <div id="javascript">Original</div>
       <div id="attribute">Original</div>
       <div id="create"></div>
+      <script id="script-target"></script>
     `;
     delete (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted;
   });
@@ -38,6 +45,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
         targetSelector: '#create',
         element: '<img src=x onerror="alert(1)">',
       },
+      { selector: '#script-target', type: 'text', value: 'window.remoteCodeExecuted = true;' },
     ];
     const experiment = createTestExperiment('security-policy', [
       {
@@ -71,6 +79,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     expect(document.querySelector('#javascript')?.textContent).toBe('Original');
     expect(document.querySelector('#attribute')?.hasAttribute('onclick')).toBe(false);
     expect(document.querySelector('#create')?.children).toHaveLength(0);
+    expect(document.querySelector('#script-target')?.textContent).toBe('');
     expect(document.querySelector('[data-absmartly-injection]')).toBeNull();
     expect(
       (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted
@@ -80,6 +89,7 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
       'javascript',
       'attribute',
       'create',
+      'text',
     ]);
     expect(blockedInjections).toEqual([1]);
   });
@@ -143,5 +153,106 @@ describe('DOMChangesPluginLite data-only execution policy', () => {
     await plugin.ready();
 
     expect((window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted).toBe(true);
+  });
+
+  it('preserves compatibility with DOM manipulator plugin objects from the published API', () => {
+    const legacyPlugin = {
+      config: { context: { peek: () => 0 }, spa: false },
+      reapplyingElements: new Set<Element>(),
+    } as unknown as DOMChangesPluginLite;
+    const manipulator = new DOMManipulatorLite(false, legacyPlugin);
+
+    expect(
+      manipulator.applyChange({ selector: '#safe', type: 'text', value: 'Compatible' }, 'legacy')
+    ).toBe(true);
+    expect(document.querySelector('#safe')?.textContent).toBe('Compatible');
+
+    manipulator.destroy();
+  });
+
+  it('does not expose an experiment when every configured change is blocked', async () => {
+    const experiment = createTestExperiment('blocked-only', [
+      {
+        config: {
+          __dom_changes: [
+            {
+              selector: '#javascript',
+              type: 'javascript',
+              value: 'window.remoteCodeExecuted = true;',
+            },
+          ],
+        },
+      },
+    ]);
+    const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+      'blocked-only': 0,
+    });
+
+    plugin = new DOMChangesPluginLite({
+      context: mockContext,
+      executionPolicy: 'data-only',
+    } as PluginConfig);
+    await plugin.ready();
+
+    expect(treatmentSpy).not.toHaveBeenCalled();
+  });
+
+  it('applies and exposes allowed changes when an experiment also contains blocked changes', async () => {
+    const experiment = createTestExperiment('mixed-policy', [
+      {
+        config: {
+          __dom_changes: [
+            { selector: '#safe', type: 'text', value: 'Allowed' },
+            {
+              selector: '#javascript',
+              type: 'javascript',
+              value: 'window.remoteCodeExecuted = true;',
+            },
+          ],
+        },
+      },
+    ]);
+    const { mockContext, treatmentSpy } = createTreatmentTracker([experiment], {
+      'mixed-policy': 0,
+    });
+
+    plugin = new DOMChangesPluginLite({
+      context: mockContext,
+      executionPolicy: 'data-only',
+    } as PluginConfig);
+    await plugin.ready();
+
+    expect(document.querySelector('#safe')?.textContent).toBe('Allowed');
+    expect(treatmentSpy).toHaveBeenCalledWith('mixed-policy');
+    expect(treatmentSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when JavaScript consumers provide an unknown execution policy', async () => {
+    const experiment = createTestExperiment('invalid-policy', [
+      {
+        config: {
+          __dom_changes: [
+            {
+              selector: '#javascript',
+              type: 'javascript',
+              value: 'window.remoteCodeExecuted = true;',
+            },
+          ],
+          __inject_html: { headEnd: '<script>window.remoteCodeExecuted = true</script>' },
+        },
+      },
+    ]);
+    const context = createTestContext(createTestSDK(), { experiments: [experiment] });
+
+    plugin = new DOMChangesPluginLite({
+      context,
+      executionPolicy: 'data_only',
+    } as unknown as PluginConfig);
+    await plugin.ready();
+
+    expect(document.querySelector('[data-absmartly-injection]')).toBeNull();
+    expect(
+      (window as Window & { remoteCodeExecuted?: boolean }).remoteCodeExecuted
+    ).toBeUndefined();
   });
 });

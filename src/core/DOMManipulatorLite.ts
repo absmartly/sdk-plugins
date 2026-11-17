@@ -151,11 +151,6 @@ export class DOMManipulatorLite {
   }
 
   applyChange(change: DOMChange, experimentName: string): boolean {
-    if (!this.plugin.isChangeAllowed(change)) {
-      this.plugin.reportBlockedChange(change, experimentName);
-      return false;
-    }
-
     if (isChangeDisabled(change)) {
       logDebug(`Skipping disabled change for experiment: ${experimentName}`, {
         experimentName,
@@ -252,7 +247,9 @@ export class DOMManipulatorLite {
           });
         }
 
-        this.applyChangeToElement(element, change);
+        if (!this.applyAllowedChangeToElement(element, change, experimentName)) {
+          continue;
+        }
 
         if (this.debug && change.type === 'style') {
           const appliedStyles: Record<string, string> = {};
@@ -495,6 +492,24 @@ export class DOMManipulatorLite {
   }
 
   applyChangeToElement(element: Element, change: DOMChange): void {
+    this.applyAllowedChangeToElement(element, change, 'manual-change');
+  }
+
+  private applyAllowedChangeToElement(
+    element: Element,
+    change: DOMChange,
+    experimentName: string
+  ): boolean {
+    if (
+      typeof this.plugin.isChangeAllowed === 'function' &&
+      !this.plugin.isChangeAllowed(change, element)
+    ) {
+      if (typeof this.plugin.reportBlockedChange === 'function') {
+        this.plugin.reportBlockedChange(change, experimentName);
+      }
+      return false;
+    }
+
     switch (change.type) {
       case 'text':
         if (change.value !== undefined) {
@@ -552,6 +567,8 @@ export class DOMManipulatorLite {
         element.remove();
         break;
     }
+
+    return true;
   }
 
   private applyChangeToSpecificElement(
@@ -560,7 +577,9 @@ export class DOMManipulatorLite {
     element: HTMLElement
   ): boolean {
     try {
-      this.applyChangeToElement(element, change);
+      if (!this.applyAllowedChangeToElement(element, change, experimentName)) {
+        return false;
+      }
 
       if (change.type === 'javascript' && change.value) {
         if (this.debug) {
